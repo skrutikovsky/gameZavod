@@ -1,5 +1,17 @@
-```javascript
-// No build artifacts, dependencies, or temporary files detected in changes
-// Only source code files (.jsx, .js) were modified
-// No .gitignore rules needed
+```
+# Build artifacts
+dist/
+build/
+*.js
+
+# Dependencies
+node_modules/
+
+# Editors
+.vscode/
+
+# Environment
+.env
+.env.local
+*.env.*
 ```
