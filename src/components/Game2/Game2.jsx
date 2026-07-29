@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useGame2 } from '../../hooks/useGame2';
+import { useGame2 } from '../../hooks/useGame2.js';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
