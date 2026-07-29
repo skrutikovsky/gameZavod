@@ -27,7 +27,7 @@ export function useGame2() {
     beltStopped: false,
     levelCompleteShown: false
   });
-
+  
   const boxesRef = useRef([]);
   const gameStateRef = useRef(null);
   const gameStartTimeRef = useRef(0);
@@ -35,10 +35,12 @@ export function useGame2() {
   const lastSpawnTimeRef = useRef(0);
   const containerCapacityRef = useRef(5);
   const containerCountRef = useRef(0);
+  const handPositionRef = useRef('left');
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
     gameStateRef.current = gameState;
+    handPositionRef.current = gameState.handPosition;
   }, [gameState]);
 
   const resetGame = useCallback(() => {
@@ -123,50 +125,101 @@ export function useGame2() {
     let newComboCount = currentState.comboCount;
     let newMultiplier = currentState.multiplier;
     let currentSpeed = conveyorSpeedRef.current;
+    
+    // Определяем позицию руки (в процентах от высоты)
+    const handY = HAND_POSITION_Y;
+    const handX = handPositionRef.current === 'left' ? 35 : 55; // позиции руки
+    const beltCenterX = 50; // центр конвейера
+    const boxHalfWidthPercent = 12.5; // половина ширины конвейера (25% / 2)
+    
+    // Проверяем, находится ли рука над конвейером
+    const isHandOverBelt = Math.abs(handX - beltCenterX) <= boxHalfWidthPercent;
+    const isHandBlocking = currentState.handActive && isHandOverBelt;
 
-    // Если рука активна, останавливаем коробки
-    if (currentState.handActive) {
-      boxesRef.current.forEach(box => {
-        box.stopped = true;
-      });
-    } else {
-      // Если рука не активна, возобновляем движение и спавним контейнер если нужно
-      boxesRef.current.forEach(box => {
-        if (box.stopped) {
-          box.stopped = false;
-          box.y += currentSpeed;
-        } else {
-          box.y += currentSpeed;
+    // Сортируем коробки по позиции Y (сверху вниз)
+    boxesRef.current.sort((a, b) => a.y - b.y);
+    
+    // Если рука активна и над конвейером, она действует как физический барьер
+    if (isHandBlocking) {
+      // Находим первую коробку, которая достигла позиции руки
+      let firstBoxAtHand = null;
+      for (let i = 0; i < boxesRef.current.length; i++) {
+        const box = boxesRef.current[i];
+        // Коробка достигает руки, если её низ достиг позиции руки
+        const boxBottom = box.y + 10; // примерно низ коробки в %
+        if (boxBottom >= handY && !box.stopped) {
+          box.stopped = true;
+          if (!firstBoxAtHand) {
+            firstBoxAtHand = box;
+          }
         }
+      }
+      
+      // Если есть коробка, остановленная рукой, все коробки выше неё тоже останавливаются (цепочка)
+      if (firstBoxAtHand) {
+        for (let i = 0; i < boxesRef.current.length; i++) {
+          const box = boxesRef.current[i];
+          if (box.y < firstBoxAtHand.y) {
+            box.stopped = true;
+          }
+        }
+      }
+    } else {
+      // Рука не блокирует - все коробки двигаются
+      boxesRef.current.forEach(box => {
+        box.stopped = false;
       });
+    }
+    
+    // Двигаем все не остановленные коробки
+    boxesRef.current.forEach(box => {
+      if (!box.stopped) {
+        box.y += currentSpeed;
+      }
+    });
 
-      // Спавн контейнера когда нет активного
-      if (!currentState.container && !currentState.containerSpawning) {
+    // Проверяем переполнение: если есть остановленная коробка у люка (верхняя часть)
+    const boxAtSpawn = boxesRef.current.some(box => box.stopped && box.y < 20);
+    if (boxAtSpawn && boxesRef.current.length >= MAX_BOXES_ON_BELT) {
+      if (!currentState.beltStopped) {
         setGameState(prev => ({
           ...prev,
-          containerSpawning: true
+          beltStopped: true
         }));
-
-        setTimeout(() => {
-          containerCountRef.current = 0;
-          setGameState(prev => ({
-            ...prev,
-            containerSpawning: false,
-            container: {
-              y: 88,
-              count: 0,
-              capacity: containerCapacityRef.current
-            }
-          }));
-        }, 1500);
       }
+    } else if (currentState.beltStopped && !boxAtSpawn) {
+      setGameState(prev => ({
+        ...prev,
+        beltStopped: false
+      }));
+    }
+
+    // Спавн контейнера когда нет активного (только если рука не блокирует)
+    if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
+      setGameState(prev => ({
+        ...prev,
+        containerSpawning: true
+      }));
+
+      setTimeout(() => {
+        containerCountRef.current = 0;
+        setGameState(prev => ({
+          ...prev,
+          containerSpawning: false,
+          container: {
+            y: 88,
+            count: 0,
+            capacity: containerCapacityRef.current
+          }
+        }));
+      }, 1500);
     }
 
     // Проверяем коробки, достигшие контейнера
     boxesRef.current = boxesRef.current.filter(box => {
       if (box.y > 95) {
         // Коробка достигла зоны контейнера
-        if (currentState.container && !currentState.handActive) {
+        if (currentState.container && !isHandBlocking) {
           // Успешно попала в контейнер
           containerCountRef.current++;
           boxesFixedThisUpdate++;
