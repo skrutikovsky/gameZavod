@@ -87,6 +87,24 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
   };
 
+  useEffect(() => {
+    const container = gameContainerRef.current;
+    if (container) {
+      container.focus();
+      container.addEventListener('keydown', handleKeyDown);
+      return () => {
+        container.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [moveHand]);
+
+  // Фокус на контейнер при старте игры для работы клавиатуры
+  useEffect(() => {
+    if (gameState.isRunning && gameContainerRef.current) {
+      gameContainerRef.current.focus();
+    }
+  }, [gameState.isRunning]);
+
   const handleTouchMove = (e) => {
     const containerRect = gameContainerRef.current?.getBoundingClientRect();
     if (!containerRect) return;
@@ -120,7 +138,6 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     <div 
       ref={gameContainerRef}
       className="game-container relative w-full h-screen overflow-hidden"
-      onKeyDown={handleKeyDown}
       onTouchMove={handleTouchMove}
       tabIndex={0}
     >
@@ -138,7 +155,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {/* Кнопка назад в меню - позиция изменена чтобы не заползать на статистику */}
       <button
         onClick={onBack}
-        className="absolute top-20 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
+        className="absolute top-4 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
       >
         ←
       </button>

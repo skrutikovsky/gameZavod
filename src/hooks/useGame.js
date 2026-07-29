@@ -5,11 +5,12 @@ const HAND_POSITION_Y = 85; // Позиция руки в процентах о�
 const FIX_ZONE_Y_START = 75; // Зона исправления開始 (в %)
 const FIX_ZONE_Y_END = 82; // Зона исправления конец (в %)
 const INITIAL_LIVES = 3;
-const BASE_CONVEYOR_SPEED = 0.25; // Скорость движения коробок (% в кадр)
-const BASE_SPAWN_RATE = 900; // Интервал спавна в мс
+const BASE_CONVEYOR_SPEED = 0.35; // Базовая скорость движения коробок (% в кадр) - увеличено
+const BASE_SPAWN_RATE = 800; // Интервал спавна в мс - уменьшено для сложности
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
-const SPEED_INCREASE_RATE = 0.02; // Увеличение скорости каждые 10 секунд
-const MIN_SPAWN_RATE = 400; // Минимальный интервал спавна
+const SPEED_INCREASE_RATE = 0.03; // Увеличение скорости каждые 5 секунд - увеличено
+const MIN_SPAWN_RATE = 350; // Минимальный интервал спавна
+const SPEED_INCREASE_INTERVAL = 5000; // Интервал увеличения скорости в мс (5 секунд)
 
 export function useGame() {
   const [gameState, setGameState] = useState({
@@ -147,7 +148,8 @@ export function useGame() {
         comboCount: newComboCount,
         multiplier: newMultiplier,
         maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
-        score: prev.score + Math.floor(100 * newMultiplier) + turnBonus
+        score: prev.score + Math.floor(100 * newMultiplier) + turnBonus,
+        handPosition: handPosition // Сохраняем позицию руки для консистентности
       };
     });
   }, []);
@@ -197,10 +199,6 @@ export function useGame() {
                   checked: true,
                   type: 'straight'
                 };
-              } else {
-                // Если коробка не была повернута игроком (рука не в правильном положении), 
-                // помечаем что жизнь будет потеряна
-                box.pendingLifeLoss = true;
               }
             }
           }
@@ -236,13 +234,13 @@ export function useGame() {
         gameOver = true;
       }
 
-      // Увеличиваем скорость со временем
+      // Увеличиваем скорость со временем - более агрессивное увеличение
       const elapsedTime = Date.now() - gameStartTimeRef.current;
-      const speedIncrease = Math.min(elapsedTime / 10000 * SPEED_INCREASE_RATE, 1.5); // Увеличение скорости каждые 10 секунд
+      const speedIncrease = Math.min(elapsedTime / SPEED_INCREASE_INTERVAL * SPEED_INCREASE_RATE, 2.0);
       const newConveyorSpeed = BASE_CONVEYOR_SPEED * (1 + speedIncrease);
       
       // Уменьшаем интервал спавна со временем (увеличиваем сложность)
-      const spawnRateDecrease = Math.min(elapsedTime / 10000 * 50, BASE_SPAWN_RATE - MIN_SPAWN_RATE);
+      const spawnRateDecrease = Math.min(elapsedTime / SPEED_INCREASE_INTERVAL * 50, BASE_SPAWN_RATE - MIN_SPAWN_RATE);
       const newSpawnRate = Math.max(MIN_SPAWN_RATE, BASE_SPAWN_RATE - spawnRateDecrease);
 
       return {

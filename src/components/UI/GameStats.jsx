@@ -2,7 +2,7 @@ import React from 'react';
 
 export function GameStats({ score, lives, multiplier, boxesFixed, comboCount, gameTime, formatTime }) {
   return (
-    <div className="absolute top-16 left-0 right-0 flex justify-between items-center px-8 py-3 bg-black/60 text-white text-xl w-full z-30 backdrop-blur-sm border-b border-white/20">
+    <div className="absolute top-24 left-0 right-0 flex justify-between items-center px-8 py-3 bg-black/60 text-white text-xl w-full z-30 backdrop-blur-sm border-b border-white/20">
       <div className="flex gap-8">
         <div className="flex flex-col items-center">
           <span className="text-xs opacity-80 uppercase tracking-wider">Счёт</span>
