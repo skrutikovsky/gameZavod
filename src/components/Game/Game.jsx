@@ -6,9 +6,6 @@ import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
 
-const BOX_SIZE = 240; // Увеличенный размер коробки (в 2 раза больше)
-const HAND_TOUCH_OFFSET = 60; // Увеличенное расстояние касания (в 2 раза больше)
-
 const Game = ({ level, onGameOver, onBack }) => {
   const {
     gameState,
@@ -17,14 +14,15 @@ const Game = ({ level, onGameOver, onBack }) => {
     spawnBox,
     startGame,
     stopGame,
-    resetGame
+    resetGame,
+    BOX_SIZE,
+    BELT_LENGTH
   } = useGame();
 
   const gameContainerRef = useRef(null);
   const requestRef = useRef(null);
   const lastTimeRef = useRef(0);
-
-  const beltHeight = 600;
+  const lastSpawnRef = useRef(0);
 
   useEffect(() => {
     startGame();
@@ -39,12 +37,13 @@ const Game = ({ level, onGameOver, onBack }) => {
     const deltaTime = time - lastTimeRef.current;
     lastTimeRef.current = time;
 
-    if (time - gameState.lastSpawnTime > gameState.spawnRate) {
-      const newBox = spawnBox();
-      // Добавляем новую коробку в массив
+    // Спавн коробок с учетом времени и расстояния между ними
+    if (time - lastSpawnRef.current > gameState.spawnRate) {
+      spawnBox();
+      lastSpawnRef.current = time;
     }
 
-    updateBoxes(beltHeight, deltaTime);
+    updateBoxes(BELT_LENGTH, deltaTime);
 
     requestRef.current = requestAnimationFrame(gameLoop);
   };
@@ -52,6 +51,7 @@ const Game = ({ level, onGameOver, onBack }) => {
   useEffect(() => {
     if (gameState.isRunning) {
       lastTimeRef.current = performance.now();
+      lastSpawnRef.current = performance.now();
       requestRef.current = requestAnimationFrame(gameLoop);
     } else {
       if (requestRef.current) {
@@ -64,7 +64,7 @@ const Game = ({ level, onGameOver, onBack }) => {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [gameState.isRunning, gameState.lastSpawnTime]);
+  }, [gameState.isRunning]);
 
   const handleMouseMove = (e) => {
     const containerRect = gameContainerRef.current?.getBoundingClientRect();
@@ -112,7 +112,7 @@ const Game = ({ level, onGameOver, onBack }) => {
         className="conveyor-belt absolute left-1/2 transform -translate-x-1/2"
         style={{
           width: '400px',
-          height: `${beltHeight}px`,
+          height: `${BELT_LENGTH}px`,
           top: '0'
         }}
       >
