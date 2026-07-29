@@ -36,11 +36,13 @@ export function useGame2() {
   const containerCapacityRef = useRef(5);
   const containerCountRef = useRef(0);
   const handPositionRef = useRef('left');
+  const handActiveRef = useRef(false); // Добавляем ref для активного состояния руки
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
     gameStateRef.current = gameState;
     handPositionRef.current = gameState.handPosition;
+    handActiveRef.current = gameState.handActive; // Синхронизируем handActive с ref
   }, [gameState]);
 
   const resetGame = useCallback(() => {
@@ -102,7 +104,8 @@ export function useGame2() {
     const newBox = {
       id: Date.now() + Math.random(),
       y: -20,
-      stopped: false
+      stopped: false,
+      items: Math.floor(Math.random() * 6) + 2 // Рандомное количество упаковок от 2 до 7
     };
 
     boxesRef.current = [...boxesRef.current, newBox];
@@ -134,7 +137,7 @@ export function useGame2() {
     
     // Проверяем, находится ли рука над конвейером
     const isHandOverBelt = Math.abs(handX - beltCenterX) <= boxHalfWidthPercent;
-    const isHandBlocking = currentState.handActive && isHandOverBelt;
+    const isHandBlocking = handActiveRef.current && isHandOverBelt; // Используем ref вместо state
 
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
@@ -215,7 +218,7 @@ export function useGame2() {
       }, 1500);
     }
 
-    // Проверяем коробки, достигшие контейнера
+    // Проверяем коробки, достигшие контейнера или пропущенные мимо
     boxesRef.current = boxesRef.current.filter(box => {
       if (box.y > 95) {
         // Коробка достигла зоны контейнера
@@ -257,11 +260,23 @@ export function useGame2() {
             currentSpeed = currentSpeed * 1.02;
             conveyorSpeedRef.current = currentSpeed;
           }
+        } else {
+          // Коробка пропущена мимо контейнера - теряем жизнь
+          livesLost++;
         }
         return false;
       }
       return true;
     });
+
+    // Обновляем жизни если потеряли
+    if (livesLost > 0) {
+      const newLives = Math.max(0, currentState.lives - livesLost);
+      setGameState(prev => ({
+        ...prev,
+        lives: newLives
+      }));
+    }
 
     // Обновляем состояние
     setGameState(prev => ({

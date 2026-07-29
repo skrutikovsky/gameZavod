@@ -109,7 +109,10 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   }, [gameState.isRunning]);
 
   // Обработка мыши
-  const handleMouseDown = () => {
+  const handleMouseDown = (e) => {
+    // Переключаем позицию руки при клике
+    const newPosition = gameState.handPosition === 'left' ? 'right' : 'left';
+    moveHand(newPosition);
     setHandActive(true);
   };
 
@@ -207,13 +210,15 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.boxes.map((box) => (
           <div
             key={box.id}
-            className={`absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 rounded-md border-2 border-yellow-800 shadow-md ${box.stopped ? 'opacity-80' : ''}`}
+            className={`absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 rounded-md border-2 border-yellow-800 shadow-md flex items-center justify-center ${box.stopped ? 'opacity-80' : ''}`}
             style={{
               top: `${box.y}%`,
               width: `${BOX_SIZE}px`,
               height: `${BOX_SIZE}px`,
             }}
-          />
+          >
+            <span className="text-white text-xl font-bold">{box.items}</span>
+          </div>
         ))}
       </div>
 
