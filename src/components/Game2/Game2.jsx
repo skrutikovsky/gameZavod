@@ -77,11 +77,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   }, [gameState.isRunning, gameState.beltStopped]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'Ф' || e.key === 'ф') {
-      moveHand('left');
-    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'В' || e.key === 'в') {
-      moveHand('right');
-    } else if (e.key === ' ' || e.code === 'Space') {
+    if (e.key === ' ' || e.code === 'Space') {
       e.preventDefault();
       setHandActive(true);
     }
@@ -90,8 +86,6 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const handleKeyUp = (e) => {
     if (e.key === ' ' || e.code === 'Space') {
       setHandActive(false);
-      // Сбрасываем stopped у всех коробок при отпускании руки
-      // Это будет обработано в хуке при следующем обновлении
     }
   };
 
