@@ -292,6 +292,7 @@ export function useGame() {
     resetGame,
     BOX_SIZE,
     BELT_WIDTH_PERCENT,
-    HAND_POSITION_Y
+    HAND_POSITION_Y,
+    BOX_GAP_PIXELS
   };
 }

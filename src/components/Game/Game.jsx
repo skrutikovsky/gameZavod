@@ -18,7 +18,8 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     resetGame,
     BOX_SIZE,
     BELT_WIDTH_PERCENT,
-    HAND_POSITION_Y
+    HAND_POSITION_Y,
+    BOX_GAP_PIXELS
   } = useGame();
 
   const gameContainerRef = useRef(null);
