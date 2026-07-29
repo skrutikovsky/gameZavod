@@ -180,6 +180,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
             y={box.y}
             fixed={box.fixed}
             errorAnim={box.errorAnim}
+            originalType={box.originalType}
             size={BOX_SIZE}
           />
         ))}

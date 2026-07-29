@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function Box({ type, y, fixed, errorAnim, size = 100 }) {
+export function Box({ type, y, fixed, errorAnim, size = 100, originalType }) {
   const getBoxClass = () => {
     if (errorAnim) return 'box error-anim';
     if (fixed) return 'box straight';
@@ -9,10 +9,13 @@ export function Box({ type, y, fixed, errorAnim, size = 100 }) {
     return 'box straight';
   };
   
+  // Для анимации ошибки используем оригинальный тип коробки
+  const displayType = errorAnim && originalType ? originalType : type;
+  
   const getContent = () => {
     if (fixed || errorAnim) return null;
-    if (type === 'tilted-left') return '\u2199';
-    if (type === 'tilted-right') return '\u2198';
+    if (displayType === 'tilted-left') return '\u2199';
+    if (displayType === 'tilted-right') return '\u2198';
     return null;
   };
 
@@ -20,8 +23,8 @@ export function Box({ type, y, fixed, errorAnim, size = 100 }) {
   const getArrowColor = () => {
     if (errorAnim) return '#ffffff';
     if (fixed) return '#ffffff';
-    if (type === 'tilted-left') return '#ffffff';
-    if (type === 'tilted-right') return '#ffffff';
+    if (displayType === 'tilted-left') return '#ffffff';
+    if (displayType === 'tilted-right') return '#ffffff';
     return '#ffffff';
   };
 
