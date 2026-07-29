@@ -50,8 +50,15 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const deltaTime = time - lastTimeRef.current;
     lastTimeRef.current = time;
 
-    // Спавн коробок с учетом времени и расстояния между ними
-    if (time - lastSpawnRef.current > gameState.spawnRate) {
+    // Динамический расчет интервала спавна на основе текущей скорости
+    // Расстояние между коробками должно оставаться фиксированным (BOX_GAP_PIXELS)
+    const screenHeightPx = window.innerHeight || 800;
+    const boxCenterDistancePercent = ((BOX_SIZE + 20) / screenHeightPx) * 100; // 20px gap
+    const speedPerMs = gameState.conveyorSpeed / 16.67;
+    const currentSpawnRate = boxCenterDistancePercent / speedPerMs;
+
+    // Спавн коробок с учетом текущего интервала
+    if (time - lastSpawnRef.current > currentSpawnRate) {
       spawnBox();
       lastSpawnRef.current = time;
     }
