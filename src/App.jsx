@@ -12,11 +12,6 @@ function App() {
     setSelectedLevel(level);
     setCurrentScreen('game');
   };
-  
-  const handlePlayMiniGame = () => {
-    setSelectedLevel(null); // Мини-игра без уровня
-    setCurrentScreen('game');
-  };
 
   const handleBackToMenu = () => {
     setCurrentScreen('menu');
@@ -40,7 +35,6 @@ function App() {
       {currentScreen === 'menu' && (
         <Menu 
           onSelectLevel={handleStartGame} 
-          onPlayMiniGame={handlePlayMiniGame}
           lastCompletedLevel={lastCompletedLevel}
         />
       )}
@@ -51,12 +45,29 @@ function App() {
         />
       )}
       {currentScreen === 'game' && (
-        <Game 
-          level={selectedLevel} 
-          onGameOver={handleBackToLevels}
-          onBack={handleBackToMenu}
-          onLevelComplete={handleLevelComplete}
-        />
+        selectedLevel === 1 ? (
+          <Game 
+            level={selectedLevel} 
+            onGameOver={handleBackToLevels}
+            onBack={handleBackToMenu}
+            onLevelComplete={handleLevelComplete}
+          />
+        ) : (
+          <div className="game-container min-h-screen flex flex-col items-center justify-center p-4">
+            <button
+              onClick={handleBackToMenu}
+              className="absolute top-5 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
+            >
+              ←
+            </button>
+            <h1 className="text-6xl font-bold text-white drop-shadow-lg text-center">
+              Это уровень {selectedLevel}
+            </h1>
+            <p className="text-2xl text-white/80 mt-4 text-center">
+              Игра для этого уровня будет добавлена позже
+            </p>
+          </div>
+        )
       )}
     </div>
   );

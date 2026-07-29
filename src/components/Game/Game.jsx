@@ -107,9 +107,6 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const isGameOver = gameState.lives <= 0;
-  
-  // Для мини-игры показываем кнопку "Назад в меню" всегда
-  const showBackButton = !level || isGameOver;
 
   return (
     <div 
@@ -118,15 +115,13 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
     >
-      {/* Кнопка назад в меню (видима только в мини-игре) */}
-      {showBackButton && !isGameOver && (
-        <button
-          onClick={onBack}
-          className="absolute top-20 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
-        >
-          ←
-        </button>
-      )}
+      {/* Кнопка назад в меню */}
+      <button
+        onClick={onBack}
+        className="absolute top-5 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
+      >
+        ←
+      </button>
       
       {/* Конвейерная лента */}
       <div 

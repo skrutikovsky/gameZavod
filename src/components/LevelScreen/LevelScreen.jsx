@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const TOTAL_LEVELS = 10;
 
 const LevelScreen = ({ onSelectLevel, onBack }) => {
-  const levels = [1, 2, 3, 4, 5];
-  const [selectedLevel, setSelectedLevel] = React.useState(null);
+  const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
+  const [selectedLevel, setSelectedLevel] = useState(null);
 
   const handleSelectLevel = (level) => {
     setSelectedLevel(level);
@@ -24,32 +26,28 @@ const LevelScreen = ({ onSelectLevel, onBack }) => {
         Выберите уровень
       </h2>
 
-      <div className="carousel-mask relative w-full max-w-md h-96 overflow-hidden">
-        <div className="relative h-full">
-          {levels.map((level) => (
-            <div
-              key={level}
-              className={`
-                w-32 h-32
-                bg-white/20 backdrop-blur-md
-                rounded-2xl
-                flex flex-col items-center justify-center
-                text-4xl font-bold text-white
-                cursor-pointer
-                shadow-lg
-                border-2 border-white/30
-                absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                level-item
-                ${selectedLevel === level ? 'scale-100 opacity-100 z-10' : 'scale-[0.8] opacity-60'}
-              `}
-              style={{ zIndex: selectedLevel === level ? 10 : 5 }}
-              onClick={() => handleSelectLevel(level)}
-            >
-              <span className="text-5xl font-bold">{level}</span>
-              <span className="text-sm mt-1 opacity-90">Уровень</span>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {levels.map((level) => (
+          <div
+            key={level}
+            className={`
+              w-32 h-32
+              bg-white/20 backdrop-blur-md
+              rounded-2xl
+              flex flex-col items-center justify-center
+              text-4xl font-bold text-white
+              cursor-pointer
+              shadow-lg
+              border-2 border-white/30
+              transition-all duration-300
+              ${selectedLevel === level ? 'scale-110 opacity-100 bg-white/40' : 'hover:scale-105'}
+            `}
+            onClick={() => handleSelectLevel(level)}
+          >
+            <span className="text-5xl font-bold">{level}</span>
+            <span className="text-sm mt-1 opacity-90">Уровень</span>
+          </div>
+        ))}
       </div>
     </div>
   );
