@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const BOX_SIZE = 100; // Размер коробки
+const BOX_SIZE = 140; // Размер коробки - увеличен
 const HAND_POSITION_Y = 85; // Позиция руки в процентах от высоты экрана (почти внизу)
-const FIX_ZONE_Y_START = 75; // Зона исправления開始 (в %)
-const FIX_ZONE_Y_END = 82; // Зона исправления конец (в %)
+const FIX_ZONE_Y_START = 70; // Зона исправления開始 (в %) - расширена зона
+const FIX_ZONE_Y_END = 85; // Зона исправления конец (в %) - расширена зона
 const INITIAL_LIVES = 3;
-const BASE_CONVEYOR_SPEED = 0.45; // Базовая скорость движения коробок (% в кадр) - увеличено для более быстрой игры
-const BASE_SPAWN_RATE = 500; // Интервал спавна в мс - уменьшено для более частого спавна
+const BASE_CONVEYOR_SPEED = 0.35; // Базовая скорость движения коробок (% в кадр) - уменьшено для более медленной игры
+const BASE_SPAWN_RATE = 400; // Интервал спавна в мс
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
-const SPEED_INCREASE_RATE = 0.03; // Увеличение скорости каждые 5 секунд - увеличено
-const MIN_SPAWN_RATE = 250; // Минимальный интервал спавна - уменьшено
+const SPEED_INCREASE_RATE = 0.02; // Увеличение скорости каждые 5 секунд
+const MIN_SPAWN_RATE = 200; // Минимальный интервал спавна
 const SPEED_INCREASE_INTERVAL = 5000; // Интервал увеличения скорости в мс (5 секунд)
+const MIN_BOX_DISTANCE = 18; // Минимальное расстояние между коробками в %
 
 export function useGame() {
   const [gameState, setGameState] = useState({
@@ -78,21 +79,19 @@ export function useGame() {
     }
 
     // Проверяем минимальное расстояние между коробками
-    const minDistance = 12; // Минимальное расстояние в % - уменьшено для более частого спавна
     const lowestBox = boxesRef.current.length > 0 
       ? Math.max(...boxesRef.current.map(b => b.y))
       : -100;
     
     // Спавним только если последняя коробка достаточно далеко (ушла вниз)
-    // Используем >= чтобы спавнить коробки почти сразу друг за другом
-    if (lowestBox >= -minDistance) {
+    if (lowestBox >= -MIN_BOX_DISTANCE) {
       return null; // Не спавним, слишком близко к предыдущей коробке
     }
 
     const newBox = {
       id: Date.now() + Math.random(),
       type: boxType,
-      y: -15, // Начинаем чуть выше видимой области (в %)
+      y: -20, // Начинаем чуть выше видимой области (в %)
       fixed: false,
       checked: false,
       missed: false // Флаг того, что коробка была пропущена
@@ -122,6 +121,11 @@ export function useGame() {
       const correctHand = box.type === 'tilted-left' ? 'left' : 'right';
       
       if (handPosition !== correctHand) {
+        return prev;
+      }
+
+      // Проверяем, находится ли коробка в зоне исправления
+      if (box.y < FIX_ZONE_Y_START || box.y > FIX_ZONE_Y_END) {
         return prev;
       }
 
@@ -247,9 +251,9 @@ export function useGame() {
         gameOver = true;
       }
 
-      // Увеличиваем скорость со временем - более агрессивное увеличение
+      // Увеличиваем скорость со временем
       const elapsedTime = Date.now() - gameStartTimeRef.current;
-      const speedIncrease = Math.min(elapsedTime / SPEED_INCREASE_INTERVAL * SPEED_INCREASE_RATE, 2.0);
+      const speedIncrease = Math.min(elapsedTime / SPEED_INCREASE_INTERVAL * SPEED_INCREASE_RATE, 1.5);
       const newConveyorSpeed = BASE_CONVEYOR_SPEED * (1 + speedIncrease);
       
       // Уменьшаем интервал спавна со временем (увеличиваем сложность)
