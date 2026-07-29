@@ -34,7 +34,76 @@
             <div class="level-content">
                 <p class="level-description">Это уровень номер <span id="levelNumber">1</span></p>
             </div>
-            <button class="complete-button" id="completeButton">✓ Пройден</button>
+            <div class="level-buttons">
+                <button class="complete-button" id="completeButton">✓ Пройден</button>
+                <button class="start-game-button" id="startGameButton">🎮 Начать игру</button>
+            </div>
+        </div>
+
+        <!-- Экран игры -->
+        <div id="game-screen" class="screen game-screen">
+            <div class="game-ui">
+                <div class="game-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Счёт</span>
+                        <span class="stat-value score" id="scoreDisplay">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Множитель</span>
+                        <span class="stat-value multiplier" id="multiplierDisplay">x1</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Жизни</span>
+                    <span class="stat-value lives" id="livesDisplay">❤️❤️❤️</span>
+                </div>
+            </div>
+            
+            <div class="game-area">
+                <div class="conveyor-belt" id="conveyorBelt">
+                    <div class="hatch"></div>
+                </div>
+                <div class="hand hand-left" id="playerHand">
+                    <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20,60 Q10,50 15,30 Q20,10 40,5 Q60,10 65,30 Q70,50 60,60 L60,80 Q70,85 75,95 Q80,105 70,110 Q60,115 50,105 L50,80 L40,80 L40,105 Q30,115 20,110 Q10,105 15,95 Q20,85 30,80 L30,60 Z" 
+                              fill="#f39c12" stroke="#d35400" stroke-width="3"/>
+                        <circle cx="45" cy="40" r="8" fill="#e67e22"/>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="controls-hint">
+                Управление: ← → или A D для перемещения руки
+            </div>
+        </div>
+
+        <!-- Окно статистики -->
+        <div id="stats-modal" class="modal">
+            <div class="modal-content">
+                <h2 class="modal-title">📊 Статистика уровня</h2>
+                <div class="stats-grid">
+                    <div class="stat-row">
+                        <span class="stat-row-label">Выровнено коробок</span>
+                        <span class="stat-row-value" id="statsBoxes">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-row-label">Счёт</span>
+                        <span class="stat-row-value" id="statsScore">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-row-label">Время в игре</span>
+                        <span class="stat-row-value" id="statsTime">0:00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-row-label">Макс. множитель</span>
+                        <span class="stat-row-value" id="statsMultiplier">x1</span>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="modal-btn restart-btn" id="restartLevelBtn">🔄 Перезапустить</button>
+                    <button class="modal-btn menu-btn" id="backToMenuFromStats">🏠 В меню</button>
+                </div>
+            </div>
         </div>
     </div>
 
