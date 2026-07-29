@@ -47,11 +47,11 @@ const Menu = ({ onSelectLevel }) => {
         </button>
         
         {/* Контейнер карусели */}
-        <div className="carousel-mask relative w-full h-full">
+        <div className="carousel-mask relative w-full h-full flex items-center justify-center">
           <div 
             className="flex items-center justify-center h-full transition-transform duration-300 ease-out"
             style={{ 
-              transform: `translateX(calc(-${currentIndex * 200}px + 50% - 100px))`
+              transform: `translateX(calc(50% - ${currentIndex * 220}px - 110px))`
             }}
           >
             {levels.map((level, index) => {
