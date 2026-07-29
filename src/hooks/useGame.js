@@ -28,9 +28,15 @@ export function useGame() {
   });
   
   const boxesRef = useRef([]);
+  const gameStateRef = useRef(null); // Храним актуальное состояние
   const gameStartTimeRef = useRef(0);
   const errorAnimationRef = useRef(new Map()); // Храним тайминги анимаций ошибок
   const baseSpawnRateRef = useRef(0); // Базовый интервал спавна в мс
+  
+  // Обновляем ref при изменении состояния
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   const resetGame = useCallback(() => {
     boxesRef.current = [];
@@ -112,124 +118,124 @@ export function useGame() {
   }, []);
 
   const updateBoxes = useCallback((deltaTime) => {
-    setGameState(prev => {
-      let livesLost = 0;
-      let boxesFixedThisUpdate = 0;
-      let scoreGained = 0;
-      let newComboCount = prev.comboCount;
-      let newMultiplier = prev.multiplier;
-      let newConveyorSpeed = prev.conveyorSpeed;
+    const currentState = gameStateRef.current;
+    if (!currentState || !currentState.isRunning) return;
+    
+    let livesLost = 0;
+    let boxesFixedThisUpdate = 0;
+    let scoreGained = 0;
+    let newComboCount = currentState.comboCount;
+    let newMultiplier = currentState.multiplier;
+    let newConveyorSpeed = currentState.conveyorSpeed;
 
-      // Обновляем позиции всех коробок
-      boxesRef.current.forEach(box => {
-        box.y += prev.conveyorSpeed;
-      });
-
-      // Проверяем коробки при пересечении линии проверки
-      boxesRef.current.forEach(box => {
-        // Пропускаем уже проверенные коробки
-        if (box.checked) return;
-
-        // Проверяем пересечение линии проверки (снизу вверх)
-        if (box.y >= CHECK_LINE_Y) {
-          box.checked = true;
-
-          // Если коробка прямая - ничего не делаем, просто пропускаем (очки не начисляются)
-          if (box.type === 'straight') {
-            return;
-          }
-
-          // Наклонная коробка - проверяем положение руки
-          const correctHand = box.type === 'tilted-left' ? 'left' : 'right';
-
-          if (prev.handPosition === correctHand) {
-            // УСПЕХ: рука в правильном положении
-            box.fixed = true;
-            // Не меняем тип коробки сразу, чтобы сохранить анимацию
-            // Тип меняется только для отображения как "straight"
-            
-            boxesFixedThisUpdate++;
-            newComboCount = prev.comboCount + boxesFixedThisUpdate;
-            
-            // Вычисляем множитель
-            if (newComboCount >= 30) {
-              newMultiplier = 2;
-            } else if (newComboCount >= 10) {
-              newMultiplier = 1.5;
-            } else {
-              newMultiplier = 1;
-            }
-
-            // Начисляем очки: 100 * множитель + 50 бонус за поворот
-            const turnBonus = 50;
-            scoreGained += Math.floor(100 * newMultiplier) + turnBonus;
-
-            // Ускоряем конвейер на 2%
-            newConveyorSpeed = prev.conveyorSpeed * accelerationRate;
-          } else {
-            // ОШИБКА: рука не в том положении
-            // Сбрасываем комбо и множитель
-            newComboCount = 0;
-            newMultiplier = 1;
-            
-            // Теряем жизнь
-            livesLost++;
-            
-            // Запускаем анимацию ошибки (увеличение на 15% и покраснение на 0.5 сек)
-            box.errorAnim = true;
-            box.errorAnimStartTime = Date.now();
-            // Сохраняем оригинальный тип коробки для анимации
-            box.originalType = box.type;
-            
-            // Возвращаем скорость к базовой
-            newConveyorSpeed = BASE_CONVEYOR_SPEED;
-            
-            // Коробка остается наклонной и уйдет за экран
-          }
-        }
-      });
-
-      // Обрабатываем анимации ошибок (сбрасываем через 500мс)
-      const now = Date.now();
-      boxesRef.current.forEach(box => {
-        if (box.errorAnim && box.errorAnimStartTime) {
-          if (now - box.errorAnimStartTime > 500) {
-            box.errorAnim = false;
-            box.errorAnimStartTime = 0;
-          }
-        }
-      });
-
-      // Фильтруем коробки, ушедшие за экран
-      boxesRef.current = boxesRef.current.filter(box => {
-        if (box.y > 100) {
-          return false;
-        }
-        return true;
-      });
-
-      let newLives = prev.lives - livesLost;
-      let gameOver = false;
-
-      if (newLives <= 0) {
-        newLives = 0;
-        gameOver = true;
-      }
-
-      return {
-        ...prev,
-        boxes: boxesRef.current,
-        lives: newLives,
-        boxesFixed: prev.boxesFixed + boxesFixedThisUpdate,
-        comboCount: newComboCount,
-        multiplier: newMultiplier,
-        maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
-        score: prev.score + scoreGained,
-        conveyorSpeed: newConveyorSpeed,
-        isRunning: !gameOver,
-        gameTime: Date.now() - gameStartTimeRef.current
-      };
+    // Обновляем позиции всех коробок
+    boxesRef.current.forEach(box => {
+      box.y += currentState.conveyorSpeed;
     });
+
+    // Проверяем коробки при пересечении линии проверки
+    boxesRef.current.forEach(box => {
+      // Пропускаем уже проверенные коробки
+      if (box.checked) return;
+
+      // Проверяем пересечение линии проверки (снизу вверх)
+      if (box.y >= CHECK_LINE_Y) {
+        box.checked = true;
+
+        // Если коробка прямая - ничего не делаем, просто пропускаем (очки не начисляются)
+        if (box.type === 'straight') {
+          return;
+        }
+
+        // Наклонная коробка - проверяем положение руки
+        const correctHand = box.type === 'tilted-left' ? 'left' : 'right';
+
+        if (currentState.handPosition === correctHand) {
+          // УСПЕХ: рука в правильном положении
+          box.fixed = true;
+          
+          boxesFixedThisUpdate++;
+          newComboCount = currentState.comboCount + boxesFixedThisUpdate;
+          
+          // Вычисляем множитель
+          if (newComboCount >= 30) {
+            newMultiplier = 2;
+          } else if (newComboCount >= 10) {
+            newMultiplier = 1.5;
+          } else {
+            newMultiplier = 1;
+          }
+
+          // Начисляем очки: 100 * множитель + 50 бонус за поворот
+          const turnBonus = 50;
+          scoreGained += Math.floor(100 * newMultiplier) + turnBonus;
+
+          // Ускоряем конвейер на 2%
+          newConveyorSpeed = currentState.conveyorSpeed * accelerationRate;
+        } else {
+          // ОШИБКА: рука не в том положении
+          // Сбрасываем комбо и множитель
+          newComboCount = 0;
+          newMultiplier = 1;
+          
+          // Теряем жизнь
+          livesLost++;
+          
+          // Запускаем анимацию ошибки (увеличение на 15% и покраснение на 0.5 сек)
+          box.errorAnim = true;
+          box.errorAnimStartTime = Date.now();
+          // Сохраняем оригинальный тип коробки для анимации
+          box.originalType = box.type;
+          
+          // Возвращаем скорость к базовой
+          newConveyorSpeed = BASE_CONVEYOR_SPEED;
+          
+          // Коробка остается наклонной и уйдет за экран
+        }
+      }
+    });
+
+    // Обрабатываем анимации ошибок (сбрасываем через 500мс)
+    const now = Date.now();
+    boxesRef.current.forEach(box => {
+      if (box.errorAnim && box.errorAnimStartTime) {
+        if (now - box.errorAnimStartTime > 500) {
+          box.errorAnim = false;
+          box.errorAnimStartTime = 0;
+        }
+      }
+    });
+
+    // Фильтруем коробки, ушедшие за экран
+    boxesRef.current = boxesRef.current.filter(box => {
+      if (box.y > 100) {
+        return false;
+      }
+      return true;
+    });
+
+    let newLives = currentState.lives - livesLost;
+    let gameOver = false;
+
+    if (newLives <= 0) {
+      newLives = 0;
+      gameOver = true;
+    }
+
+    // Обновляем состояние один раз в конце
+    setGameState(prev => ({
+      ...prev,
+      boxes: [...boxesRef.current], // Создаем новую ссылку для триггера ререндера
+      lives: newLives,
+      boxesFixed: prev.boxesFixed + boxesFixedThisUpdate,
+      comboCount: newComboCount,
+      multiplier: newMultiplier,
+      maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
+      score: prev.score + scoreGained,
+      conveyorSpeed: newConveyorSpeed,
+      isRunning: !gameOver,
+      gameTime: Date.now() - gameStartTimeRef.current
+    }));
   }, []);
 
   const startGame = useCallback(() => {
@@ -238,16 +244,15 @@ export function useGame() {
     gameStartTimeRef.current = Date.now();
     
     // Рассчитываем базовый интервал спавна на основе скорости конвейера и фиксированного расстояния
-    // BOX_GAP_PIXELS = 30 пикселей, BOX_SIZE = 140 пикселей
-    // Расстояние в % экрана: (BOX_SIZE + BOX_GAP_PIXELS) / высота экрана в пикселях * 100
-    // Для расчета используем предположение о высоте экрана ~800px для десктопа
+    // BOX_GAP_PIXELS = 20 пикселей между коробками (расстояние от края до края)
+    // Расстояние между центрами коробок = BOX_SIZE + BOX_GAP_PIXELS
     const screenHeightPx = window.innerHeight || 800;
-    const boxDistancePercent = ((BOX_SIZE + BOX_GAP_PIXELS) / screenHeightPx) * 100;
+    const boxCenterDistancePercent = ((BOX_SIZE + BOX_GAP_PIXELS) / screenHeightPx) * 100;
     
     // Время между спавнами = расстояние / скорость
     // Скорость в % за мс = BASE_CONVEYOR_SPEED / 16.67 (при 60fps)
     const speedPerMs = BASE_CONVEYOR_SPEED / 16.67;
-    const spawnIntervalMs = boxDistancePercent / speedPerMs;
+    const spawnIntervalMs = boxCenterDistancePercent / speedPerMs;
     
     baseSpawnRateRef.current = spawnIntervalMs;
     
