@@ -17,13 +17,35 @@ body {
 
 /* Стили для игры */
 .game-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
 }
 
 .conveyor-belt {
-  background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
-  border-left: 3px solid #7f8c8d;
-  border-right: 3px solid #7f8c8d;
+  background: repeating-linear-gradient(
+    180deg,
+    #2c3e50 0px,
+    #2c3e50 10px,
+    #34495e 10px,
+    #34495e 20px
+  );
+  border-left: 4px solid #5d6d7e;
+  border-right: 4px solid #5d6d7e;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.conveyor-belt::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    rgba(0,0,0,0.3) 0%, 
+    rgba(0,0,0,0.1) 20%, 
+    rgba(0,0,0,0.1) 80%, 
+    rgba(0,0,0,0.3) 100%);
+  pointer-events: none;
 }
 
 .box {
@@ -36,9 +58,13 @@ body {
   z-index: 5;
   left: 50%;
   transform: translateX(-50%);
-  background: #e67e22;
-  border: 3px solid #d35400;
+  background: linear-gradient(135deg, #d35400 0%, #e67e22 50%, #d35400 100%);
+  border: 3px solid #a04000;
   border-radius: 8px;
+  box-shadow: 
+    inset 0 0 15px rgba(0, 0, 0, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .box.straight {
@@ -59,8 +85,8 @@ body {
 
 /* Коробка с уроном - краснеет */
 .box.damaged {
-  background: #e74c3c !important;
-  border-color: #c0392b !important;
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 50%, #c0392b 100%) !important;
+  border-color: #922b21 !important;
   animation: damageFlash 0.5s ease;
 }
 
@@ -71,24 +97,25 @@ body {
 
 .hand {
   position: absolute;
-  width: 100px;
-  height: 120px;
+  width: 120px;
+  height: 140px;
   bottom: 8%;
   z-index: 20;
-  transition: left 0.15s ease-out;
+  transition: left 0.1s ease-out;
 }
 
 .hand svg {
   width: 100%;
   height: 100%;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }
 
 .hand-left {
-  left: calc(50% - 180px);
+  left: calc(50% - 160px);
 }
 
 .hand-right {
-  left: calc(50% + 80px);
+  left: calc(50% + 40px);
 }
 
 /* Анимации */

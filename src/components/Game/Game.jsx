@@ -25,6 +25,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const requestRef = useRef(null);
   const lastTimeRef = useRef(0);
   const lastSpawnRef = useRef(0);
+  const levelCompleteNotifiedRef = useRef(false);
 
   useEffect(() => {
     startGame();
@@ -33,12 +34,15 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     };
   }, []);
 
-  // Проверка на победу (для уровней) - останавливаем игру при достижении цели
+  // Проверка на достижение цели уровня (3000 очков) - показываем уведомление, но не останавливаем игру
   useEffect(() => {
-    if (level && gameState.boxesFixed >= 10 && gameState.isRunning) {
-      completeLevel();
+    if (level && gameState.score >= 3000 && !gameState.levelCompleteShown && !levelCompleteNotifiedRef.current) {
+      levelCompleteNotifiedRef.current = true;
+      // Показываем уведомление о том, что уровень пройден, но игра продолжается
+      // Можно добавить визуальный эффект или toast-уведомление
+      console.log('Уровень пройден!可以继续 играть для улучшения счета.');
     }
-  }, [gameState.boxesFixed, gameState.isRunning, level, completeLevel]);
+  }, [gameState.score, gameState.levelCompleteShown, level]);
 
   const gameLoop = (time) => {
     if (!gameState.isRunning) return;
@@ -76,9 +80,9 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   }, [gameState.isRunning]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'Ф') {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'Ф' || e.key === 'ф') {
       moveHand('left');
-    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'В') {
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'В' || e.key === 'в') {
       moveHand('right');
     }
   };
@@ -120,10 +124,21 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       onTouchMove={handleTouchMove}
       tabIndex={0}
     >
-      {/* Кнопка назад в меню */}
+      {/* Статистика игры - сдвинута вниз чтобы не перекрывать кнопку назад */}
+      <GameStats
+        score={gameState.score}
+        lives={gameState.lives}
+        boxesFixed={gameState.boxesFixed}
+        multiplier={gameState.multiplier}
+        comboCount={gameState.comboCount}
+        gameTime={gameState.gameTime}
+        formatTime={formatTime}
+      />
+
+      {/* Кнопка назад в меню - позиция изменена чтобы не заползать на статистику */}
       <button
         onClick={onBack}
-        className="absolute top-5 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
+        className="absolute top-20 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
       >
         ←
       </button>
@@ -155,17 +170,6 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {/* Рука */}
       <Hand position={gameState.handPosition} />
 
-      {/* Статистика игры */}
-      <GameStats
-        score={gameState.score}
-        lives={gameState.lives}
-        boxesFixed={gameState.boxesFixed}
-        multiplier={gameState.multiplier}
-        comboCount={gameState.comboCount}
-        gameTime={gameState.gameTime}
-        formatTime={formatTime}
-      />
-
       {/* Модальное окно конца игры */}
       {isGameOver && (
         <Modal
@@ -183,18 +187,12 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </Modal>
       )}
       
-      {/* Сообщение о победе для уровней */}
-      {level && gameState.boxesFixed >= 10 && !isGameOver && (
-        <Modal
-          title="Уровень пройден!"
-          message={`Время: ${formatTime(gameState.gameTime)}\nСчёт: ${gameState.score}\nИсправлено коробок: ${gameState.boxesFixed}`}
-        >
-          <div className="space-y-4">
-            <Button onClick={() => onLevelComplete(level)} variant="success">
-              Продолжить
-            </Button>
-          </div>
-        </Modal>
+      {/* Уведомление о прохождении уровня (не останавливает игру) */}
+      {level && gameState.score >= 3000 && !isGameOver && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-green-500/90 text-white px-8 py-4 rounded-lg shadow-lg text-center animate-pulse">
+          <h2 className="text-3xl font-bold mb-2">🎉 Уровень пройден! 🎉</h2>
+          <p className="text-lg">Можно продолжить для улучшения счета!</p>
+        </div>
       )}
     </div>
   );
