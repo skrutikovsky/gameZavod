@@ -245,6 +245,14 @@ export function useGame() {
       isRunning: false
     }));
   }, []);
+  
+  // Остановить игру при достижении цели (для уровней)
+  const completeLevel = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isRunning: false
+    }));
+  }, []);
 
   return {
     gameState,
@@ -256,6 +264,7 @@ export function useGame() {
     spawnBox,
     startGame,
     stopGame,
+    completeLevel,
     resetGame,
     BOX_SIZE,
     BELT_LENGTH

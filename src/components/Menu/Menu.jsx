@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const Menu = ({ onSelectLevel }) => {
-  const levels = [1, 2, 3, 4, 5];
-  const [currentIndex, setCurrentIndex] = useState(2); // Центральный элемент
+const TOTAL_LEVELS = 10;
+const ITEM_WIDTH = 220; // ширина элемента + отступ
+
+const Menu = ({ onSelectLevel, onPlayMiniGame, lastCompletedLevel }) => {
+  const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
+  
+  // Начальный индекс: следующий уровень после последнего пройденного
+  const getInitialIndex = () => {
+    const nextLevel = lastCompletedLevel + 1;
+    return Math.min(nextLevel - 1, TOTAL_LEVELS - 1);
+  };
+  
+  const [currentIndex, setCurrentIndex] = useState(getInitialIndex());
+  
+  // Обновляем индекс при изменении lastCompletedLevel
+  useEffect(() => {
+    const nextLevel = lastCompletedLevel + 1;
+    setCurrentIndex(Math.min(nextLevel - 1, TOTAL_LEVELS - 1));
+  }, [lastCompletedLevel]);
   
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev));
   };
   
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev < levels.length - 1 ? prev + 1 : prev));
+    setCurrentIndex((prev) => (prev < TOTAL_LEVELS - 1 ? prev + 1 : prev));
   };
   
   const handleSelect = () => {
@@ -23,12 +39,12 @@ const Menu = ({ onSelectLevel }) => {
       </h1>
       
       {/* Карусель уровней */}
-      <div className="relative w-full max-w-2xl h-80 overflow-hidden mb-8">
+      <div className="relative w-full max-w-4xl h-80 overflow-hidden mb-8">
         {/* Стрелка влево */}
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 w-16 h-16 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-3xl font-bold transition-all ${
+          className={`absolute left-4 top-1/2 -translate-y-1/2 z-20 w-16 h-16 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-3xl font-bold transition-all ${
             currentIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'opacity-100 cursor-pointer'
           }`}
         >
@@ -38,20 +54,20 @@ const Menu = ({ onSelectLevel }) => {
         {/* Стрелка вправо */}
         <button
           onClick={handleNext}
-          disabled={currentIndex === levels.length - 1}
-          className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 w-16 h-16 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-3xl font-bold transition-all ${
-            currentIndex === levels.length - 1 ? 'opacity-30 cursor-not-allowed' : 'opacity-100 cursor-pointer'
+          disabled={currentIndex === TOTAL_LEVELS - 1}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 w-16 h-16 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-3xl font-bold transition-all ${
+            currentIndex === TOTAL_LEVELS - 1 ? 'opacity-30 cursor-not-allowed' : 'opacity-100 cursor-pointer'
           }`}
         >
           ›
         </button>
         
         {/* Контейнер карусели */}
-        <div className="carousel-mask relative w-full h-full flex items-center justify-center">
+        <div className="carousel-mask relative w-full h-full overflow-hidden">
           <div 
-            className="flex items-center justify-center h-full transition-transform duration-300 ease-out"
+            className="flex items-center h-full transition-transform duration-300 ease-out"
             style={{ 
-              transform: `translateX(calc(50% - ${currentIndex * 220}px - 110px))`
+              transform: `translateX(calc(50% - ${currentIndex * ITEM_WIDTH}px - ${ITEM_WIDTH / 2}px))`
             }}
           >
             {levels.map((level, index) => {
@@ -73,12 +89,13 @@ const Menu = ({ onSelectLevel }) => {
                     shadow-lg
                     border-2 border-white/30
                     transition-all duration-300
-                    absolute
+                    flex-shrink-0
                   `}
                   style={{ 
-                    transform: `translateX(${offset * 220}px) scale(${scale})`,
+                    transform: `scale(${scale})`,
                     opacity,
-                    zIndex
+                    zIndex,
+                    marginLeft: index === 0 ? '0' : '20px'
                   }}
                 >
                   <span className="text-6xl font-bold">{level}</span>
@@ -90,13 +107,22 @@ const Menu = ({ onSelectLevel }) => {
         </div>
       </div>
       
-      {/* Кнопка выбора уровня */}
-      <button
-        onClick={handleSelect}
-        className="w-64 py-4 px-8 bg-green-500 hover:bg-green-600 text-white text-2xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
-      >
-        Играть Уровень {levels[currentIndex]}
-      </button>
+      {/* Кнопки действий */}
+      <div className="flex flex-col gap-4">
+        <button
+          onClick={handleSelect}
+          className="w-64 py-4 px-8 bg-green-500 hover:bg-green-600 text-white text-2xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+        >
+          Играть Уровень {levels[currentIndex]}
+        </button>
+        
+        <button
+          onClick={onPlayMiniGame}
+          className="w-64 py-4 px-8 bg-blue-500 hover:bg-blue-600 text-white text-2xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+        >
+          Мини-игра
+        </button>
+      </div>
     </div>
   );
 };
