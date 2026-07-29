@@ -179,6 +179,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
             type={box.type}
             y={box.y}
             fixed={box.fixed}
+            errorAnim={box.errorAnim}
             size={BOX_SIZE}
           />
         ))}
