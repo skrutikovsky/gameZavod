@@ -3,20 +3,39 @@ const state = {
     totalLevels: 10,
     currentLevel: 1,
     completedLevels: [],
-    itemHeight: 140, // Высота элемента карусели с отступом
+    itemWidth: 140, // Ширина элемента карусели с отступом
     visibleItems: 3, // Количество видимых элементов
 };
 
 // DOM элементы
 const menuScreen = document.getElementById('menu-screen');
 const levelScreen = document.getElementById('level-screen');
+const gameScreen = document.getElementById('game-screen');
 const levelCarousel = document.getElementById('levelCarousel');
 const leftArrow = document.getElementById('leftArrow');
 const rightArrow = document.getElementById('rightArrow');
 const backButton = document.getElementById('backButton');
 const completeButton = document.getElementById('completeButton');
+const startGameButton = document.getElementById('startGameButton');
 const levelTitle = document.getElementById('levelTitle');
 const levelNumber = document.getElementById('levelNumber');
+const statsModal = document.getElementById('stats-modal');
+
+// Переменные игры
+let gameRunning = false;
+let gameLoopId = null;
+let score = 0;
+let lives = 3;
+let boxesFixed = 0;
+let gameTime = 0;
+let multiplier = 1;
+let comboCount = 0;
+let maxMultiplier = 1;
+let conveyorSpeed = 2;
+let spawnRate = 1500;
+let lastSpawnTime = 0;
+let boxes = [];
+let handPosition = 'left'; // 'left' или 'right'
 
 // Инициализация
 function init() {
@@ -54,20 +73,20 @@ function createLevelItems() {
 // Обновление позиции карусели
 function updateCarousel() {
     const items = document.querySelectorAll('.level-item');
-    const carouselHeight = document.querySelector('.carousel-wrapper').clientHeight;
-    const centerOffset = carouselHeight / 2;
+    const carouselWidth = document.querySelector('.carousel-wrapper').clientWidth;
+    const centerOffset = carouselWidth / 2;
     
     items.forEach((item, index) => {
         const level = index + 1;
         const position = index - (state.currentLevel - 1);
-        const yPos = position * state.itemHeight + centerOffset - state.itemHeight / 2;
+        const xPos = position * state.itemWidth + centerOffset - state.itemWidth / 2;
         
         // Масштабирование и прозрачность в зависимости от позиции
         const scale = position === 0 ? 1 : 0.8 - Math.abs(position) * 0.1;
         const opacity = position === 0 ? 1 : 0.6 - Math.abs(position) * 0.2;
         const zIndex = 10 - Math.abs(position);
         
-        item.style.transform = `translateX(-50%) translateY(${yPos}px) scale(${Math.max(0.6, scale)})`;
+        item.style.transform = `translate(-50%, -50%) translateX(${xPos - centerOffset}px) scale(${Math.max(0.6, scale)})`;
         item.style.opacity = Math.max(0.3, opacity);
         item.style.zIndex = zIndex;
         
@@ -190,6 +209,13 @@ function setupEventListeners() {
     // Кнопка "Пройден"
     completeButton.addEventListener('click', completeCurrentLevel);
     
+    // Кнопка "Начать игру"
+    startGameButton.addEventListener('click', startGame);
+    
+    // Кнопки модального окна
+    document.getElementById('restartLevelBtn').addEventListener('click', restartGame);
+    document.getElementById('backToMenuFromStats').addEventListener('click', backToMenuFromStats);
+    
     // Прокрутка колесиком мыши
     let scrollTimeout;
     levelCarousel.addEventListener('wheel', (e) => {
@@ -197,10 +223,10 @@ function setupEventListeners() {
         
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
-            if (e.deltaY > 0 && state.currentLevel < state.totalLevels) {
+            if (e.deltaX > 0 && state.currentLevel < state.totalLevels) {
                 state.currentLevel++;
                 updateCarousel();
-            } else if (e.deltaY < 0 && state.currentLevel > 1) {
+            } else if (e.deltaX < 0 && state.currentLevel > 1) {
                 state.currentLevel--;
                 updateCarousel();
             }
@@ -209,12 +235,12 @@ function setupEventListeners() {
     
     // Drag-and-drop прокрутка
     let isDragging = false;
-    let startY = 0;
+    let startX = 0;
     let startLevel = 1;
     
     levelCarousel.addEventListener('mousedown', (e) => {
         isDragging = true;
-        startY = e.clientY;
+        startX = e.clientX;
         startLevel = state.currentLevel;
         levelCarousel.style.cursor = 'grabbing';
     });
@@ -222,18 +248,18 @@ function setupEventListeners() {
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         
-        const deltaY = e.clientY - startY;
+        const deltaX = e.clientX - startX;
         const threshold = 50; // Порог для переключения уровня
         
-        if (deltaY > threshold && startLevel < state.totalLevels) {
+        if (deltaX > threshold && startLevel < state.totalLevels) {
             state.currentLevel = startLevel + 1;
             updateCarousel();
-            startY = e.clientY;
+            startX = e.clientX;
             startLevel = state.currentLevel;
-        } else if (deltaY < -threshold && startLevel > 1) {
+        } else if (deltaX < -threshold && startLevel > 1) {
             state.currentLevel = startLevel - 1;
             updateCarousel();
-            startY = e.clientY;
+            startX = e.clientX;
             startLevel = state.currentLevel;
         }
     });
@@ -246,25 +272,25 @@ function setupEventListeners() {
     // Поддержка touch событий для мобильных устройств
     levelCarousel.addEventListener('touchstart', (e) => {
         isDragging = true;
-        startY = e.touches[0].clientY;
+        startX = e.touches[0].clientX;
         startLevel = state.currentLevel;
     });
     
     document.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
         
-        const deltaY = e.touches[0].clientY - startY;
+        const deltaX = e.touches[0].clientX - startX;
         const threshold = 50;
         
-        if (deltaY > threshold && startLevel < state.totalLevels) {
+        if (deltaX > threshold && startLevel < state.totalLevels) {
             state.currentLevel = startLevel + 1;
             updateCarousel();
-            startY = e.touches[0].clientY;
+            startX = e.touches[0].clientX;
             startLevel = state.currentLevel;
-        } else if (deltaY < -threshold && startLevel > 1) {
+        } else if (deltaX < -threshold && startLevel > 1) {
             state.currentLevel = startLevel - 1;
             updateCarousel();
-            startY = e.touches[0].clientY;
+            startX = e.touches[0].clientX;
             startLevel = state.currentLevel;
         }
     });
@@ -276,12 +302,19 @@ function setupEventListeners() {
     // Клавиатурная навигация
     document.addEventListener('keydown', (e) => {
         if (menuScreen.classList.contains('active')) {
-            if (e.key === 'ArrowUp' && state.currentLevel > 1) {
+            if (e.key === 'ArrowLeft' && state.currentLevel > 1) {
                 state.currentLevel--;
                 updateCarousel();
-            } else if (e.key === 'ArrowDown' && state.currentLevel < state.totalLevels) {
+            } else if (e.key === 'ArrowRight' && state.currentLevel < state.totalLevels) {
                 state.currentLevel++;
                 updateCarousel();
+            }
+        } else if (gameScreen.classList.contains('active') && gameRunning) {
+            // Управление рукой в игре
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'ф') {
+                moveHand('left');
+            } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в') {
+                moveHand('right');
             }
         }
     });
@@ -311,3 +344,277 @@ function loadProgress() {
 
 // Запуск приложения
 init();
+
+// ==================== ФУНКЦИИ ИГРЫ ====================
+
+// Старт игры
+function startGame() {
+    if (state.currentLevel !== 1) {
+        alert('Игра доступна только на первом уровне!');
+        return;
+    }
+    
+    levelScreen.classList.remove('active');
+    gameScreen.classList.add('active');
+    
+    resetGameVariables();
+    gameRunning = true;
+    lastSpawnTime = performance.now();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+// Сброс переменных игры
+function resetGameVariables() {
+    score = 0;
+    lives = 3;
+    boxesFixed = 0;
+    gameTime = 0;
+    multiplier = 1;
+    comboCount = 0;
+    maxMultiplier = 1;
+    conveyorSpeed = 2;
+    spawnRate = 1500;
+    boxes = [];
+    handPosition = 'left';
+    
+    // Очистка конвейера
+    const conveyorBelt = document.getElementById('conveyorBelt');
+    const existingBoxes = conveyorBelt.querySelectorAll('.box');
+    existingBoxes.forEach(box => box.remove());
+    
+    // Обновление UI
+    updateGameUI();
+    updateHandPosition();
+}
+
+// Обновление UI игры
+function updateGameUI() {
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('livesDisplay').textContent = '❤️'.repeat(lives);
+    
+    let multiplierText = 'x' + multiplier.toFixed(1);
+    if (multiplier === 1) {
+        multiplierText = 'x1';
+    }
+    document.getElementById('multiplierDisplay').textContent = multiplierText;
+}
+
+// Движение руки
+function moveHand(position) {
+    if (!gameRunning) return;
+    
+    handPosition = position;
+    updateHandPosition();
+}
+
+// Обновление позиции руки
+function updateHandPosition() {
+    const playerHand = document.getElementById('playerHand');
+    if (handPosition === 'left') {
+        playerHand.classList.remove('hand-right');
+        playerHand.classList.add('hand-left');
+    } else {
+        playerHand.classList.remove('hand-left');
+        playerHand.classList.add('hand-right');
+    }
+}
+
+// Игровой цикл
+function gameLoop(timestamp) {
+    if (!gameRunning) return;
+    
+    // Обновление времени
+    gameTime += 16; // примерно 16мс на кадр
+    
+    // Увеличение сложности со временем
+    if (gameTime > 10000) {
+        conveyorSpeed = 3;
+        spawnRate = 1200;
+    }
+    if (gameTime > 20000) {
+        conveyorSpeed = 4;
+        spawnRate = 1000;
+    }
+    if (gameTime > 30000) {
+        conveyorSpeed = 5;
+        spawnRate = 800;
+    }
+    
+    // Спавн коробок
+    if (timestamp - lastSpawnTime > spawnRate) {
+        spawnBox();
+        lastSpawnTime = timestamp;
+    }
+    
+    // Обновление позиций коробок
+    updateBoxes();
+    
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+// Спавн коробки
+function spawnBox() {
+    const conveyorBelt = document.getElementById('conveyorBelt');
+    const box = document.createElement('div');
+    box.className = 'box';
+    
+    // Случайный тип: прямая или наклоненная
+    const randomType = Math.random();
+    let boxType;
+    if (randomType < 0.3) {
+        boxType = 'straight';
+        box.classList.add('straight');
+        box.dataset.type = 'straight';
+        box.textContent = '';
+    } else if (randomType < 0.65) {
+        boxType = 'tilted-left';
+        box.classList.add('tilted-left');
+        box.dataset.type = 'tilted-left';
+        box.textContent = '↙';
+    } else {
+        boxType = 'tilted-right';
+        box.classList.add('tilted-right');
+        box.dataset.type = 'tilted-right';
+        box.textContent = '↘';
+    }
+    
+    box.style.top = '60px';
+    box.dataset.y = 60;
+    box.dataset.fixed = 'false';
+    
+    conveyorBelt.appendChild(box);
+    boxes.push(box);
+}
+
+// Обновление позиций коробок
+function updateBoxes() {
+    const conveyorBelt = document.getElementById('conveyorBelt');
+    const beltHeight = conveyorBelt.clientHeight;
+    const fixZone = beltHeight - 150; // Зона, где можно исправить коробку
+    
+    for (let i = boxes.length - 1; i >= 0; i--) {
+        const box = boxes[i];
+        let y = parseFloat(box.dataset.y);
+        y += conveyorSpeed;
+        box.dataset.y = y;
+        box.style.top = y + 'px';
+        
+        // Проверка, нужно ли исправлять коробку
+        const boxType = box.dataset.type;
+        const isFixed = box.dataset.fixed === 'true';
+        
+        if ((boxType === 'tilted-left' || boxType === 'tilted-right') && !isFixed) {
+            // Проверка, находится ли коробка в зоне исправления
+            if (y >= fixZone && y <= fixZone + 100) {
+                // Проверка, правильная ли сторона руки
+                const correctHand = boxType === 'tilted-left' ? 'right' : 'left';
+                
+                if (handPosition === correctHand) {
+                    // Исправление коробки
+                    fixBox(box);
+                }
+            }
+        }
+        
+        // Коробка достигла конца конвейера
+        if (y > beltHeight - 20) {
+            if (boxType === 'tilted-left' || boxType === 'tilted-right') {
+                // Пропущена наклоненная коробка - потеря жизни
+                loseLife(box);
+            }
+            // Удаление коробки
+            box.remove();
+            boxes.splice(i, 1);
+        }
+    }
+}
+
+// Исправление коробки
+function fixBox(box) {
+    box.dataset.fixed = 'true';
+    box.classList.remove('tilted-left', 'tilted-right');
+    box.classList.add('straight', 'fixing');
+    box.textContent = '';
+    
+    // Анимация выпрямления
+    setTimeout(() => {
+        box.classList.remove('fixing');
+    }, 300);
+    
+    // Начисление очков
+    boxesFixed++;
+    comboCount++;
+    
+    // Расчет множителя
+    if (comboCount >= 30) {
+        multiplier = 2;
+    } else if (comboCount >= 10) {
+        multiplier = 1.5;
+    } else {
+        multiplier = 1;
+    }
+    
+    maxMultiplier = Math.max(maxMultiplier, multiplier);
+    score += Math.floor(100 * multiplier);
+    
+    updateGameUI();
+}
+
+// Потеря жизни
+function loseLife(box) {
+    lives--;
+    comboCount = 0;
+    multiplier = 1;
+    
+    // Анимация получения урона
+    box.classList.add('damaged');
+    
+    updateGameUI();
+    
+    if (lives <= 0) {
+        endGame();
+    }
+}
+
+// Конец игры
+function endGame() {
+    gameRunning = false;
+    cancelAnimationFrame(gameLoopId);
+    
+    // Показ статистики
+    document.getElementById('statsBoxes').textContent = boxesFixed;
+    document.getElementById('statsScore').textContent = score;
+    
+    const minutes = Math.floor(gameTime / 60000);
+    const seconds = Math.floor((gameTime % 60000) / 1000);
+    document.getElementById('statsTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    let multiplierText = 'x' + maxMultiplier.toFixed(1);
+    if (maxMultiplier === 1) {
+        multiplierText = 'x1';
+    }
+    document.getElementById('statsMultiplier').textContent = multiplierText;
+    
+    statsModal.classList.add('active');
+}
+
+// Перезапуск игры
+function restartGame() {
+    statsModal.classList.remove('active');
+    resetGameVariables();
+    gameRunning = true;
+    lastSpawnTime = performance.now();
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+// Возврат в меню из статистики
+function backToMenuFromStats() {
+    statsModal.classList.remove('active');
+    gameScreen.classList.remove('active');
+    menuScreen.classList.add('active');
+    
+    // Установка карусели на первый непройденный уровень
+    const firstUncompleted = findFirstUncompletedLevel();
+    state.currentLevel = firstUncompleted;
+    updateCarousel();
+}

@@ -54,31 +54,34 @@ body {
     gap: 20px;
     width: 100%;
     max-width: 800px;
+    position: relative;
 }
 
 .carousel-wrapper {
     flex: 1;
-    height: 200px;
+    width: 100%;
+    height: 160px;
     overflow: hidden;
     position: relative;
     mask-image: linear-gradient(
         to right,
         transparent 0%,
-        black 10%,
-        black 90%,
+        black 15%,
+        black 85%,
         transparent 100%
     );
     -webkit-mask-image: linear-gradient(
         to right,
         transparent 0%,
-        black 10%,
-        black 90%,
+        black 15%,
+        black 85%,
         transparent 100%
     );
 }
 
 .carousel {
     position: relative;
+    width: 100%;
     height: 100%;
     transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -99,15 +102,16 @@ body {
     cursor: pointer;
     transition: all 0.3s ease;
     position: absolute;
+    left: 50%;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .level-item:hover {
     background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-50%) scale(1.05);
+    transform: translate(-50%, -50%) scale(1.05);
 }
 
 .level-item.completed {
