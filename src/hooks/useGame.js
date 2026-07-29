@@ -5,9 +5,11 @@ const HAND_POSITION_Y = 85; // Позиция руки в процентах о�
 const FIX_ZONE_Y_START = 75; // Зона исправления開始 (в %)
 const FIX_ZONE_Y_END = 82; // Зона исправления конец (в %)
 const INITIAL_LIVES = 3;
-const BASE_CONVEYOR_SPEED = 0.15; // Скорость движения коробок (% в кадр)
-const BASE_SPAWN_RATE = 1200; // Интервал спавна в мс
-const BELT_WIDTH_PERCENT = 40; // Ширина конвейера в % от экрана
+const BASE_CONVEYOR_SPEED = 0.25; // Скорость движения коробок (% в кадр)
+const BASE_SPAWN_RATE = 900; // Интервал спавна в мс
+const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
+const SPEED_INCREASE_RATE = 0.02; // Увеличение скорости каждые 10 секунд
+const MIN_SPAWN_RATE = 400; // Минимальный интервал спавна
 
 export function useGame() {
   const [gameState, setGameState] = useState({
@@ -24,7 +26,8 @@ export function useGame() {
     handPosition: 'left', // 'left' или 'right'
     boxes: [],
     lastSpawnTime: 0,
-    damagedBoxes: [] // Коробки, получившие урон
+    damagedBoxes: [], // Коробки, получившие урон
+    levelCompleteShown: false // Флаг показа сообщения о прохождении уровня
   });
 
   const boxesRef = useRef([]);
@@ -49,7 +52,8 @@ export function useGame() {
       handPosition: 'left',
       boxes: [],
       lastSpawnTime: 0,
-      damagedBoxes: []
+      damagedBoxes: [],
+      levelCompleteShown: false
     });
   }, []);
 
@@ -133,6 +137,9 @@ export function useGame() {
         newMultiplier = 1.5;
       }
 
+      // Начисляем очки за поворот коробки (бонус за действие)
+      const turnBonus = 50;
+
       return {
         ...prev,
         boxes: boxesRef.current,
@@ -140,7 +147,7 @@ export function useGame() {
         comboCount: newComboCount,
         multiplier: newMultiplier,
         maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
-        score: prev.score + Math.floor(100 * newMultiplier)
+        score: prev.score + Math.floor(100 * newMultiplier) + turnBonus
       };
     });
   }, []);
@@ -181,6 +188,7 @@ export function useGame() {
                 }
 
                 boxesFixedThisUpdate++;
+                const turnBonus = 50; // Бонус за поворот
 
                 return {
                   ...box,
@@ -189,6 +197,10 @@ export function useGame() {
                   checked: true,
                   type: 'straight'
                 };
+              } else {
+                // Если коробка не была повернута игроком (рука не в правильном положении), 
+                // помечаем что жизнь будет потеряна
+                box.pendingLifeLoss = true;
               }
             }
           }
@@ -226,8 +238,12 @@ export function useGame() {
 
       // Увеличиваем скорость со временем
       const elapsedTime = Date.now() - gameStartTimeRef.current;
-      const speedIncrease = Math.min(elapsedTime / 60000, 1.5); // Максимум +50% скорости за минуту
+      const speedIncrease = Math.min(elapsedTime / 10000 * SPEED_INCREASE_RATE, 1.5); // Увеличение скорости каждые 10 секунд
       const newConveyorSpeed = BASE_CONVEYOR_SPEED * (1 + speedIncrease);
+      
+      // Уменьшаем интервал спавна со временем (увеличиваем сложность)
+      const spawnRateDecrease = Math.min(elapsedTime / 10000 * 50, BASE_SPAWN_RATE - MIN_SPAWN_RATE);
+      const newSpawnRate = Math.max(MIN_SPAWN_RATE, BASE_SPAWN_RATE - spawnRateDecrease);
 
       return {
         ...prev,
@@ -238,6 +254,7 @@ export function useGame() {
         comboCount: livesLost > 0 ? 0 : prev.comboCount,
         multiplier: livesLost > 0 ? 1 : prev.multiplier,
         conveyorSpeed: newConveyorSpeed,
+        spawnRate: newSpawnRate,
         isRunning: !gameOver,
         gameTime: elapsedTime
       };
@@ -256,7 +273,9 @@ export function useGame() {
       boxes: [],
       damagedBoxes: [],
       gameTime: 0,
-      conveyorSpeed: BASE_CONVEYOR_SPEED
+      conveyorSpeed: BASE_CONVEYOR_SPEED,
+      spawnRate: BASE_SPAWN_RATE,
+      levelCompleteShown: false
     }));
   }, [resetGame]);
 

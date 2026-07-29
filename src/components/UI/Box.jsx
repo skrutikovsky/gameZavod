@@ -9,20 +9,29 @@ export function Box({ type, y, fixed, size = 100 }) {
   };
 
   const getContent = () => {
-    if (fixed) return '';
-    if (type === 'tilted-left') return '↙';
-    if (type === 'tilted-right') return '↘';
-    return '';
+    if (fixed) return null;
+    if (type === 'tilted-left') return '\u2199';
+    if (type === 'tilted-right') return '\u2198';
+    return null;
+  };
+
+  // Определяем цвет стрелки в зависимости от типа коробки
+  const getArrowColor = () => {
+    if (fixed) return '#ffffff';
+    if (type === 'tilted-left') return '#ffffff';
+    if (type === 'tilted-right') return '#ffffff';
+    return '#ffffff';
   };
 
   return (
     <div
       className={getBoxClass()}
-      style={{ 
+      style={{
         top: `${y}%`,
         width: `${size}px`,
         height: `${size}px`,
-        fontSize: `${size / 4}px`
+        fontSize: `${size / 2}px`,
+        color: getArrowColor()
       }}
     >
       {getContent()}
