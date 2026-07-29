@@ -198,7 +198,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
               Рестарт
             </Button>
             <Button onClick={onGameOver} variant="secondary">
-              Выйти в выбор уровней
+              В главное меню
             </Button>
           </div>
         </Modal>

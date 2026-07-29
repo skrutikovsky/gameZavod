@@ -59,8 +59,8 @@ body {
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, #d35400 0%, #e67e22 50%, #d35400 100%);
-  border: 3px solid #a04000;
-  border-radius: 8px;
+  border: 4px solid #a04000;
+  border-radius: 10px;
   box-shadow: 
     inset 0 0 15px rgba(0, 0, 0, 0.3),
     0 4px 8px rgba(0, 0, 0, 0.3);

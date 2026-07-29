@@ -19,7 +19,7 @@ function App() {
   };
 
   const handleBackToLevels = () => {
-    setCurrentScreen('levels');
+    setCurrentScreen('menu'); // Возвращаемся в главное меню с каруселью
   };
   
   const handleLevelComplete = (level) => {
