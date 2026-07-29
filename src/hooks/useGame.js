@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-const BOX_SIZE = 120;
-const HAND_TOUCH_OFFSET = 30;
+const BOX_SIZE = 240; // Увеличенный размер коробки (в 2 раза больше)
+const HAND_TOUCH_OFFSET = 120; // Увеличенное расстояние касания (в 2 раза больше)
 const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 2;
 const BASE_SPAWN_RATE = 1500;
@@ -23,9 +23,10 @@ export function useGame() {
     lastSpawnTime: 0
   });
 
-  const [gameLoopId, setGameLoopId] = useState(null);
+  const boxesRef = useRef([]);
 
   const resetGame = useCallback(() => {
+    boxesRef.current = [];
     setGameState({
       isRunning: false,
       score: 0,
@@ -53,7 +54,7 @@ export function useGame() {
   const spawnBox = useCallback(() => {
     const randomType = Math.random();
     let boxType;
-    
+
     if (randomType < 0.3) {
       boxType = 'straight';
     } else if (randomType < 0.65) {
@@ -62,26 +63,48 @@ export function useGame() {
       boxType = 'tilted-right';
     }
 
-    return {
+    const newBox = {
       id: Date.now() + Math.random(),
       type: boxType,
       y: 60,
       fixed: false,
       checked: false
     };
+
+    boxesRef.current = [...boxesRef.current, newBox];
+    
+    setGameState(prev => ({
+      ...prev,
+      boxes: boxesRef.current,
+      lastSpawnTime: prev.lastSpawnTime
+    }));
+
+    return newBox;
   }, []);
 
-  const fixBox = useCallback((boxId) => {
+  const fixBox = useCallback((boxId, handPosition) => {
     setGameState(prev => {
-      const boxes = prev.boxes.map(box => 
-        box.id === boxId 
-          ? { ...box, fixed: true, checked: true, type: 'straight' }
-          : box
+      const box = boxesRef.current.find(b => b.id === boxId);
+      if (!box || box.fixed || box.checked) {
+        return prev;
+      }
+
+      // Проверяем, правильно ли расположена рука для этой коробки
+      const correctHand = box.type === 'tilted-left' ? 'right' : 'left';
+      
+      if (handPosition !== correctHand) {
+        return prev;
+      }
+
+      boxesRef.current = boxesRef.current.map(b =>
+        b.id === boxId
+          ? { ...b, fixed: true, checked: true, type: 'straight' }
+          : b
       );
 
       const newComboCount = prev.comboCount + 1;
       let newMultiplier = 1;
-      
+
       if (newComboCount >= 30) {
         newMultiplier = 2;
       } else if (newComboCount >= 10) {
@@ -90,7 +113,7 @@ export function useGame() {
 
       return {
         ...prev,
-        boxes,
+        boxes: boxesRef.current,
         boxesFixed: prev.boxesFixed + 1,
         comboCount: newComboCount,
         multiplier: newMultiplier,
@@ -111,27 +134,34 @@ export function useGame() {
 
   const updateBoxes = useCallback((beltHeight, deltaTime) => {
     setGameState(prev => {
-      const fixZoneStart = beltHeight - 180;
-      const fixZoneEnd = beltHeight - 60;
+      // Зона исправления - увеличена в 2 раза
+      const fixZoneStart = beltHeight - 360; // Увеличено с 180 до 360
+      const fixZoneEnd = beltHeight - 120;   // Увеличено с 60 до 120
+      
       let livesLost = 0;
+      let boxesFixedThisUpdate = 0;
 
-      const updatedBoxes = prev.boxes
+      const updatedBoxes = boxesRef.current
         .map(box => {
           const newY = box.y + prev.conveyorSpeed;
-          
+
+          // Проверяем, находится ли коробка в зоне исправления
           if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.checked) {
             if (newY >= fixZoneStart && newY <= fixZoneEnd) {
               const correctHand = box.type === 'tilted-left' ? 'right' : 'left';
-              
+
+              // Если рука в правильном положении, автоматически исправляем коробку
               if (prev.handPosition === correctHand) {
                 const newComboCount = prev.comboCount + 1;
                 let newMultiplier = 1;
-                
+
                 if (newComboCount >= 30) {
                   newMultiplier = 2;
                 } else if (newComboCount >= 10) {
                   newMultiplier = 1.5;
                 }
+
+                boxesFixedThisUpdate++;
 
                 return {
                   ...box,
@@ -143,22 +173,27 @@ export function useGame() {
               }
             }
           }
-          
+
           return { ...box, y: newY };
         })
         .filter(box => {
           if (box.y > beltHeight - 20) {
             if (box.type === 'tilted-left' || box.type === 'tilted-right') {
-              livesLost++;
+              // Только непоправленные коробки снимают жизни
+              if (!box.fixed && !box.checked) {
+                livesLost++;
+              }
             }
             return false;
           }
           return true;
         });
 
+      boxesRef.current = updatedBoxes;
+
       let newLives = prev.lives - livesLost;
       let gameOver = false;
-      
+
       if (newLives <= 0) {
         newLives = 0;
         gameOver = true;
@@ -166,8 +201,9 @@ export function useGame() {
 
       return {
         ...prev,
-        boxes: updatedBoxes,
+        boxes: boxesRef.current,
         lives: newLives,
+        boxesFixed: prev.boxesFixed + boxesFixedThisUpdate,
         comboCount: livesLost > 0 ? 0 : prev.comboCount,
         multiplier: livesLost > 0 ? 1 : prev.multiplier,
         isRunning: !gameOver
@@ -177,22 +213,21 @@ export function useGame() {
 
   const startGame = useCallback(() => {
     resetGame();
+    boxesRef.current = [];
     setGameState(prev => ({
       ...prev,
       isRunning: true,
-      lastSpawnTime: performance.now()
+      lastSpawnTime: performance.now(),
+      boxes: []
     }));
   }, [resetGame]);
 
   const stopGame = useCallback(() => {
-    if (gameLoopId) {
-      cancelAnimationFrame(gameLoopId);
-    }
     setGameState(prev => ({
       ...prev,
       isRunning: false
     }));
-  }, [gameLoopId]);
+  }, []);
 
   return {
     gameState,
