@@ -1,10 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заводские Мини-Игры</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div id="app">
+        <!-- Главное меню с каруселью уровней -->
+        <div id="menu-screen" class="screen active">
+            <h1 class="game-title">🏭 Заводские Мини-Игры</h1>
+            
+            <div class="carousel-container">
+                <button class="carousel-arrow left-arrow" id="leftArrow">&#9664;</button>
+                
+                <div class="carousel-wrapper">
+                    <div class="carousel" id="levelCarousel">
+                        <!-- Уровни будут добавлены через JS -->
+                    </div>
+                </div>
+                
+                <button class="carousel-arrow right-arrow" id="rightArrow">&#9654;</button>
+            </div>
+            
+            <p class="instruction">Прокручивайте уровни мышкой или стрелками</p>
+        </div>
 
+        <!-- Экран уровня -->
+        <div id="level-screen" class="screen">
+            <button class="back-button" id="backButton">&#8592; Назад</button>
+            <h2 class="level-title" id="levelTitle">Уровень 1</h2>
+            <div class="level-content">
+                <p class="level-description">Это уровень номер <span id="levelNumber">1</span></p>
+            </div>
+            <button class="complete-button" id="completeButton">✓ Пройден</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
