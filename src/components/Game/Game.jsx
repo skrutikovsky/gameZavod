@@ -6,7 +6,7 @@ import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
 
-const Game = ({ level, onGameOver, onBack }) => {
+const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
     gameState,
     moveHand,
@@ -14,6 +14,7 @@ const Game = ({ level, onGameOver, onBack }) => {
     spawnBox,
     startGame,
     stopGame,
+    completeLevel,
     resetGame,
     BOX_SIZE,
     BELT_LENGTH
@@ -30,6 +31,13 @@ const Game = ({ level, onGameOver, onBack }) => {
       stopGame();
     };
   }, []);
+
+  // Проверка на победу (для уровней) - останавливаем игру при достижении цели
+  useEffect(() => {
+    if (level && gameState.boxesFixed >= 10 && gameState.isRunning) {
+      completeLevel();
+    }
+  }, [gameState.boxesFixed, gameState.isRunning, level, completeLevel]);
 
   const gameLoop = (time) => {
     if (!gameState.isRunning) return;
@@ -99,6 +107,9 @@ const Game = ({ level, onGameOver, onBack }) => {
   };
 
   const isGameOver = gameState.lives <= 0;
+  
+  // Для мини-игры показываем кнопку "Назад в меню" всегда
+  const showBackButton = !level || isGameOver;
 
   return (
     <div 
@@ -107,6 +118,16 @@ const Game = ({ level, onGameOver, onBack }) => {
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
     >
+      {/* Кнопка назад в меню (видима только в мини-игре) */}
+      {showBackButton && !isGameOver && (
+        <button
+          onClick={onBack}
+          className="absolute top-20 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
+        >
+          ←
+        </button>
+      )}
+      
       {/* Конвейерная лента */}
       <div 
         className="conveyor-belt absolute left-1/2 transform -translate-x-1/2"
@@ -155,6 +176,20 @@ const Game = ({ level, onGameOver, onBack }) => {
             </Button>
             <Button onClick={onBack} variant="outline">
               Главное меню
+            </Button>
+          </div>
+        </Modal>
+      )}
+      
+      {/* Сообщение о победе для уровней */}
+      {level && gameState.boxesFixed >= 10 && !isGameOver && (
+        <Modal
+          title="Уровень пройден!"
+          message={`Счет: ${gameState.score}\nИсправлено коробок: ${gameState.boxesFixed}`}
+        >
+          <div className="space-y-4">
+            <Button onClick={() => onLevelComplete(level)} variant="success">
+              Продолжить
             </Button>
           </div>
         </Modal>
