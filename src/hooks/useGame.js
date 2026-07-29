@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const BOX_SIZE = 240; // Увеличенный размер коробки (в 2 раза больше)
-const HAND_TOUCH_OFFSET = 120; // Увеличенное расстояние касания (в 2 раза больше)
+const BOX_SIZE = 100; // Размер коробки (уменьшили)
+const HAND_TOUCH_OFFSET = 50; // Расстояние касания
 const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 2;
-const BASE_SPAWN_RATE = 1500;
+const BASE_SPAWN_RATE = 800; // Увеличили интервал спавна (было 1500, теперь 800мс)
+const BELT_LENGTH = 1200; // Увеличили длину ленты
 
 export function useGame() {
   const [gameState, setGameState] = useState({
@@ -24,9 +25,11 @@ export function useGame() {
   });
 
   const boxesRef = useRef([]);
+  const lastBoxYRef = useRef(-BOX_SIZE - 50); // Последняя позиция Y спавнутой коробки
 
   const resetGame = useCallback(() => {
     boxesRef.current = [];
+    lastBoxYRef.current = -BOX_SIZE - 50;
     setGameState({
       isRunning: false,
       score: 0,
@@ -63,10 +66,22 @@ export function useGame() {
       boxType = 'tilted-right';
     }
 
+    // Спавним коробку только если последняя коробка отошла достаточно далеко
+    const minY = boxesRef.current.length > 0 
+      ? Math.min(...boxesRef.current.map(b => b.y))
+      : 0;
+    
+    // Минимальное расстояние между коробками
+    const minDistance = BOX_SIZE + 30;
+    
+    if (minY < minDistance) {
+      return null; // Не спавним, слишком близко к предыдущей коробке
+    }
+
     const newBox = {
       id: Date.now() + Math.random(),
       type: boxType,
-      y: 60,
+      y: -BOX_SIZE, // Начинаем чуть выше видимой области
       fixed: false,
       checked: false
     };
@@ -90,6 +105,8 @@ export function useGame() {
       }
 
       // Проверяем, правильно ли расположена рука для этой коробки
+      // tilted-left нужно исправлять справа (right)
+      // tilted-right нужно исправлять слева (left)
       const correctHand = box.type === 'tilted-left' ? 'right' : 'left';
       
       if (handPosition !== correctHand) {
@@ -134,9 +151,9 @@ export function useGame() {
 
   const updateBoxes = useCallback((beltHeight, deltaTime) => {
     setGameState(prev => {
-      // Зона исправления - увеличена в 2 раза
-      const fixZoneStart = beltHeight - 360; // Увеличено с 180 до 360
-      const fixZoneEnd = beltHeight - 120;   // Увеличено с 60 до 120
+      // Зона исправления - где рука может исправить коробку
+      const fixZoneStart = beltHeight - 200;
+      const fixZoneEnd = beltHeight - 50;
       
       let livesLost = 0;
       let boxesFixedThisUpdate = 0;
@@ -177,12 +194,11 @@ export function useGame() {
           return { ...box, y: newY };
         })
         .filter(box => {
-          if (box.y > beltHeight - 20) {
-            if (box.type === 'tilted-left' || box.type === 'tilted-right') {
-              // Только непоправленные коробки снимают жизни
-              if (!box.fixed && !box.checked) {
-                livesLost++;
-              }
+          // Коробка уходит за пределы ленты
+          if (box.y > beltHeight) {
+            // Только непоправленные наклонные коробки снимают жизни
+            if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.checked) {
+              livesLost++;
             }
             return false;
           }
@@ -214,6 +230,7 @@ export function useGame() {
   const startGame = useCallback(() => {
     resetGame();
     boxesRef.current = [];
+    lastBoxYRef.current = -BOX_SIZE - 50;
     setGameState(prev => ({
       ...prev,
       isRunning: true,
@@ -239,6 +256,8 @@ export function useGame() {
     spawnBox,
     startGame,
     stopGame,
-    resetGame
+    resetGame,
+    BOX_SIZE,
+    BELT_LENGTH
   };
 }
