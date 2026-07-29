@@ -5,11 +5,11 @@ const HAND_POSITION_Y = 85; // Позиция руки в процентах о�
 const FIX_ZONE_Y_START = 75; // Зона исправления開始 (в %)
 const FIX_ZONE_Y_END = 82; // Зона исправления конец (в %)
 const INITIAL_LIVES = 3;
-const BASE_CONVEYOR_SPEED = 0.35; // Базовая скорость движения коробок (% в кадр) - увеличено
-const BASE_SPAWN_RATE = 800; // Интервал спавна в мс - уменьшено для сложности
+const BASE_CONVEYOR_SPEED = 0.45; // Базовая скорость движения коробок (% в кадр) - увеличено для более быстрой игры
+const BASE_SPAWN_RATE = 500; // Интервал спавна в мс - уменьшено для более частого спавна
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
 const SPEED_INCREASE_RATE = 0.03; // Увеличение скорости каждые 5 секунд - увеличено
-const MIN_SPAWN_RATE = 350; // Минимальный интервал спавна
+const MIN_SPAWN_RATE = 250; // Минимальный интервал спавна - уменьшено
 const SPEED_INCREASE_INTERVAL = 5000; // Интервал увеличения скорости в мс (5 секунд)
 
 export function useGame() {
@@ -78,22 +78,24 @@ export function useGame() {
     }
 
     // Проверяем минимальное расстояние между коробками
-    const minDistance = 15; // Минимальное расстояние в %
+    const minDistance = 12; // Минимальное расстояние в % - уменьшено для более частого спавна
     const lowestBox = boxesRef.current.length > 0 
       ? Math.max(...boxesRef.current.map(b => b.y))
       : -100;
     
-    if (lowestBox > minDistance) {
+    // Спавним только если последняя коробка достаточно далеко (ушла вниз)
+    // Используем >= чтобы спавнить коробки почти сразу друг за другом
+    if (lowestBox >= -minDistance) {
       return null; // Не спавним, слишком близко к предыдущей коробке
     }
 
     const newBox = {
       id: Date.now() + Math.random(),
       type: boxType,
-      y: -10, // Начинаем чуть выше видимой области (в %)
+      y: -15, // Начинаем чуть выше видимой области (в %)
       fixed: false,
       checked: false,
-      damaged: false
+      missed: false // Флаг того, что коробка была пропущена
     };
 
     boxesRef.current = [...boxesRef.current, newBox];
@@ -167,63 +169,74 @@ export function useGame() {
     setGameState(prev => {
       let livesLost = 0;
       let boxesFixedThisUpdate = 0;
+      let scoreGained = 0;
+      let newComboCount = prev.comboCount;
+      let newMultiplier = prev.multiplier;
       const newDamagedBoxes = [];
 
-      const updatedBoxes = boxesRef.current
-        .map(box => {
-          const newY = box.y + prev.conveyorSpeed;
+      // Сначала обновляем позиции и проверяем исправление коробок
+      const updatedBoxes = boxesRef.current.map(box => {
+        const newY = box.y + prev.conveyorSpeed;
 
-          // Проверяем, находится ли коробка в зоне исправления
-          if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.checked) {
-            if (newY >= FIX_ZONE_Y_START && newY <= FIX_ZONE_Y_END) {
-              const correctHand = box.type === 'tilted-left' ? 'left' : 'right';
+        // Проверяем, находится ли коробка в зоне исправления
+        if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.checked) {
+          if (newY >= FIX_ZONE_Y_START && newY <= FIX_ZONE_Y_END) {
+            const correctHand = box.type === 'tilted-left' ? 'left' : 'right';
 
-              // Если рука в правильном положении, автоматически исправляем коробку
-              if (prev.handPosition === correctHand) {
-                const newComboCount = prev.comboCount + 1;
-                let newMultiplier = 1;
-
-                if (newComboCount >= 30) {
-                  newMultiplier = 2;
-                } else if (newComboCount >= 10) {
-                  newMultiplier = 1.5;
-                }
-
-                boxesFixedThisUpdate++;
-                const turnBonus = 50; // Бонус за поворот
-
-                return {
-                  ...box,
-                  y: newY,
-                  fixed: true,
-                  checked: true,
-                  type: 'straight'
-                };
+            // Если рука в правильном положении, автоматически исправляем коробку
+            if (prev.handPosition === correctHand) {
+              boxesFixedThisUpdate++;
+              newComboCount = prev.comboCount + boxesFixedThisUpdate;
+              
+              if (newComboCount >= 30) {
+                newMultiplier = 2;
+              } else if (newComboCount >= 10) {
+                newMultiplier = 1.5;
+              } else {
+                newMultiplier = 1;
               }
-            }
-          }
 
-          return { ...box, y: newY };
-        })
-        .filter(box => {
-          // Коробка уходит за пределы экрана (ниже 100%)
-          if (box.y > 100) {
-            // Только непоправленные наклонные коробки снимают жизни
-            if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.checked) {
-              livesLost++;
-              // Добавляем в список поврежденных коробок для отображения
-              newDamagedBoxes.push({
+              const turnBonus = 50; // Бонус за поворот
+              scoreGained += Math.floor(100 * newMultiplier) + turnBonus;
+
+              return {
                 ...box,
-                damaged: true,
-                damageTime: Date.now()
-              });
+                y: newY,
+                fixed: true,
+                checked: true,
+                type: 'straight',
+                missed: true // Помечаем как обработанную чтобы не снимать жизнь
+              };
             }
-            return false;
           }
-          return true;
-        });
+        }
 
-      boxesRef.current = updatedBoxes;
+        return { ...box, y: newY };
+      });
+
+      // Затем фильтруем коробки, ушедшие за экран
+      const filteredBoxes = updatedBoxes.filter(box => {
+        // Коробка уходит за пределы экрана (ниже 100%)
+        if (box.y > 100) {
+          // Только непоправленные наклонные коробки снимают жизни
+          if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.missed) {
+            livesLost++;
+            // Добавляем в список поврежденных коробок для отображения
+            newDamagedBoxes.push({
+              ...box,
+              damaged: true,
+              damageTime: Date.now()
+            });
+            // Сбрасываем комбо при потере жизни
+            newComboCount = 0;
+            newMultiplier = 1;
+          }
+          return false;
+        }
+        return true;
+      });
+
+      boxesRef.current = filteredBoxes;
       damagedBoxesRef.current = newDamagedBoxes;
 
       let newLives = prev.lives - livesLost;
@@ -249,8 +262,10 @@ export function useGame() {
         damagedBoxes: newDamagedBoxes,
         lives: newLives,
         boxesFixed: prev.boxesFixed + boxesFixedThisUpdate,
-        comboCount: livesLost > 0 ? 0 : prev.comboCount,
-        multiplier: livesLost > 0 ? 1 : prev.multiplier,
+        comboCount: newComboCount,
+        multiplier: newMultiplier,
+        maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
+        score: prev.score + scoreGained,
         conveyorSpeed: newConveyorSpeed,
         spawnRate: newSpawnRate,
         isRunning: !gameOver,
