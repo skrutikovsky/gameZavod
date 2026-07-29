@@ -5,10 +5,8 @@ const HAND_POSITION_Y = 85; // Позиция руки в процентах о�
 const CHECK_LINE_Y = 78; // Невидимая линия проверки (чуть выше руки)
 const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.12; // Замедлили в 3 раза (было 0.35)
-const BASE_SPAWN_RATE = 800; // Интервал спавна в мс (увеличен из-за замедления)
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
-const BOX_GAP_RATIO = 0.4; // Расстояние между коробками 40% от размера
-const MIN_BOX_DISTANCE = 12; // Минимальное расстояние между коробками в %
+const BOX_GAP_PIXELS = 30; // Фиксированное расстояние между коробками в пикселях
 const accelerationRate = 1.02; // +2% за успех
 
 export function useGame() {
@@ -22,7 +20,7 @@ export function useGame() {
     comboCount: 0,
     maxMultiplier: 1,
     conveyorSpeed: BASE_CONVEYOR_SPEED,
-    spawnRate: BASE_SPAWN_RATE,
+    spawnRate: 0, // Будет рассчитан динамически
     handPosition: 'left', // 'left' или 'right'
     boxes: [],
     lastSpawnTime: 0,
@@ -32,11 +30,13 @@ export function useGame() {
   const boxesRef = useRef([]);
   const gameStartTimeRef = useRef(0);
   const errorAnimationRef = useRef(new Map()); // Храним тайминги анимаций ошибок
+  const baseSpawnRateRef = useRef(0); // Базовый интервал спавна в мс
 
   const resetGame = useCallback(() => {
     boxesRef.current = [];
     gameStartTimeRef.current = 0;
     errorAnimationRef.current = new Map();
+    baseSpawnRateRef.current = 0;
     setGameState({
       isRunning: false,
       score: 0,
@@ -47,7 +47,7 @@ export function useGame() {
       comboCount: 0,
       maxMultiplier: 1,
       conveyorSpeed: BASE_CONVEYOR_SPEED,
-      spawnRate: BASE_SPAWN_RATE,
+      spawnRate: 0,
       handPosition: 'left',
       boxes: [],
       lastSpawnTime: 0,
@@ -82,7 +82,8 @@ export function useGame() {
       fixed: false,
       checked: false, // Проверена ли на линии
       missed: false, // Пропущена ли (ушла за экран)
-      errorAnim: false // Флаг анимации ошибки
+      errorAnim: false, // Флаг анимации ошибки
+      errorAnimStartTime: 0 // Время начала анимации ошибки
     };
 
     boxesRef.current = [...boxesRef.current, newBox];
@@ -105,7 +106,8 @@ export function useGame() {
       ...prev,
       lives: prev.lives - 1,
       comboCount: 0,
-      multiplier: 1
+      multiplier: 1,
+      conveyorSpeed: BASE_CONVEYOR_SPEED // Возвращаем скорость к базовой
     }));
   }, []);
 
@@ -132,7 +134,7 @@ export function useGame() {
         if (box.y >= CHECK_LINE_Y) {
           box.checked = true;
 
-          // Если коробка прямая - ничего не делаем, просто пропускаем
+          // Если коробка прямая - ничего не делаем, просто пропускаем (очки не начисляются)
           if (box.type === 'straight') {
             return;
           }
@@ -172,9 +174,9 @@ export function useGame() {
             // Теряем жизнь
             livesLost++;
             
-            // Запускаем анимацию ошибки
+            // Запускаем анимацию ошибки (увеличение на 15% и покраснение на 0.5 сек)
             box.errorAnim = true;
-            errorAnimationRef.current.set(box.id, Date.now());
+            box.errorAnimStartTime = Date.now();
             
             // Возвращаем скорость к базовой
             newConveyorSpeed = BASE_CONVEYOR_SPEED;
@@ -187,11 +189,10 @@ export function useGame() {
       // Обрабатываем анимации ошибок (сбрасываем через 500мс)
       const now = Date.now();
       boxesRef.current.forEach(box => {
-        if (box.errorAnim) {
-          const animStartTime = errorAnimationRef.current.get(box.id);
-          if (animStartTime && now - animStartTime > 500) {
+        if (box.errorAnim && box.errorAnimStartTime) {
+          if (now - box.errorAnimStartTime > 500) {
             box.errorAnim = false;
-            errorAnimationRef.current.delete(box.id);
+            box.errorAnimStartTime = 0;
           }
         }
       });
@@ -199,7 +200,6 @@ export function useGame() {
       // Фильтруем коробки, ушедшие за экран
       boxesRef.current = boxesRef.current.filter(box => {
         if (box.y > 100) {
-          // Если наклонная коробка ушла за экран и не была исправлена - это уже учтено в livesLost
           return false;
         }
         return true;
@@ -233,6 +233,21 @@ export function useGame() {
     resetGame();
     boxesRef.current = [];
     gameStartTimeRef.current = Date.now();
+    
+    // Рассчитываем базовый интервал спавна на основе скорости конвейера и фиксированного расстояния
+    // BOX_GAP_PIXELS = 30 пикселей, BOX_SIZE = 140 пикселей
+    // Расстояние в % экрана: (BOX_SIZE + BOX_GAP_PIXELS) / высота экрана в пикселях * 100
+    // Для расчета используем предположение о высоте экрана ~800px для десктопа
+    const screenHeightPx = window.innerHeight || 800;
+    const boxDistancePercent = ((BOX_SIZE + BOX_GAP_PIXELS) / screenHeightPx) * 100;
+    
+    // Время между спавнами = расстояние / скорость
+    // Скорость в % за мс = BASE_CONVEYOR_SPEED / 16.67 (при 60fps)
+    const speedPerMs = BASE_CONVEYOR_SPEED / 16.67;
+    const spawnIntervalMs = boxDistancePercent / speedPerMs;
+    
+    baseSpawnRateRef.current = spawnIntervalMs;
+    
     setGameState(prev => ({
       ...prev,
       isRunning: true,
@@ -240,7 +255,7 @@ export function useGame() {
       boxes: [],
       gameTime: 0,
       conveyorSpeed: BASE_CONVEYOR_SPEED,
-      spawnRate: BASE_SPAWN_RATE,
+      spawnRate: spawnIntervalMs,
       levelCompleteShown: false
     }));
   }, [resetGame]);

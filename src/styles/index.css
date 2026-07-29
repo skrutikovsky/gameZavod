@@ -83,16 +83,17 @@ body {
   transition: transform 0.3s ease;
 }
 
-/* Коробка с уроном - краснеет */
-.box.damaged {
+/* Анимация ошибки - увеличение на 15% и покраснение */
+.box.error-anim {
   background: linear-gradient(135deg, #c0392b 0%, #e74c3c 50%, #c0392b 100%) !important;
   border-color: #922b21 !important;
-  animation: damageFlash 0.5s ease;
+  animation: errorAnim 0.5s ease;
 }
 
-@keyframes damageFlash {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+@keyframes errorAnim {
+  0% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.15); }
+  100% { transform: translateX(-50%) scale(1); }
 }
 
 .hand {
@@ -116,18 +117,6 @@ body {
 
 .hand-right {
   left: calc(50% + 40px);
-}
-
-/* Анимации */
-@keyframes damage {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  25% { transform: translateX(-50%) scale(1.2) rotate(5deg); }
-  50% { transform: translateX(-50%) scale(0.8) rotate(-5deg); }
-  75% { transform: translateX(-50%) scale(1.1) rotate(3deg); }
-}
-
-.box.damaged {
-  animation: damage 0.5s ease;
 }
 
 /* Карусель уровней */
