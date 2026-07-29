@@ -6,7 +6,7 @@ const CHECK_LINE_Y = 78; // Невидимая линия проверки (чу
 const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.12; // Замедлили в 3 раза (было 0.35)
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
-const BOX_GAP_PIXELS = 30; // Фиксированное расстояние между коробками в пикселях
+const BOX_GAP_PIXELS = 20; // Фиксированное расстояние между коробками в пикселях
 const accelerationRate = 1.02; // +2% за успех
 
 export function useGame() {
@@ -145,7 +145,8 @@ export function useGame() {
           if (prev.handPosition === correctHand) {
             // УСПЕХ: рука в правильном положении
             box.fixed = true;
-            box.type = 'straight'; // Поворачиваем коробку
+            // Не меняем тип коробки сразу, чтобы сохранить анимацию
+            // Тип меняется только для отображения как "straight"
             
             boxesFixedThisUpdate++;
             newComboCount = prev.comboCount + boxesFixedThisUpdate;
@@ -177,6 +178,8 @@ export function useGame() {
             // Запускаем анимацию ошибки (увеличение на 15% и покраснение на 0.5 сек)
             box.errorAnim = true;
             box.errorAnimStartTime = Date.now();
+            // Сохраняем оригинальный тип коробки для анимации
+            box.originalType = box.type;
             
             // Возвращаем скорость к базовой
             newConveyorSpeed = BASE_CONVEYOR_SPEED;

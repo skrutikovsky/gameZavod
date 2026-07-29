@@ -90,10 +90,32 @@ body {
   animation: errorAnim 0.5s ease;
 }
 
+.box.error-anim.tilted-left {
+  transform: translateX(-50%) rotate(-15deg);
+  animation: errorAnimTiltedLeft 0.5s ease;
+}
+
+.box.error-anim.tilted-right {
+  transform: translateX(-50%) rotate(15deg);
+  animation: errorAnimTiltedRight 0.5s ease;
+}
+
 @keyframes errorAnim {
   0% { transform: translateX(-50%) scale(1); }
   50% { transform: translateX(-50%) scale(1.15); }
   100% { transform: translateX(-50%) scale(1); }
+}
+
+@keyframes errorAnimTiltedLeft {
+  0% { transform: translateX(-50%) rotate(-15deg) scale(1); }
+  50% { transform: translateX(-50%) rotate(-15deg) scale(1.15); }
+  100% { transform: translateX(-50%) rotate(-15deg) scale(1); }
+}
+
+@keyframes errorAnimTiltedRight {
+  0% { transform: translateX(-50%) rotate(15deg) scale(1); }
+  50% { transform: translateX(-50%) rotate(15deg) scale(1.15); }
+  100% { transform: translateX(-50%) rotate(15deg) scale(1); }
 }
 
 .hand {
