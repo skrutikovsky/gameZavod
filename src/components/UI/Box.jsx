@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function Box({ type, y, fixed, size = 120 }) {
+export function Box({ type, y, fixed, size = 100 }) {
   const getBoxClass = () => {
     if (fixed) return 'box straight';
     if (type === 'tilted-left') return 'box tilted-left';
@@ -19,7 +19,7 @@ export function Box({ type, y, fixed, size = 120 }) {
     <div
       className={getBoxClass()}
       style={{ 
-        top: `${y}px`,
+        top: `${y}%`,
         width: `${size}px`,
         height: `${size}px`,
         fontSize: `${size / 4}px`
