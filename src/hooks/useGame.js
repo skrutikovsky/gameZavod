@@ -4,10 +4,10 @@ const BOX_SIZE = 140; // Размер коробки
 const HAND_POSITION_Y = 85; // Позиция руки в процентах от высоты экрана
 const CHECK_LINE_Y = 78; // Невидимая линия проверки (чуть выше руки)
 const INITIAL_LIVES = 3;
-const BASE_CONVEYOR_SPEED = 0.12; // Замедлили в 3 раза (было 0.35)
+const BASE_CONVEYOR_SPEED = 0.18; // Увеличено в 1.5 раза (было 0.12)
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
 const BOX_GAP_PIXELS = 20; // Фиксированное расстояние между коробками в пикселях
-const accelerationRate = 1.02; // +2% за успех
+const ACCELERATION_RATE = 1.02; // +2% за успех
 
 export function useGame() {
   const [gameState, setGameState] = useState({
@@ -31,7 +31,6 @@ export function useGame() {
   const gameStateRef = useRef(null); // Храним актуальное состояние
   const gameStartTimeRef = useRef(0);
   const errorAnimationRef = useRef(new Map()); // Храним тайминги анимаций ошибок
-  const baseSpawnRateRef = useRef(0); // Базовый интервал спавна в мс
   
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -42,7 +41,6 @@ export function useGame() {
     boxesRef.current = [];
     gameStartTimeRef.current = 0;
     errorAnimationRef.current = new Map();
-    baseSpawnRateRef.current = 0;
     setGameState({
       isRunning: false,
       score: 0,
@@ -112,8 +110,8 @@ export function useGame() {
       ...prev,
       lives: prev.lives - 1,
       comboCount: 0,
-      multiplier: 1,
-      conveyorSpeed: BASE_CONVEYOR_SPEED // Возвращаем скорость к базовой
+      multiplier: 1
+      // Скорость НЕ сбрасываем после провала
     }));
   }, []);
 
@@ -171,7 +169,7 @@ export function useGame() {
           scoreGained += Math.floor(100 * newMultiplier) + turnBonus;
 
           // Ускоряем конвейер на 2%
-          newConveyorSpeed = currentState.conveyorSpeed * accelerationRate;
+          newConveyorSpeed = currentState.conveyorSpeed * ACCELERATION_RATE;
         } else {
           // ОШИБКА: рука не в том положении
           // Сбрасываем комбо и множитель
@@ -187,8 +185,7 @@ export function useGame() {
           // Сохраняем оригинальный тип коробки для анимации
           box.originalType = box.type;
           
-          // Возвращаем скорость к базовой
-          newConveyorSpeed = BASE_CONVEYOR_SPEED;
+          // Скорость НЕ меняем после провала - оставляем текущую
           
           // Коробка остается наклонной и уйдет за экран
         }
@@ -253,8 +250,6 @@ export function useGame() {
     // Скорость в % за мс = BASE_CONVEYOR_SPEED / 16.67 (при 60fps)
     const speedPerMs = BASE_CONVEYOR_SPEED / 16.67;
     const spawnIntervalMs = boxCenterDistancePercent / speedPerMs;
-    
-    baseSpawnRateRef.current = spawnIntervalMs;
     
     setGameState(prev => ({
       ...prev,
