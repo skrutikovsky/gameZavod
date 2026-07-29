@@ -17,7 +17,8 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     completeLevel,
     resetGame,
     BOX_SIZE,
-    BELT_LENGTH
+    BELT_WIDTH_PERCENT,
+    HAND_POSITION_Y
   } = useGame();
 
   const gameContainerRef = useRef(null);
@@ -51,7 +52,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       lastSpawnRef.current = time;
     }
 
-    updateBoxes(BELT_LENGTH, deltaTime);
+    updateBoxes(deltaTime);
 
     requestRef.current = requestAnimationFrame(gameLoop);
   };
@@ -74,15 +75,10 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     };
   }, [gameState.isRunning]);
 
-  const handleMouseMove = (e) => {
-    const containerRect = gameContainerRef.current?.getBoundingClientRect();
-    if (!containerRect) return;
-
-    const centerX = containerRect.left + containerRect.width / 2;
-    
-    if (e.clientX < centerX) {
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'Ф') {
       moveHand('left');
-    } else {
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'В') {
       moveHand('right');
     }
   };
@@ -108,12 +104,21 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
   const isGameOver = gameState.lives <= 0;
 
+  // Форматирование времени
+  const formatTime = (ms) => {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div 
       ref={gameContainerRef}
       className="game-container relative w-full h-screen overflow-hidden"
-      onMouseMove={handleMouseMove}
+      onKeyDown={handleKeyDown}
       onTouchMove={handleTouchMove}
+      tabIndex={0}
     >
       {/* Кнопка назад в меню */}
       <button
@@ -123,15 +128,18 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ←
       </button>
       
-      {/* Конвейерная лента */}
+      {/* Конвейерная лента - вертикальная по центру */}
       <div 
-        className="conveyor-belt absolute left-1/2 transform -translate-x-1/2"
+        className="conveyor-belt absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0"
         style={{
-          width: '400px',
-          height: `${BELT_LENGTH}px`,
-          top: '0'
+          width: `${BELT_WIDTH_PERCENT}%`
         }}
       >
+        {/* Лючок сверху */}
+        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-600">
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-3/4 h-4 bg-gray-900"></div>
+        </div>
+        
         {/* Коробки */}
         {gameState.boxes.map((box) => (
           <Box
@@ -154,23 +162,22 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
         boxesFixed={gameState.boxesFixed}
         multiplier={gameState.multiplier}
         comboCount={gameState.comboCount}
+        gameTime={gameState.gameTime}
+        formatTime={formatTime}
       />
 
       {/* Модальное окно конца игры */}
       {isGameOver && (
         <Modal
           title="Игра окончена!"
-          message={`Счет: ${gameState.score}\nИсправлено коробок: ${gameState.boxesFixed}`}
+          message={`Время: ${formatTime(gameState.gameTime)}\nСчёт: ${gameState.score}\nИсправлено коробок: ${gameState.boxesFixed}`}
         >
           <div className="space-y-4">
             <Button onClick={handleRestart} variant="primary">
-              Играть снова
+              Рестарт
             </Button>
             <Button onClick={onGameOver} variant="secondary">
-              Меню уровней
-            </Button>
-            <Button onClick={onBack} variant="outline">
-              Главное меню
+              Выйти в выбор уровней
             </Button>
           </div>
         </Modal>
@@ -180,7 +187,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {level && gameState.boxesFixed >= 10 && !isGameOver && (
         <Modal
           title="Уровень пройден!"
-          message={`Счет: ${gameState.score}\nИсправлено коробок: ${gameState.boxesFixed}`}
+          message={`Время: ${formatTime(gameState.gameTime)}\nСчёт: ${gameState.score}\nИсправлено коробок: ${gameState.boxesFixed}`}
         >
           <div className="space-y-4">
             <Button onClick={() => onLevelComplete(level)} variant="success">

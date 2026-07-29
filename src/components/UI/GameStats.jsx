@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function GameStats({ score, lives, multiplier, boxesFixed, comboCount }) {
+export function GameStats({ score, lives, multiplier, boxesFixed, comboCount, gameTime, formatTime }) {
   return (
     <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-5 bg-black/50 text-white text-xl w-full z-30">
       <div className="flex gap-8">
@@ -18,6 +18,12 @@ export function GameStats({ score, lives, multiplier, boxesFixed, comboCount }) 
           <div className="flex flex-col items-center">
             <span className="text-sm opacity-80">Комбо</span>
             <span className="text-2xl font-bold text-green-400">{comboCount}</span>
+          </div>
+        )}
+        {gameTime !== undefined && formatTime && (
+          <div className="flex flex-col items-center">
+            <span className="text-sm opacity-80">Время</span>
+            <span className="text-2xl font-bold text-cyan-400">{formatTime(gameTime)}</span>
           </div>
         )}
       </div>

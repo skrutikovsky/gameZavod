@@ -68,7 +68,7 @@ const Menu = ({ onSelectLevel, lastCompletedLevel }) => {
           <div 
             className="flex items-center h-full transition-transform duration-300 ease-out"
             style={{ 
-              transform: `translateX(calc(50% - ${(currentIndex * ITEM_WIDTH) + ITEM_WIDTH / 2}px))`
+              transform: `translateX(calc(50% - ${(currentIndex * ITEM_WIDTH)}px - ${ITEM_WIDTH / 2}px))`
             }}
           >
             {levels.map((level, index) => {
