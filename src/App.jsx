@@ -24,7 +24,7 @@ function App() {
   return (
     <div className="app">
       {currentScreen === 'menu' && (
-        <Menu onNavigate={(screen) => setCurrentScreen(screen)} />
+        <Menu onSelectLevel={handleStartGame} />
       )}
       {currentScreen === 'levels' && (
         <LevelScreen 
