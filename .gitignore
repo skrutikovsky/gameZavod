@@ -1,12 +1,4 @@
 ```
-# Dependencies
-node_modules/
-
-# Build artifacts
 dist/
-build/
-*.js.map
-
-# Vite specific
-node_modules/.vite/
+node_modules/
 ```

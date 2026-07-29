@@ -53,7 +53,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     // Динамический расчет интервала спавна на основе текущей скорости
     // Расстояние между коробками должно оставаться фиксированным (BOX_GAP_PIXELS)
     const screenHeightPx = window.innerHeight || 800;
-    const boxCenterDistancePercent = ((BOX_SIZE + 20) / screenHeightPx) * 100; // 20px gap
+    const boxCenterDistancePercent = ((BOX_SIZE + BOX_GAP_PIXELS) / screenHeightPx) * 100;
     const speedPerMs = gameState.conveyorSpeed / 16.67;
     const currentSpawnRate = boxCenterDistancePercent / speedPerMs;
 
@@ -148,7 +148,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       onTouchMove={handleTouchMove}
       tabIndex={0}
     >
-      {/* Статистика игры - сдвинута вниз чтобы не перекрывать кнопку назад */}
+      {/* Статистика игры с кнопкой назад */}
       <GameStats
         score={gameState.score}
         lives={gameState.lives}
@@ -157,15 +157,8 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
         comboCount={gameState.comboCount}
         gameTime={gameState.gameTime}
         formatTime={formatTime}
+        onBack={onBack}
       />
-
-      {/* Кнопка назад в меню - позиция изменена чтобы не заползать на статистику */}
-      <button
-        onClick={onBack}
-        className="absolute top-4 left-5 z-40 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
-      >
-        ←
-      </button>
       
       {/* Конвейерная лента - вертикальная по центру */}
       <div 
@@ -213,11 +206,10 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </Modal>
       )}
       
-      {/* Уведомление о прохождении уровня (не останавливает игру) */}
+      {/* Уведомление о прохождении уровня - индикатор слева */}
       {level && gameState.score >= 3000 && !isGameOver && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-green-500/90 text-white px-8 py-4 rounded-lg shadow-lg text-center animate-pulse">
-          <h2 className="text-3xl font-bold mb-2">🎉 Уровень пройден! 🎉</h2>
-          <p className="text-lg">Можно продолжить для улучшения счета!</p>
+        <div className="absolute top-1/2 left-0 transform -translate-y-1/2 z-50 bg-green-500/90 text-white px-4 py-8 rounded-r-lg shadow-lg text-center writing-vertical-lr">
+          <h2 className="text-xl font-bold">🎉 Уровень пройден! 🎉</h2>
         </div>
       )}
     </div>
