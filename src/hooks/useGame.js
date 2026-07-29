@@ -78,16 +78,6 @@ export function useGame() {
       boxType = 'tilted-right';
     }
 
-    // Проверяем минимальное расстояние между коробками
-    const lowestBox = boxesRef.current.length > 0 
-      ? Math.max(...boxesRef.current.map(b => b.y))
-      : -100;
-    
-    // Спавним только если последняя коробка достаточно далеко (ушла вниз)
-    if (lowestBox >= -MIN_BOX_DISTANCE) {
-      return null; // Не спавним, слишком близко к предыдущей коробке
-    }
-
     const newBox = {
       id: Date.now() + Math.random(),
       type: boxType,
@@ -178,17 +168,19 @@ export function useGame() {
       let newMultiplier = prev.multiplier;
       const newDamagedBoxes = [];
 
-      // Сначала обновляем позиции и проверяем исправление коробок
-      const updatedBoxes = boxesRef.current.map(box => {
-        const newY = box.y + prev.conveyorSpeed;
-
-        // Проверяем, находится ли коробка в зоне исправления
-        if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed && !box.checked) {
-          if (newY >= FIX_ZONE_Y_START && newY <= FIX_ZONE_Y_END) {
+      // Сначала проверяем и исправляем коробки в зоне исправления
+      boxesRef.current.forEach(box => {
+        // Проверяем только наклонные коробки которые еще не исправлены
+        if ((box.type === 'tilted-left' || box.type === 'tilted-right') && !box.fixed) {
+          // Проверяем находится ли коробка в зоне исправления
+          if (box.y >= FIX_ZONE_Y_START && box.y <= FIX_ZONE_Y_END && !box.checked) {
             const correctHand = box.type === 'tilted-left' ? 'left' : 'right';
 
-            // Если рука в правильном положении, автоматически исправляем коробку
+            // Если рука в правильном положении, исправляем коробку
             if (prev.handPosition === correctHand) {
+              box.fixed = true;
+              box.missed = true; // Помечаем как обработанную чтобы не снимать жизнь
+              
               boxesFixedThisUpdate++;
               newComboCount = prev.comboCount + boxesFixedThisUpdate;
               
@@ -202,23 +194,28 @@ export function useGame() {
 
               const turnBonus = 50; // Бонус за поворот
               scoreGained += Math.floor(100 * newMultiplier) + turnBonus;
-
-              return {
-                ...box,
-                y: newY,
-                fixed: true,
-                checked: true,
-                type: 'straight',
-                missed: true // Помечаем как обработанную чтобы не снимать жизнь
-              };
             }
+            // Помечаем что коробка была проверена в этой зоне (независимо от результата)
+            box.checked = true;
           }
         }
+        
+        // Прямые коробки просто помечаем как проверенные когда проходят зону
+        if (box.type === 'straight' && !box.checked) {
+          if (box.y >= FIX_ZONE_Y_START && box.y <= FIX_ZONE_Y_END) {
+            box.checked = true;
+            box.missed = true;
+          }
+        }
+      });
 
+      // Затем обновляем позиции всех коробок
+      const updatedBoxes = boxesRef.current.map(box => {
+        const newY = box.y + prev.conveyorSpeed;
         return { ...box, y: newY };
       });
 
-      // Затем фильтруем коробки, ушедшие за экран
+      // Фильтруем коробки, ушедшие за экран
       const filteredBoxes = updatedBoxes.filter(box => {
         // Коробка уходит за пределы экрана (ниже 100%)
         if (box.y > 100) {
