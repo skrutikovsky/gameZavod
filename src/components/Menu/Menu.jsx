@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
 const TOTAL_LEVELS = 10;
-const ITEM_WIDTH = 220; // ширина элемента + отступ
+const ITEM_WIDTH = 200; // ширина элемента + отступ (180px элемент + 20px отступ)
+const ITEM_SIZE = 180; // размер самого элемента
 
-const Menu = ({ onSelectLevel, onPlayMiniGame, lastCompletedLevel }) => {
+const Menu = ({ onSelectLevel, lastCompletedLevel }) => {
   const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
   
   // Начальный индекс: следующий уровень после последнего пройденного
@@ -67,7 +68,7 @@ const Menu = ({ onSelectLevel, onPlayMiniGame, lastCompletedLevel }) => {
           <div 
             className="flex items-center h-full transition-transform duration-300 ease-out"
             style={{ 
-              transform: `translateX(calc(50% - ${currentIndex * ITEM_WIDTH}px - ${ITEM_WIDTH / 2}px))`
+              transform: `translateX(calc(50% - ${(currentIndex * ITEM_WIDTH) + ITEM_WIDTH / 2}px))`
             }}
           >
             {levels.map((level, index) => {
@@ -81,7 +82,8 @@ const Menu = ({ onSelectLevel, onPlayMiniGame, lastCompletedLevel }) => {
                 <div
                   key={level}
                   className={`
-                    w-48 h-48
+                    flex-shrink-0
+                    w-[180px] h-[180px]
                     bg-white/20 backdrop-blur-md
                     rounded-2xl
                     flex flex-col items-center justify-center
@@ -89,7 +91,6 @@ const Menu = ({ onSelectLevel, onPlayMiniGame, lastCompletedLevel }) => {
                     shadow-lg
                     border-2 border-white/30
                     transition-all duration-300
-                    flex-shrink-0
                   `}
                   style={{ 
                     transform: `scale(${scale})`,
@@ -107,20 +108,13 @@ const Menu = ({ onSelectLevel, onPlayMiniGame, lastCompletedLevel }) => {
         </div>
       </div>
       
-      {/* Кнопки действий */}
+      {/* Кнопка действий */}
       <div className="flex flex-col gap-4">
         <button
           onClick={handleSelect}
           className="w-64 py-4 px-8 bg-green-500 hover:bg-green-600 text-white text-2xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
         >
           Играть Уровень {levels[currentIndex]}
-        </button>
-        
-        <button
-          onClick={onPlayMiniGame}
-          className="w-64 py-4 px-8 bg-blue-500 hover:bg-blue-600 text-white text-2xl font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
-        >
-          Мини-игра
         </button>
       </div>
     </div>
