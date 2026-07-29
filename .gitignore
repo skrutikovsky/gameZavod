@@ -5,7 +5,4 @@ build/
 
 # Dependencies
 node_modules/
-
-# Logs
-*.log
 ```
