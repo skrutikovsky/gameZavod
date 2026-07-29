@@ -19,13 +19,15 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     BOX_SIZE,
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
-    BOX_GAP_PIXELS
+    BOX_GAP_PIXELS,
+    conveyorSpeedRef,
+    lastSpawnTimeRef,
+    spawnIntervalRef
   } = useGame();
 
   const gameContainerRef = useRef(null);
   const requestRef = useRef(null);
   const lastTimeRef = useRef(0);
-  const lastSpawnRef = useRef(0);
   const levelCompleteNotifiedRef = useRef(false);
 
   useEffect(() => {
@@ -53,15 +55,16 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Динамический расчет интервала спавна на основе текущей скорости
     // Расстояние между коробками должно оставаться фиксированным (BOX_GAP_PIXELS)
+    const currentSpeed = conveyorSpeedRef.current;
     const screenHeightPx = window.innerHeight || 800;
     const boxCenterDistancePercent = ((BOX_SIZE + BOX_GAP_PIXELS) / screenHeightPx) * 100;
-    const speedPerMs = gameState.conveyorSpeed / 16.67;
+    const speedPerMs = currentSpeed / 16.67;
     const currentSpawnRate = boxCenterDistancePercent / speedPerMs;
 
     // Спавн коробок с учетом текущего интервала
-    if (time - lastSpawnRef.current > currentSpawnRate) {
+    if (time - lastSpawnTimeRef.current > currentSpawnRate) {
       spawnBox();
-      lastSpawnRef.current = time;
+      lastSpawnTimeRef.current = time;
     }
 
     updateBoxes(deltaTime);
@@ -72,7 +75,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   useEffect(() => {
     if (gameState.isRunning) {
       lastTimeRef.current = performance.now();
-      lastSpawnRef.current = performance.now();
+      lastSpawnTimeRef.current = performance.now();
       requestRef.current = requestAnimationFrame(gameLoop);
     } else {
       if (requestRef.current) {

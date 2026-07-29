@@ -20,10 +20,8 @@ export function useGame() {
     comboCount: 0,
     maxMultiplier: 1,
     conveyorSpeed: BASE_CONVEYOR_SPEED,
-    spawnRate: 0, // Будет рассчитан динамически
     handPosition: 'left', // 'left' или 'right'
     boxes: [],
-    lastSpawnTime: 0,
     levelCompleteShown: false
   });
   
@@ -31,6 +29,9 @@ export function useGame() {
   const gameStateRef = useRef(null); // Храним актуальное состояние
   const gameStartTimeRef = useRef(0);
   const errorAnimationRef = useRef(new Map()); // Храним тайминги анимаций ошибок
+  const conveyorSpeedRef = useRef(BASE_CONVEYOR_SPEED); // Актуальная скорость в рефе
+  const lastSpawnTimeRef = useRef(0); // Время последнего спавна
+  const spawnIntervalRef = useRef(0); // Текущий интервал спавна
   
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -41,6 +42,10 @@ export function useGame() {
     boxesRef.current = [];
     gameStartTimeRef.current = 0;
     errorAnimationRef.current = new Map();
+    conveyorSpeedRef.current = BASE_CONVEYOR_SPEED;
+    lastSpawnTimeRef.current = 0;
+    spawnIntervalRef.current = 0;
+    
     setGameState({
       isRunning: false,
       score: 0,
@@ -51,10 +56,8 @@ export function useGame() {
       comboCount: 0,
       maxMultiplier: 1,
       conveyorSpeed: BASE_CONVEYOR_SPEED,
-      spawnRate: 0,
       handPosition: 'left',
       boxes: [],
-      lastSpawnTime: 0,
       levelCompleteShown: false
     });
   }, []);
@@ -94,8 +97,7 @@ export function useGame() {
     
     setGameState(prev => ({
       ...prev,
-      boxes: boxesRef.current,
-      lastSpawnTime: prev.lastSpawnTime
+      boxes: boxesRef.current
     }));
 
     return newBox;
@@ -124,11 +126,12 @@ export function useGame() {
     let scoreGained = 0;
     let newComboCount = currentState.comboCount;
     let newMultiplier = currentState.multiplier;
-    let newConveyorSpeed = currentState.conveyorSpeed;
+    // Используем скорость из рефа, чтобы она была актуальной
+    let currentSpeed = conveyorSpeedRef.current;
 
     // Обновляем позиции всех коробок
     boxesRef.current.forEach(box => {
-      box.y += currentState.conveyorSpeed;
+      box.y += currentSpeed;
     });
 
     // Проверяем коробки при пересечении линии проверки
@@ -169,7 +172,8 @@ export function useGame() {
           scoreGained += Math.floor(100 * newMultiplier) + turnBonus;
 
           // Ускоряем конвейер на 2%
-          newConveyorSpeed = currentState.conveyorSpeed * ACCELERATION_RATE;
+          currentSpeed = currentSpeed * ACCELERATION_RATE;
+          conveyorSpeedRef.current = currentSpeed; // Сохраняем в реф
         } else {
           // ОШИБКА: рука не в том положении
           // Сбрасываем комбо и множитель
@@ -186,6 +190,7 @@ export function useGame() {
           box.originalType = box.type;
           
           // Скорость НЕ меняем после провала - оставляем текущую
+          // conveyorSpeedRef.current остается без изменений
           
           // Коробка остается наклонной и уйдет за экран
         }
@@ -229,7 +234,7 @@ export function useGame() {
       multiplier: newMultiplier,
       maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
       score: prev.score + scoreGained,
-      conveyorSpeed: newConveyorSpeed,
+      conveyorSpeed: currentSpeed, // Обновляем скорость в состоянии для UI
       isRunning: !gameOver,
       gameTime: Date.now() - gameStartTimeRef.current
     }));
@@ -251,14 +256,16 @@ export function useGame() {
     const speedPerMs = BASE_CONVEYOR_SPEED / 16.67;
     const spawnIntervalMs = boxCenterDistancePercent / speedPerMs;
     
+    // Сохраняем интервал в реф для использования в gameLoop
+    spawnIntervalRef.current = spawnIntervalMs;
+    lastSpawnTimeRef.current = performance.now();
+    
     setGameState(prev => ({
       ...prev,
       isRunning: true,
-      lastSpawnTime: performance.now(),
       boxes: [],
       gameTime: 0,
       conveyorSpeed: BASE_CONVEYOR_SPEED,
-      spawnRate: spawnIntervalMs,
       levelCompleteShown: false
     }));
   }, [resetGame]);
@@ -293,6 +300,9 @@ export function useGame() {
     BOX_SIZE,
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
-    BOX_GAP_PIXELS
+    BOX_GAP_PIXELS,
+    conveyorSpeedRef,
+    lastSpawnTimeRef,
+    spawnIntervalRef
   };
 }
