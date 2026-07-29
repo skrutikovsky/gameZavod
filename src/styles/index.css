@@ -28,19 +28,17 @@ body {
 
 .box {
   position: absolute;
-  width: 120px;
-  height: 120px;
-  background: #e67e22;
-  border: 3px solid #d35400;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 2.5rem;
   color: white;
   font-weight: bold;
   z-index: 5;
   left: 50%;
   transform: translateX(-50%);
+  background: #e67e22;
+  border: 3px solid #d35400;
+  border-radius: 8px;
 }
 
 .box.straight {
@@ -61,8 +59,8 @@ body {
 
 .hand {
   position: absolute;
-  width: 100px;
-  height: 120px;
+  width: 80px;
+  height: 100px;
   bottom: 50px;
   z-index: 20;
   transition: left 0.2s ease;
@@ -74,11 +72,11 @@ body {
 }
 
 .hand-left {
-  left: calc(50% - 200px);
+  left: calc(50% - 150px);
 }
 
 .hand-right {
-  left: calc(50% + 80px);
+  left: calc(50% + 70px);
 }
 
 /* Анимации */
@@ -144,4 +142,24 @@ body {
 
 .modal-content {
   background: rgba(255, 255, 255, 0.95);
+}
+
+/* Адаптив */
+@media (max-width: 768px) {
+  .hand {
+    width: 60px;
+    height: 80px;
+  }
+  
+  .hand-left {
+    left: calc(50% - 100px);
+  }
+  
+  .hand-right {
+    left: calc(50% + 40px);
+  }
+  
+  .box {
+    border-radius: 6px;
+  }
 }
