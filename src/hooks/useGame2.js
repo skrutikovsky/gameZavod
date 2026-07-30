@@ -9,6 +9,12 @@ const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от эк
 const MAX_BOXES_ON_BELT = 8; // Максимальное количество коробок на ленте
 const HAND_STOP_LINE_Y = 78; // Позиция невидимой линии остановки (в процентах)
 
+// Функция для получения высоты коробки в процентах
+const getBoxHeightPercent = () => {
+  const screenHeightPx = window.innerHeight || 800;
+  return (BOX_SIZE / screenHeightPx) * 100;
+};
+
 export function useGame2() {
   const [gameState, setGameState] = useState({
     isRunning: false,
@@ -122,8 +128,7 @@ export function useGame2() {
     const isHandBlocking = currentState.handActive;
 
     // Вычисляем высоту коробки в процентах от высоты экрана
-    const screenHeightPx = window.innerHeight || 800;
-    const boxHeightPercent = (BOX_SIZE / screenHeightPx) * 100;
+    const boxHeightPercent = getBoxHeightPercent();
 
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
@@ -156,7 +161,7 @@ export function useGame2() {
           const boxBelowTop = boxBelow.y;
           
           // Останавливаемся только если коробка ниже остановлена И мы её коснулись
-          if (boxBelow.stopped && boxBottom >= boxBelowTop) {
+          if (boxBelow.stopped && boxBottom >= boxBelowTop - 0.01) {
             box.stopped = true;
             // Фиксируем позицию точно над коробкой ниже (без зазоров)
             box.y = boxBelowTop - boxHeightPercent;

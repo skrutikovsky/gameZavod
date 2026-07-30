@@ -23,6 +23,9 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     lastSpawnTimeRef
   } = useGame2();
 
+  // Вычисляем высоту коробки в пикселях для рендеринга
+  const boxHeightPx = BOX_SIZE;
+
   const gameContainerRef = useRef(null);
   const requestRef = useRef(null);
   const lastTimeRef = useRef(0);
@@ -211,7 +214,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             style={{
               top: `${box.y}%`,
               width: `${BOX_SIZE}px`,
-              height: `${BOX_SIZE}px`,
+              height: `${boxHeightPx}px`,
             }}
           />
         ))}
