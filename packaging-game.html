@@ -473,15 +473,14 @@
             // Boxes that have already passed the edge continue falling naturally
             // The hand does NOT move any boxes - it only stops their horizontal movement
             
+            const conveyorEdge = canvas.width - 150;
+            
             for (const box of boxes) {
                 if (box.falling || box.inContainer) continue;
                 
-                // Only stop boxes that are still ON the conveyor (before the edge)
-                // The edge is at canvas.width - 150 (where container starts)
-                const conveyorEdge = canvas.width - 150;
-                
-                // If box is still fully on the conveyor, stop it
-                if (box.x + box.width <= conveyorEdge && !box.stopped) {
+                // Only stop boxes that are still fully ON the conveyor (before the edge)
+                // If box's right edge has passed the conveyor edge, it should fall naturally
+                if (box.getRightX() <= conveyorEdge && !box.stopped) {
                     box.stopped = true;
                 }
             }
