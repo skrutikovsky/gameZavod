@@ -36,6 +36,7 @@ export function useGame2() {
   const lastSpawnTimeRef = useRef(0);
   const containerCapacityRef = useRef(5);
   const containerCountRef = useRef(0);
+  const handActiveRef = useRef(false); // Реф для мгновенной реакции руки
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -49,6 +50,7 @@ export function useGame2() {
     lastSpawnTimeRef.current = 0;
     containerCapacityRef.current = 5;
     containerCountRef.current = 0;
+    handActiveRef.current = false; // Сбрасываем состояние руки
 
     setGameState({
       isRunning: false,
@@ -70,6 +72,7 @@ export function useGame2() {
   }, []);
 
   const setHandActive = useCallback((active) => {
+    handActiveRef.current = active; // Мгновенно обновляем реф
     setGameState(prev => ({
       ...prev,
       handActive: active
@@ -108,6 +111,11 @@ export function useGame2() {
     return newBox;
   }, []);
 
+  // Функция для генерации случайного количества предметов в контейнере (от 2 до 7)
+  const generateContainerCapacity = useCallback(() => {
+    return Math.floor(Math.random() * 6) + 2; // Случайное число от 2 до 7
+  }, []);
+
   const updateBoxes = useCallback(() => {
     const currentState = gameStateRef.current;
     if (!currentState || !currentState.isRunning) return;
@@ -121,7 +129,8 @@ export function useGame2() {
     
     // Позиция невидимой линии остановки (стена от руки)
     const handStopLineY = HAND_STOP_LINE_Y;
-    const isHandBlocking = currentState.handActive;
+    // Используем ref для мгновенной проверки состояния руки
+    const isHandBlocking = handActiveRef.current;
 
     // Вычисляем высоту коробки в процентах от высоты экрана
     const screenHeightPx = window.innerHeight || 800;
@@ -194,13 +203,15 @@ export function useGame2() {
 
       setTimeout(() => {
         containerCountRef.current = 0;
+        // Генерируем случайную вместимость контейнера от 2 до 7
+        const newCapacity = generateContainerCapacity();
         setGameState(prev => ({
           ...prev,
           containerSpawning: false,
           container: {
             y: 88,
             count: 0,
-            capacity: containerCapacityRef.current
+            capacity: newCapacity
           }
         }));
       }, 1000);
@@ -229,7 +240,7 @@ export function useGame2() {
           }));
 
           // Проверка на заполнение контейнера
-          if (containerCountRef.current >= containerCapacityRef.current) {
+          if (currentState.container && containerCountRef.current >= currentState.container.capacity) {
             // Контейнер заполнен - сразу отправляем на перезарядку
             scoreGained += 100 * newMultiplier;
             newComboCount++;
@@ -249,20 +260,21 @@ export function useGame2() {
               containerSpawning: true
             }));
 
-            containerCapacityRef.current = Math.min(containerCapacityRef.current + 1, 10);
             currentSpeed = currentSpeed * 1.02;
             conveyorSpeedRef.current = currentSpeed;
             
             // Запускаем таймер перезарядки
             setTimeout(() => {
               containerCountRef.current = 0;
+              // Генерируем случайную вместимость для следующего контейнера
+              const newCapacity = generateContainerCapacity();
               setGameState(prev => ({
                 ...prev,
                 containerSpawning: false,
                 container: {
                   y: 88,
                   count: 0,
-                  capacity: containerCapacityRef.current
+                  capacity: newCapacity
                 }
               }));
             }, 1000);
