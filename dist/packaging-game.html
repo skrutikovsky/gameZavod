@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Упаковщик - Игра 2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 900px;
+            height: 600px;
+            background: #2c3e50;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .score-value {
+            color: #27ae60;
+        }
+
+        .lives-value {
+            color: #e74c3c;
+        }
+
+        .combo-value {
+            color: #f39c12;
+        }
+
+        .multiplier-info {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .multiplier-text {
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .instructions p {
+            color: #2c3e50;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .key {
+            display: inline-block;
+            background: #34495e;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 0 3px;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .game-over h1 {
+            color: #e74c3c;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .game-over p {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(44, 62, 80, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .start-screen h1 {
+            color: white;
+            font-size: 42px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .start-screen .rules {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            max-width: 600px;
+        }
+
+        .start-screen .rules p {
+            color: white;
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            border: none;
+            padding: 18px 60px;
+            font-size: 22px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        
+        <div class="ui-overlay">
+            <div class="stat-box">
+                <div class="stat-label">Счёт</div>
+                <div class="stat-value score-value" id="score">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Жизни</div>
+                <div class="stat-value lives-value" id="lives">3</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Контейнеры</div>
+                <div class="stat-value combo-value" id="containers">0</div>
+            </div>
+        </div>
+
+        <div class="multiplier-info">
+            <div class="multiplier-text" id="multiplier">Множитель: x1 (100 чоков/коробка)</div>
+        </div>
+
+        <div class="instructions">
+            <p><span class="key">Пробел</span> или <span class="key">ЛКМ</span> - опустить руку</p>
+            <p>Останавливайте коробки и заполняйте контейнеры!</p>
+        </div>
+
+        <div class="start-screen" id="startScreen">
+            <h1>📦 УПАКОВЩИК 📦</h1>
+            <div class="rules">
+                <p>🎯 <strong>Цель:</strong> Раскладывайте правильное количество коробок в контейнеры</p>
+                <p>✋ <strong>Рука:</strong> Нажмите <span class="key">Пробел</span> или <span class="key">ЛКМ</span> чтобы остановить коробки</p>
+                <p>📊 <strong>Контейнеры:</strong> Число на контейнере = количество коробок для заполнения</p>
+                <p>⚠️ <strong>Внимание:</strong> Если коробка упадёт между контейнерами - потеряете жизнь!</p>
+                <p>💰 <strong>Награда:</strong> 100 чоков × количество коробок (растёт после 5 и 15 контейнеров)</p>
+                <p>🛑 <strong>Переполнение:</strong> Если рука держит слишком много коробок - лента остановится</p>
+            </div>
+            <button class="start-btn" onclick="startGame()">Начать игру</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h1>ИГРА ОКОНЧЕНА</h1>
+            <p>Ваш счёт: <span id="finalScore">0</span></p>
+            <button class="restart-btn" onclick="restartGame()">Играть снова</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let containersClosed = 0;
+        let multiplier = 1;
+        let pointsPerBox = 100;
+
+        // Conveyor settings
+        const conveyorY = 400;
+        const conveyorSpeed = 2;
+        let conveyorStopped = false;
+
+        // Box settings
+        const boxWidth = 50;
+        const boxHeight = 40;
+        let boxes = [];
+        let boxSpawnTimer = 0;
+        const boxSpawnInterval = 90;
+
+        // Hand settings
+        const handX = 400;
+        const handUpY = 250;
+        const handDownY = conveyorY - boxHeight;
+        let handY = handUpY;
+        let handIsDown = false;
+        let heldBoxes = [];
+        let handHasFocus = false;
+
+        // Container settings
+        let currentContainer = null;
+        let containerWaitTimer = 0;
+        const containerWaitTime = 60;
+        let containerClosedAnimation = 0;
+
+        // Colors
+        const colors = {
+            conveyor: '#34495e',
+            conveyorLine: '#95a5a6',
+            box: ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c'],
+            hand: '#ecf0f1',
+            handOutline: '#bdc3c7',
+            container: '#2ecc71',
+            containerClosed: '#27ae60',
+            containerText: '#ffffff'
+        };
+
+        class Box {
+            constructor(x) {
+                this.x = x;
+                this.y = conveyorY - boxHeight;
+                this.width = boxWidth;
+                this.height = boxHeight;
+                this.color = colors.box[Math.floor(Math.random() * colors.box.length)];
+                this.stopped = false;
+                this.inContainer = false;
+                this.falling = false;
+                this.fallY = 0;
+            }
+
+            update() {
+                if (this.falling) {
+                    this.fallY += 8;
+                    return;
+                }
+                
+                if (!this.stopped && !conveyorStopped) {
+                    this.x += conveyorSpeed;
+                }
+            }
+
+            draw() {
+                const drawY = this.falling ? this.y + this.fallY : this.y;
+                
+                // Box body
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, drawY, this.width, this.height);
+                
+                // Box highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(this.x, drawY, this.width, 10);
+                
+                // Box outline
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, drawY, this.width, this.height);
+                
+                // Pattern on box
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.x + 10, drawY);
+                ctx.lineTo(this.x + 10, drawY + this.height);
+                ctx.moveTo(this.x + this.width - 10, drawY);
+                ctx.lineTo(this.x + this.width - 10, drawY + this.height);
+                ctx.stroke();
+            }
+
+            getBottomY() {
+                return this.y + this.height;
+            }
+
+            getRightX() {
+                return this.x + this.width;
+            }
+
+            getLeftX() {
+                return this.x;
+            }
+        }
+
+        class Container {
+            constructor() {
+                this.x = canvas.width - 150;
+                this.y = conveyorY + 10;
+                this.width = 120;
+                this.height = 100;
+                this.capacity = [2, 4, 6][Math.floor(Math.random() * 3)];
+                this.currentCount = 0;
+                this.closed = false;
+                this.appearing = true;
+                this.appearTimer = 30;
+            }
+
+            update() {
+                if (this.appearing) {
+                    this.appearTimer--;
+                    if (this.appearTimer <= 0) {
+                        this.appearing = false;
+                    }
+                }
+            }
+
+            draw() {
+                if (this.appearing) {
+                    const alpha = 1 - (this.appearTimer / 30);
+                    ctx.globalAlpha = alpha;
+                }
+
+                // Container body
+                ctx.fillStyle = this.closed ? colors.containerClosed : colors.container;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Container opening
+                ctx.fillStyle = '#1a5c3a';
+                ctx.fillRect(this.x + 10, this.y, this.width - 20, 20);
+                
+                // Container number
+                ctx.fillStyle = colors.containerText;
+                ctx.font = 'bold 36px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${this.capacity}`, this.x + this.width / 2, this.y + 65);
+                
+                // Current count indicator
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(this.x + 10, this.y + 75, (this.width - 20) * (this.currentCount / this.capacity), 15);
+                
+                // Border
+                ctx.strokeStyle = '#1e8449';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+                ctx.globalAlpha = 1;
+            }
+
+            addBox() {
+                if (!this.closed && !this.appearing && this.currentCount < this.capacity) {
+                    this.currentCount++;
+                    return true;
+                }
+                return false;
+            }
+
+            close() {
+                this.closed = true;
+            }
+        }
+
+        function spawnBox() {
+            boxes.push(new Box(0));
+        }
+
+        function spawnContainer() {
+            currentContainer = new Container();
+        }
+
+        function checkHandCollision() {
+            if (!handIsDown) return;
+
+            // The hand creates an invisible wall at handX position
+            // All boxes that would pass this line are stopped
+            const handLeftEdge = handX - 40;
+            const handRightEdge = handX + 40;
+
+            // First, find all boxes that are directly under the hand and stop them
+            heldBoxes = [];
+            
+            for (let i = boxes.length - 1; i >= 0; i--) {
+                const box = boxes[i];
+                if (box.falling || box.inContainer) continue;
+                
+                // Check if box is under the hand horizontally
+                if (box.x < handRightEdge && box.x + box.width > handLeftEdge) {
+                    // Box is under the hand - it's stopped by the "wall"
+                    if (!box.stopped) {
+                        box.stopped = true;
+                        heldBoxes.push(box);
+                    }
+                }
+            }
+
+            // Now apply chain physics: boxes behind stopped boxes should also stop
+            // but only if they are touching (forming a chain)
+            // Sort boxes by x position to process them from right to left
+            const activeBoxes = boxes.filter(b => !b.falling && !b.inContainer);
+            activeBoxes.sort((a, b) => b.x - a.x); // Right to left
+            
+            // Process from rightmost to leftmost
+            // If a box is stopped, check if the next box to the left is touching it
+            for (let i = 0; i < activeBoxes.length - 1; i++) {
+                const currentBox = activeBoxes[i];
+                const nextBox = activeBoxes[i + 1];
+                
+                // If current box is stopped and next box touches it, stop the next box too
+                if (currentBox.stopped) {
+                    // Check if next box's right edge touches or overlaps current box's left edge
+                    if (nextBox.getRightX() >= currentBox.getLeftX() - 2) {
+                        nextBox.stopped = true;
+                    }
+                }
+            }
+
+            // Check if any boxes have their bottom below the conveyor line (falling condition)
+            // Boxes should fall if they're stopped but there's no container under them
+            for (const box of boxes) {
+                if (box.falling || box.inContainer) continue;
+                
+                // Check if box is past the container area (no support)
+                if (box.stopped && currentContainer && !currentContainer.closed && !currentContainer.appearing) {
+                    // Box is over the container area - it can be placed
+                    continue;
+                }
+                
+                // If box is stopped but not over container and its right edge is past container start
+                if (box.stopped && box.x + box.width > canvas.width - 150 && 
+                    (!currentContainer || currentContainer.closed || currentContainer.appearing)) {
+                    // No container to catch the box - it will fall when hand releases
+                    // For now, just mark it for falling detection
+                }
+            }
+
+            // Check if too many boxes are held
+            if (heldBoxes.length >= 5) {
+                conveyorStopped = true;
+            } else {
+                conveyorStopped = false;
+            }
+        }
+
+        function checkContainerCollision() {
+            if (!currentContainer || currentContainer.appearing || currentContainer.closed) return;
+
+            for (let i = boxes.length - 1; i >= 0; i--) {
+                const box = boxes[i];
+                if (box.falling || box.inContainer || box.stopped) continue;
+
+                // Check if box reaches container
+                if (box.x + box.width >= currentContainer.x) {
+                    if (currentContainer.addBox()) {
+                        box.inContainer = true;
+                        box.stopped = true;
+                        
+                        // Check if container is full
+                        if (currentContainer.currentCount >= currentContainer.capacity) {
+                            closeContainer();
+                        }
+                    }
+                }
+            }
+        }
+
+        function closeContainer() {
+            if (!currentContainer) return;
+            
+            currentContainer.close();
+            containerClosedAnimation = 30;
+            
+            // Calculate score
+            const boxesInContainer = currentContainer.currentCount;
+            const earnedPoints = pointsPerBox * boxesInContainer;
+            score += earnedPoints;
+            
+            containersClosed++;
+            
+            // Update multiplier based on containers closed
+            if (containersClosed >= 15) {
+                pointsPerBox = 200;
+            } else if (containersClosed >= 5) {
+                pointsPerBox = 150;
+            }
+            
+            updateUI();
+            
+            // Schedule new container
+            setTimeout(() => {
+                containerWaitTimer = containerWaitTime;
+                currentContainer = null;
+            }, 1000);
+        }
+
+        function checkMissedBox() {
+            if (containerWaitTimer > 0 && currentContainer === null) {
+                // Check if any box passes the container area
+                for (let i = boxes.length - 1; i >= 0; i--) {
+                    const box = boxes[i];
+                    if (box.falling || box.inContainer || box.stopped) continue;
+                    
+                    if (box.x > canvas.width) {
+                        // Box missed the container during wait time
+                        lives--;
+                        multiplier = 1;
+                        pointsPerBox = 100;
+                        updateUI();
+                        boxes.splice(i, 1);
+                        
+                        if (lives <= 0) {
+                            gameOver();
+                        }
+                        break;
+                    }
+                }
+            } else if (currentContainer && !currentContainer.closed) {
+                // Check if box passes container without being caught
+                for (let i = boxes.length - 1; i >= 0; i--) {
+                    const box = boxes[i];
+                    if (box.falling || box.inContainer || box.stopped) continue;
+                    
+                    if (box.x > canvas.width) {
+                        // Box missed
+                        lives--;
+                        multiplier = 1;
+                        pointsPerBox = 100;
+                        updateUI();
+                        boxes.splice(i, 1);
+                        
+                        if (lives <= 0) {
+                            gameOver();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('containers').textContent = containersClosed;
+            document.getElementById('multiplier').textContent = 
+                `Множитель: x${pointsPerBox / 100} (${pointsPerBox} чоков/коробка)`;
+        }
+
+        function drawConveyor() {
+            // Conveyor belt
+            ctx.fillStyle = colors.conveyor;
+            ctx.fillRect(0, conveyorY + boxHeight, canvas.width, 50);
+            
+            // Conveyor lines
+            ctx.strokeStyle = colors.conveyorLine;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 10]);
+            ctx.beginPath();
+            ctx.moveTo(0, conveyorY + boxHeight + 25);
+            ctx.lineTo(canvas.width, conveyorY + boxHeight + 25);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Conveyor rollers
+            for (let i = 0; i < canvas.width; i += 60) {
+                ctx.fillStyle = '#7f8c8d';
+                ctx.beginPath();
+                ctx.arc(i, conveyorY + boxHeight + 25, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawHand() {
+            const handWidth = 80;
+            const handHeight = 60;
+            
+            // Arm
+            ctx.fillStyle = '#95a5a6';
+            ctx.fillRect(handX - 10, 0, 20, handY);
+            
+            // Hand base
+            ctx.fillStyle = colors.hand;
+            ctx.beginPath();
+            ctx.roundRect(handX - handWidth / 2, handY, handWidth, handHeight, 10);
+            ctx.fill();
+            
+            // Fingers
+            ctx.fillStyle = colors.hand;
+            for (let i = 0; i < 4; i++) {
+                const fingerX = handX - 30 + i * 20;
+                ctx.beginPath();
+                ctx.roundRect(fingerX, handY + handHeight - 5, 15, 25, 5);
+                ctx.fill();
+            }
+            
+            // Outline
+            ctx.strokeStyle = colors.handOutline;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(handX - handWidth / 2, handY, handWidth, handHeight, 10);
+            ctx.stroke();
+            
+            // Palm detail
+            ctx.strokeStyle = '#bdc3c7';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(handX - 20, handY + 20);
+            ctx.lineTo(handX - 20, handY + 40);
+            ctx.moveTo(handX, handY + 20);
+            ctx.lineTo(handX, handY + 40);
+            ctx.moveTo(handX + 20, handY + 20);
+            ctx.lineTo(handX + 20, handY + 40);
+            ctx.stroke();
+        }
+
+        function drawWaitingIndicator() {
+            if (containerWaitTimer > 0 && currentContainer === null) {
+                ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+                ctx.fillRect(canvas.width - 150, conveyorY + 10, 120, 100);
+                
+                ctx.fillStyle = '#e74c3c';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('!', canvas.width - 90, conveyorY + 60);
+            }
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            resetGame();
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            resetGame();
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            containersClosed = 0;
+            multiplier = 1;
+            pointsPerBox = 100;
+            boxes = [];
+            heldBoxes = [];
+            handY = handUpY;
+            handIsDown = false;
+            conveyorStopped = false;
+            containerWaitTimer = 0;
+            spawnContainer();
+            updateUI();
+        }
+
+        function handleInput(isPressed) {
+            if (!gameRunning) return;
+            
+            // Always allow hand control regardless of focus
+            handIsDown = isPressed;
+            
+            if (isPressed) {
+                handY = handDownY;
+                // Mark that hand has been activated
+                handHasFocus = true;
+            } else {
+                handY = handUpY;
+                // Release boxes - check which boxes should fall
+                for (const box of boxes) {
+                    if (box.falling || box.inContainer) continue;
+                    
+                    // Check if box is over container area
+                    const overContainer = currentContainer && 
+                                         !currentContainer.closed && 
+                                         !currentContainer.appearing &&
+                                         box.x + box.width >= currentContainer.x &&
+                                         box.x <= currentContainer.x + currentContainer.width;
+                    
+                    if (overContainer) {
+                        // Box is over container - it will be placed in container
+                        box.stopped = false;
+                    } else if (box.x + box.width > canvas.width - 150) {
+                        // Box is past conveyor end with no container - it falls
+                        box.falling = true;
+                        box.stopped = false;
+                    } else {
+                        // Box is still on conveyor - it continues moving
+                        box.stopped = false;
+                    }
+                }
+                heldBoxes = [];
+                conveyorStopped = false;
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                handleInput(true);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                handleInput(false);
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                handleInput(true);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            handleInput(false);
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            handleInput(false);
+        });
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Spawn boxes
+            if (!conveyorStopped && boxSpawnTimer <= 0) {
+                // Check if there's space for new box
+                const canSpawn = boxes.every(b => b.x > boxWidth + 10 || b.stopped || b.inContainer || b.falling);
+                if (canSpawn) {
+                    spawnBox();
+                    boxSpawnTimer = boxSpawnInterval;
+                }
+            }
+            boxSpawnTimer--;
+
+            // Update container wait timer
+            if (containerWaitTimer > 0) {
+                containerWaitTimer--;
+                if (containerWaitTimer <= 0) {
+                    spawnContainer();
+                }
+            }
+
+            // Update entities
+            if (currentContainer) {
+                currentContainer.update();
+            }
+
+            // First update: move boxes that aren't stopped
+            for (const box of boxes) {
+                box.update();
+            }
+
+            // Apply box-to-box collision (chain physics)
+            // Sort boxes by x position to process them from right to left
+            const activeBoxes = boxes.filter(b => !b.falling && !b.inContainer);
+            activeBoxes.sort((a, b) => b.x - a.x); // Right to left
+            
+            // Process from rightmost to leftmost
+            // If a box is stopped and the next box touches it, stop the next box too
+            for (let i = 0; i < activeBoxes.length - 1; i++) {
+                const currentBox = activeBoxes[i];
+                const nextBox = activeBoxes[i + 1];
+                
+                if (currentBox.stopped) {
+                    // Check if next box's right edge touches or overlaps current box's left edge
+                    if (nextBox.getRightX() >= currentBox.getLeftX() - 2) {
+                        nextBox.stopped = true;
+                    }
+                }
+            }
+
+            // Collisions
+            checkHandCollision();
+            checkContainerCollision();
+            checkMissedBox();
+
+            // Draw everything
+            drawConveyor();
+            
+            if (currentContainer) {
+                currentContainer.draw();
+            }
+            
+            drawWaitingIndicator();
+            
+            for (const box of boxes) {
+                box.draw();
+            }
+            
+            drawHand();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initial draw
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    </script>
+</body>
+</html>
