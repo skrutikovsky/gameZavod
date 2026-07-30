@@ -292,7 +292,7 @@
         const boxSpawnInterval = 90;
 
         // Hand settings
-        const handX = 400;
+        const handX = 600;
         const handUpY = 250;
         const handDownY = conveyorY - boxHeight;
         let handY = handUpY;
@@ -333,6 +333,8 @@
             update() {
                 // Check if box has passed the conveyor edge and should start falling
                 const conveyorEdge = canvas.width - 150;
+                
+                // Only start falling if not stopped and not already falling
                 if (!this.falling && !this.inContainer && !this.stopped) {
                     if (this.x > conveyorEdge) {
                         this.falling = true;
@@ -340,11 +342,14 @@
                     }
                 }
                 
+                // Handle falling physics
                 if (this.falling) {
                     this.fallY += 8;
                     return;
                 }
                 
+                // Handle horizontal movement on conveyor
+                // Box only moves if it's not stopped and conveyor is not stopped
                 if (!this.stopped && !conveyorStopped) {
                     this.x += conveyorSpeed;
                 }
@@ -469,19 +474,29 @@
             if (!handIsDown) return;
 
             // When hand is down, it acts as a brake on the conveyor
-            // Boxes on the conveyor stop moving forward
-            // Boxes that have already passed the edge continue falling naturally
-            // The hand does NOT move any boxes - it only stops their horizontal movement
+            // The hand is positioned at handX, and boxes stop when they reach this position
+            // Boxes that have already passed the hand continue falling naturally
+            // Boxes behind the stopped boxes will also stop if they touch them
+            
+            const handPosition = handX;
+            
+            // Find all boxes that should be stopped by the hand
+            // A box is stopped if its right edge has reached or passed the hand position
+            // AND it's still on the conveyor (before the edge where containers start)
+            const conveyorEdge = canvas.width - 150;
             
             for (const box of boxes) {
                 if (box.falling || box.inContainer) continue;
                 
-                // Only stop boxes that are still ON the conveyor (before the edge)
-                // The edge is at canvas.width - 150 (where container starts)
-                const conveyorEdge = canvas.width - 150;
+                // Only consider boxes that are still on the conveyor
+                if (box.x + box.width > conveyorEdge) {
+                    // This box has already passed the conveyor edge, let it fall
+                    continue;
+                }
                 
-                // If box is still fully on the conveyor, stop it
-                if (box.x + box.width <= conveyorEdge && !box.stopped) {
+                // Check if this box has reached the hand position
+                // If the box's right edge is at or past the hand, stop it
+                if (box.getRightX() >= handPosition && !box.stopped) {
                     box.stopped = true;
                 }
             }
@@ -518,7 +533,7 @@
             // Mark boxes that are falling as having been "caught" by the hand logic
             // This prevents them from being affected when hand is released
             for (const box of boxes) {
-                if (box.falling) {
+                if (box.falling && !box.caughtByHand) {
                     box.caughtByHand = true;
                 }
             }
@@ -763,6 +778,7 @@
                     // Reset stopped state - boxes will continue moving on conveyor
                     // or falling if they're already in the air
                     box.stopped = false;
+                    box.caughtByHand = false;
                 }
                 conveyorStopped = false;
             }
@@ -801,6 +817,7 @@
             // Spawn boxes
             if (!conveyorStopped && boxSpawnTimer <= 0) {
                 // Check if there's space for new box
+                // A new box can spawn if the first box on conveyor has moved far enough
                 const canSpawn = boxes.every(b => b.x > boxWidth + 10 || b.stopped || b.inContainer || b.falling);
                 if (canSpawn) {
                     spawnBox();
