@@ -298,6 +298,7 @@
         let handY = handUpY;
         let handIsDown = false;
         let heldBoxes = [];
+        let handHasFocus = false;
 
         // Container settings
         let currentContainer = null;
@@ -499,6 +500,25 @@
                     if (nextBox.getRightX() >= currentBox.getLeftX() - 2) {
                         nextBox.stopped = true;
                     }
+                }
+            }
+
+            // Check if any boxes have their bottom below the conveyor line (falling condition)
+            // Boxes should fall if they're stopped but there's no container under them
+            for (const box of boxes) {
+                if (box.falling || box.inContainer) continue;
+                
+                // Check if box is past the container area (no support)
+                if (box.stopped && currentContainer && !currentContainer.closed && !currentContainer.appearing) {
+                    // Box is over the container area - it can be placed
+                    continue;
+                }
+                
+                // If box is stopped but not over container and its right edge is past container start
+                if (box.stopped && box.x + box.width > canvas.width - 150 && 
+                    (!currentContainer || currentContainer.closed || currentContainer.appearing)) {
+                    // No container to catch the box - it will fall when hand releases
+                    // For now, just mark it for falling detection
                 }
             }
 
@@ -731,15 +751,37 @@
         function handleInput(isPressed) {
             if (!gameRunning) return;
             
+            // Always allow hand control regardless of focus
             handIsDown = isPressed;
             
             if (isPressed) {
                 handY = handDownY;
+                // Mark that hand has been activated
+                handHasFocus = true;
             } else {
                 handY = handUpY;
-                // Release boxes - reset stopped state for all boxes
+                // Release boxes - check which boxes should fall
                 for (const box of boxes) {
-                    box.stopped = false;
+                    if (box.falling || box.inContainer) continue;
+                    
+                    // Check if box is over container area
+                    const overContainer = currentContainer && 
+                                         !currentContainer.closed && 
+                                         !currentContainer.appearing &&
+                                         box.x + box.width >= currentContainer.x &&
+                                         box.x <= currentContainer.x + currentContainer.width;
+                    
+                    if (overContainer) {
+                        // Box is over container - it will be placed in container
+                        box.stopped = false;
+                    } else if (box.x + box.width > canvas.width - 150) {
+                        // Box is past conveyor end with no container - it falls
+                        box.falling = true;
+                        box.stopped = false;
+                    } else {
+                        // Box is still on conveyor - it continues moving
+                        box.stopped = false;
+                    }
                 }
                 heldBoxes = [];
                 conveyorStopped = false;
