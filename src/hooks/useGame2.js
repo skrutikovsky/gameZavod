@@ -232,7 +232,7 @@ export function useGame2() {
             capacity: containerCapacityRef.current
           }
         }));
-      }, 1500);
+      }, 1000);
     }
 
     // Проверяем коробки, достигшие контейнера
@@ -240,11 +240,11 @@ export function useGame2() {
       if (box.y > 95) {
         // Коробка достигла зоны контейнера
         // Проверяем состояние контейнера
-        if (currentState.containerSpawning) {
-          // Контейнер на перезарядке - коробка промахивается, отнимаем жизнь
+        if (currentState.containerSpawning || !currentState.container) {
+          // Контейнер на перезарядке или отсутствует - коробка промахивается, отнимаем жизнь
           livesLost++;
           return false;
-        } else if (currentState.container) {
+        } else {
           // Контейнер активен - коробка успешно попадает в него
           containerCountRef.current++;
           boxesFixedThisUpdate++;
@@ -259,7 +259,7 @@ export function useGame2() {
 
           // Проверка на заполнение контейнера
           if (containerCountRef.current >= containerCapacityRef.current) {
-            // Контейнер заполнен
+            // Контейнер заполнен - сразу отправляем на перезарядку
             scoreGained += 100 * newMultiplier;
             newComboCount++;
             
@@ -275,18 +275,27 @@ export function useGame2() {
               ...prev,
               containersClosed: prev.containersClosed + 1,
               container: null,
-              containerSpawning: false
+              containerSpawning: true
             }));
 
             containerCapacityRef.current = Math.min(containerCapacityRef.current + 1, 10);
             currentSpeed = currentSpeed * 1.02;
             conveyorSpeedRef.current = currentSpeed;
+            
+            // Запускаем таймер перезарядки
+            setTimeout(() => {
+              containerCountRef.current = 0;
+              setGameState(prev => ({
+                ...prev,
+                containerSpawning: false,
+                container: {
+                  y: 88,
+                  count: 0,
+                  capacity: containerCapacityRef.current
+                }
+              }));
+            }, 1000);
           }
-          return false;
-        } else {
-          // Нет контейнера и не на перезарядке - это не должно происходить в нормальной игре
-          // Но на всякий случай считаем как промах
-          livesLost++;
           return false;
         }
       }
