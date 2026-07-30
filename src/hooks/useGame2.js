@@ -8,7 +8,6 @@ const BASE_CONVEYOR_SPEED = 0.25; // Базовая скорость конве�
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
 const MAX_BOXES_ON_BELT = 8; // Максимальное количество коробок на ленте
 const HAND_STOP_LINE_Y = 78; // Позиция невидимой линии остановки (в процентах)
-const BOX_HEIGHT_PERCENT = 12.5; // Высота коробки в процентах от экрана
 
 export function useGame2() {
   const [gameState, setGameState] = useState({
@@ -122,10 +121,14 @@ export function useGame2() {
     const handStopLineY = HAND_STOP_LINE_Y;
     const isHandBlocking = currentState.handActive;
 
+    // Вычисляем высоту коробки в процентах от высоты экрана
+    const screenHeightPx = window.innerHeight || 800;
+    const boxHeightPercent = (BOX_SIZE / screenHeightPx) * 100;
+
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
     
-    // Сначала обновляем позиции всех коробок которые могут двигаться
+    // Сначала сбрасываем статус stopped у всех коробок
     boxesRef.current.forEach(box => {
       box.stopped = false;
     });
@@ -135,28 +138,30 @@ export function useGame2() {
       // Проходим снизу вверх, определяем какие коробки должны остановиться
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
         const box = boxesRef.current[i];
-        const boxBottom = box.y + BOX_HEIGHT_PERCENT;
+        const boxBottom = box.y + boxHeightPercent;
         
-        // Если это самая нижняя коробка и она достигла линии остановки
+        // Если это самая нижняя коробка
         if (i === boxesRef.current.length - 1) {
+          // Останавливаем ТОЛЬКО если нижняя граница этой конкретной коробки пересекла линию
           if (boxBottom >= handStopLineY) {
             box.stopped = true;
-            // Фиксируем позицию точно на линии
-            box.y = handStopLineY - BOX_HEIGHT_PERCENT;
+            // Фиксируем позицию точно на линии (нижняя граница коробки = линия)
+            box.y = handStopLineY - boxHeightPercent;
           }
+          // Если самая нижняя коробка ещё НЕ достигла линии - она продолжает падать
+          // и все коробки выше тоже продолжают падать
         } else {
           // Это не самая нижняя коробка - проверяем столкновение с коробкой ниже
           const boxBelow = boxesRef.current[i + 1];
           const boxBelowTop = boxBelow.y;
           
-          // Если коробка ниже остановлена, проверяем касание
-          if (boxBelow.stopped) {
-            if (boxBottom >= boxBelowTop - 0.5) {
-              box.stopped = true;
-              // Фиксируем позицию точно над коробкой ниже
-              box.y = boxBelowTop - BOX_HEIGHT_PERCENT;
-            }
+          // Останавливаемся только если коробка ниже остановлена И мы её коснулись
+          if (boxBelow.stopped && boxBottom >= boxBelowTop) {
+            box.stopped = true;
+            // Фиксируем позицию точно над коробкой ниже (без зазоров)
+            box.y = boxBelowTop - boxHeightPercent;
           }
+          // Если коробка ниже ещё движется - эта тоже движется
         }
       }
     }
@@ -209,6 +214,7 @@ export function useGame2() {
     boxesRef.current = boxesRef.current.filter(box => {
       if (box.y > 95) {
         // Коробка достигла зоны контейнера
+        // Проверяем: если рука НЕ активна в момент достижения линии - коробка должна упасть
         if (currentState.container && !isHandBlocking) {
           // Успешно попала в контейнер
           containerCountRef.current++;
