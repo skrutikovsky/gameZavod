@@ -124,7 +124,17 @@ body {
   height: 140px;
   bottom: 8%;
   z-index: 20;
-  transition: left 0.1s ease-out;
+  transition: left 0.1s ease-out, transform 0.2s ease;
+}
+
+/* Когда рука активна - добавляем визуальный эффект */
+.hand-active {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 15px rgba(243, 156, 18, 0.8));
+}
+
+.hand-active svg {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)) brightness(1.2);
 }
 
 .hand svg {
