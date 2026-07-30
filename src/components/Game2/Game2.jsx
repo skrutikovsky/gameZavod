@@ -9,7 +9,6 @@ const BOX_SIZE = 100; // Размер коробки в пикселях
 const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
     gameState,
-    moveHand,
     setHandActive,
     spawnBox,
     updateBoxes,
@@ -100,7 +99,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         container.removeEventListener('keyup', handleKeyUp);
       };
     }
-  }, [moveHand, setHandActive]);
+  }, [setHandActive]);
 
   useEffect(() => {
     if (gameState.isRunning && gameContainerRef.current) {
@@ -217,9 +216,9 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ))}
       </div>
 
-      {/* Рука */}
+      {/* Рука - теперь просто визуальный индикатор, кнопка всегда по центру */}
       <div 
-        className={`absolute transition-all duration-100 ${gameState.handPosition === 'left' ? 'left-[35%]' : 'left-[55%]'}`}
+        className="absolute left-1/2 transform -translate-x-1/2"
         style={{
           top: `${HAND_POSITION_Y}%`,
         }}
