@@ -329,7 +329,6 @@
                 this.falling = false;
                 this.fallY = 0;
                 this.supported = true; // Track if box has support under it
-                this.wasAboveLine = true; // Track if box was above the invisible line
             }
 
             update() {
@@ -461,20 +460,33 @@
         function checkHandCollision() {
             if (!handIsDown) return;
 
-            // When hand is down, boxes continue moving normally
-            // The "invisible line" at conveyorY level acts as a temporary floor
-            // Boxes stop only if their bottom edge goes below conveyorY level
+            // When hand is down, the "invisible line" at conveyorY level acts as a temporary floor
+            // Boxes stop ONLY if their bottom edge goes below conveyorY AND they have support under them
+            // Boxes without support (over gap between containers) continue falling
             
             for (const box of boxes) {
                 if (box.falling || box.inContainer) continue;
                 
-                // Check if box bottom is below the invisible line (conveyorY)
-                // If so, the box stops as if hitting a floor
-                if (box.y + box.height > conveyorY) {
+                // Check if box has support (on conveyor or over container)
+                let hasSupport = false;
+                
+                // Check if box is on the conveyor (left side, before container area)
+                if (box.x + box.width <= canvas.width - 150) {
+                    hasSupport = true;
+                }
+                
+                // Check if box is over a container
+                if (currentContainer && !currentContainer.closed && !currentContainer.appearing) {
+                    if (box.x + box.width >= currentContainer.x && 
+                        box.x <= currentContainer.x + currentContainer.width) {
+                        hasSupport = true;
+                    }
+                }
+                
+                // Only stop the box if it's below the line AND has support
+                // If no support, let it continue falling
+                if (hasSupport && box.y + box.height > conveyorY) {
                     box.stopped = true;
-                    box.wasAboveLine = false;
-                } else {
-                    box.wasAboveLine = true;
                 }
             }
 
@@ -499,9 +511,7 @@
                 }
             }
 
-            // Check support for each stopped box - mark boxes without support
-            // The "invisible line" is at conveyorY level
-            // Boxes are supported if they're on the conveyor OR over a container
+            // Update supported status for each stopped box
             for (const box of boxes) {
                 if (box.falling || box.inContainer) continue;
                 
@@ -783,9 +793,6 @@
                     if (!hasSupport && box.y + box.height > conveyorY) {
                         box.falling = true;
                     }
-                    
-                    // Reset wasAboveLine
-                    box.wasAboveLine = false;
                 }
                 heldBoxes = [];
                 conveyorStopped = false;
