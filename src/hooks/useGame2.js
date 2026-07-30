@@ -361,7 +361,6 @@ export function useGame2() {
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
     HAND_POSITION_X,
-    HAND_STOP_LINE_Y,
     conveyorSpeedRef,
     lastSpawnTimeRef
   };
