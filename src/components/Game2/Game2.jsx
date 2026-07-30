@@ -211,7 +211,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             style={{
               top: `${box.y}%`,
               width: `${BOX_SIZE}px`,
-              height: `${BOX_SIZE}px`,
+              height: `${BOX_SIZE * 0.9}px`, // Высота чуть меньше ширины для визуального соответствия
             }}
           />
         ))}
