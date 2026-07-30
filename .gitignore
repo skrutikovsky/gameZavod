@@ -1,5 +1,1 @@
-(packaging-game.html is a source file, so no need to add anything to .gitignore)
-
-```gitignore
-
-```
+(packaging-game.html is a source file, so no need to ignore it)
