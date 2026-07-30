@@ -136,7 +136,7 @@ export function useGame2() {
     
     // Если рука активна - проверяем остановку на невидимой линии
     if (isHandBlocking) {
-      // Находим самую нижнюю коробку, чья НИЖНЯЯ грань ещё НЕ достигла линии
+      // Находим самую нижнюю коробку, чья НИЖНЯЯ грань ещё НЕ прошла линию
       // То есть её нижняя часть находится выше линии (строго меньше)
       let firstBoxAboveLineIndex = -1;
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
@@ -157,10 +157,18 @@ export function useGame2() {
           const box = boxesRef.current[i];
           
           if (i === firstBoxAboveLineIndex) {
-            // Самая нижняя из коробок выше линии - ставим её прямо на линию
-            box.stopped = true;
-            // Устанавливаем позицию так чтобы низ коробки был на линии
-            box.y = handStopLineY - boxHeightPercent;
+            // Самая нижняя из коробок выше линии
+            const boxBottom = box.y + boxHeightPercent;
+            
+            // Если нижняя грань коробки еще не достигла линии - просто продолжаем движение
+            if (boxBottom < handStopLineY) {
+              box.stopped = false;
+            } else {
+              // Коробка достигла линии - останавливаем на линии
+              box.stopped = true;
+              // Устанавливаем позицию так чтобы низ коробки был на линии
+              box.y = handStopLineY - boxHeightPercent;
+            }
           } else {
             // Остальные коробки останавливаются над коробкой ниже
             const boxBelow = boxesRef.current[i + 1];
