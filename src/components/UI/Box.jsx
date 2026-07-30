@@ -39,6 +39,7 @@ export function Box({ type, y, fixed, errorAnim, size = 100, originalType }) {
         color: getArrowColor()
       }}
     >
+      {/* Убрали номера коробок - теперь только стрелка */}
       {getContent()}
     </div>
   );

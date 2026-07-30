@@ -149,38 +149,56 @@ export function useGame() {
     // Сортируем коробки по позиции Y (от меньшего к большему, т.е. сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
 
-    // Обновляем позиции всех коробок с учетом физики
+    // Сначала обновляем позиции всех коробок без учета столкновений
     for (let i = 0; i < boxesRef.current.length; i++) {
       const box = boxesRef.current[i];
       
+      // Если коробка уже остановлена рукой или другой коробкой, не двигаем её
+      if (box.stopped) continue;
+      
       // Двигаем коробку вперед
       box.y += currentSpeed;
-      
-      // Если рука активна, проверяем столкновение со стеной руки
-      if (handIsActive) {
-        // Определяем, с какой стороны рука
-        const handIsLeft = currentState.handPosition === 'left';
+    }
+    
+    // Теперь применяем физику столкновений
+    // Если рука активна, она создает стену на линии WALL_LINE_Y
+    if (handIsActive) {
+      // Находим первую коробку, которая достигла линии стены
+      for (let i = 0; i < boxesRef.current.length; i++) {
+        const box = boxesRef.current[i];
         
-        // Проверяем, находится ли коробка на той же стороне, что и рука
-        // Для простоты считаем что коробка на стороне руки если она в пределах конвейера
-        // и рука может её остановить
-        
-        // Если коробка достигла линии стены руки
+        // Если коробка достигла или пересекла линию стены
         if (box.y >= WALL_LINE_Y) {
-          // Останавливаем коробку на линии стены
+          // Останавливаем эту коробку на линии стены
           box.y = WALL_LINE_Y;
+          box.stopped = true;
+          
+          // Все коробки после неё (ниже по конвейеру) тоже останавливаются
+          for (let j = i + 1; j < boxesRef.current.length; j++) {
+            boxesRef.current[j].stopped = true;
+          }
+          break;
         }
       }
+    }
+    
+    // Проверяем столкновения между коробками
+    // Идем с конца массива (снизу вверх), чтобы правильно передать толчок
+    for (let i = boxesRef.current.length - 1; i > 0; i--) {
+      const currentBox = boxesRef.current[i];
+      const prevBox = boxesRef.current[i - 1];
       
-      // Проверяем столкновение с предыдущей коробкой (физика толкания)
-      if (i > 0) {
-        const prevBox = boxesRef.current[i - 1];
-        const minDistance = (BOX_SIZE + BOX_GAP_PIXELS) / (window.innerHeight || 800) * 100;
+      // Минимальное расстояние между центрами коробок (в процентах)
+      const minDistance = ((BOX_SIZE + BOX_GAP_PIXELS) / (window.innerHeight || 800)) * 100;
+      
+      // Если текущая коробка наехала на предыдущую
+      if (currentBox.y >= prevBox.y - minDistance) {
+        // Останавливаем текущую коробку вплотную к предыдущей
+        currentBox.y = prevBox.y - minDistance;
         
-        // Если текущая коробка наехала на предыдущую
-        if (box.y >= prevBox.y - minDistance) {
-          // Останавливаем текущую коробку вплотную к предыдущей
-          box.y = prevBox.y - minDistance;
+        // Если предыдущая коробка остановлена, то и текущая тоже
+        if (prevBox.stopped) {
+          currentBox.stopped = true;
         }
       }
     }
@@ -256,6 +274,11 @@ export function useGame() {
           box.errorAnim = false;
           box.errorAnimStartTime = 0;
         }
+      }
+      // Сбрасываем флаг stopped при каждом кадре, если коробка не у стены
+      // Это нужно чтобы коробки снова могли двигаться когда рука отпускается
+      if (!handIsActive && box.y < WALL_LINE_Y - 1) {
+        box.stopped = false;
       }
     });
 

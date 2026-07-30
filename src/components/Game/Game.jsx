@@ -99,7 +99,13 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       moveHand('right');
     } else if (e.key === ' ' || e.code === 'Space') {
       // Пробел - пока нажат, рука активна
-      // Обработка в handleKeyUp для отпускания
+      // Предотвращаем прокрутку страницы пробелом
+      e.preventDefault();
+      handActiveRef.current = true;
+      setGameState(prev => ({
+        ...prev,
+        handActive: true
+      }));
     }
   };
 
@@ -114,28 +120,15 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
   };
 
-  const handleKeyDownPress = (e) => {
-    if (e.key === ' ' || e.code === 'Space') {
-      // Нажатие пробела активирует руку
-      handActiveRef.current = true;
-      setGameState(prev => ({
-        ...prev,
-        handActive: true
-      }));
-    }
-  };
-
   useEffect(() => {
     const container = gameContainerRef.current;
     if (container) {
       container.focus();
       container.addEventListener('keydown', handleKeyDown);
       container.addEventListener('keyup', handleKeyUp);
-      container.addEventListener('keydown', handleKeyDownPress);
       return () => {
         container.removeEventListener('keydown', handleKeyDown);
         container.removeEventListener('keyup', handleKeyUp);
-        container.removeEventListener('keydown', handleKeyDownPress);
       };
     }
   }, [moveHand]);
@@ -162,6 +155,8 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const handleTouchStart = (e) => {
+    // Предотвращаем стандартное поведение и всплытие события
+    e.preventDefault();
     // Касание активирует руку - пока палец на экране, рука активна
     handActiveRef.current = true;
     setGameState(prev => ({
@@ -171,7 +166,35 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const handleTouchEnd = (e) => {
+    // Предотвращаем стандартное поведение
+    e.preventDefault();
     // Отпускание пальца деактивирует руку
+    handActiveRef.current = false;
+    setGameState(prev => ({
+      ...prev,
+      handActive: false
+    }));
+  };
+
+  const handleClick = (e) => {
+    // Предотвращаем всплытие и стандартное поведение клика
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleMouseDown = (e) => {
+    // Нажатие ЛКМ активирует руку
+    e.preventDefault();
+    handActiveRef.current = true;
+    setGameState(prev => ({
+      ...prev,
+      handActive: true
+    }));
+  };
+
+  const handleMouseUp = (e) => {
+    // Отпускание ЛКМ деактивирует руку
+    e.preventDefault();
     handActiveRef.current = false;
     setGameState(prev => ({
       ...prev,
@@ -201,6 +224,9 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       onTouchMove={handleTouchMove}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onClick={handleClick}
       tabIndex={0}
     >
       {/* Статистика игры с кнопкой назад */}
