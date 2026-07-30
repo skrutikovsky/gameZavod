@@ -218,17 +218,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ))}
       </div>
 
-      {/* Невидимая линия остановки - теперь видима как платформа */}
-      <div 
-        className="absolute left-1/2 transform -translate-x-1/2 bg-gray-400 border-t-4 border-b-4 border-gray-600 shadow-md"
-        style={{
-          top: `${HAND_STOP_LINE_Y}%`,
-          width: `${BELT_WIDTH_PERCENT}%`,
-          height: '4px',
-        }}
-      />
-
-      {/* Рука - стилизована под рычаг */}
+      {/* Рука - теперь просто визуальный индикатор, кнопка слева от конвейера */}
       <div 
         className="absolute"
         style={{
@@ -237,15 +227,8 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           transform: 'translate(-50%, -50%)'
         }}
       >
-        <div className="relative">
-          {/* Основание рычага */}
-          <div className="w-16 h-16 bg-gray-700 rounded-full border-4 border-gray-900 shadow-lg flex items-center justify-center">
-            {/* Рычаг */}
-            <div className={`w-4 h-24 bg-gradient-to-b from-red-500 to-red-700 rounded-full origin-bottom transform transition-transform duration-100 ${gameState.handActive ? 'rotate-45' : 'rotate-0'}`}>
-              {/* Ручка рычага */}
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-red-600 rounded-full border-4 border-red-800 shadow-md"></div>
-            </div>
-          </div>
+        <div className={`w-24 h-24 bg-red-500 rounded-full border-4 border-red-700 shadow-lg flex items-center justify-center ${gameState.handActive ? 'scale-110 bg-red-600' : ''}`}>
+          <span className="text-white text-2xl">🖐️</span>
         </div>
       </div>
 
