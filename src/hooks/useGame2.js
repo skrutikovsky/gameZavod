@@ -156,10 +156,12 @@ export function useGame2() {
         
         // Проверяем столкновение с коробкой ниже
         // Важно: коробка останавливается от другой коробки только если она сама ещё не прошла линию
+        // и нижняя коробка тоже находится выше линии (её низ выше линии остановки)
         if (i < boxesRef.current.length - 1 && !box.stopped) {
           const boxBelow = boxesRef.current[i + 1];
-          // Если коробка ниже остановлена И находится выше или на линии, проверяем столкновение с ней
-          if (boxBelow.stopped && boxBelow.y < handStopLineY) {
+          const boxBelowBottom = boxBelow.y + boxHeightPercent;
+          // Если коробка ниже остановлена И её низ выше или на линии остановки, проверяем столкновение с ней
+          if (boxBelow.stopped && boxBelowBottom <= handStopLineY) {
             const boxBelowTop = boxBelow.y;
             const currentBoxBottom = box.y + boxHeightPercent;
             
