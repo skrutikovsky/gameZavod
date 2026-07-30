@@ -135,37 +135,41 @@ export function useGame2() {
     
     // Если рука активна - проверяем остановку на невидимой линии
     if (isHandBlocking) {
-      // Проходим снизу вверх, определяем какие коробки должны остановиться
+      // Находим первую (самую нижнюю) коробку, которая ещё НЕ прошла линию полностью
+      // То есть её верхняя часть находится выше или на линии
+      let firstBoxAboveLineIndex = -1;
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
         const box = boxesRef.current[i];
         const boxTop = box.y;
-        const boxBottom = box.y + boxHeightPercent;
         
-        // Если это самая нижняя коробка
-        if (i === boxesRef.current.length - 1) {
-          // Останавливаем ТОЛЬКО если верхняя часть коробки ещё НЕ прошла линию
-          // То есть коробка ещё пересекает линию или находится выше неё
-          if (boxTop <= handStopLineY && boxBottom >= handStopLineY) {
-            box.stopped = true;
-            // Фиксируем позицию точно на линии (нижняя граница коробки = линия)
-            box.y = handStopLineY - boxHeightPercent;
-          }
-          // Если коробка уже полностью ниже линии (boxTop > handStopLineY) - она продолжает падать
-          // и все коробки выше тоже продолжают падать пока не достигнут линии
-        } else {
-          // Это не самая нижняя коробка - проверяем столкновение с коробкой ниже
-          const boxBelow = boxesRef.current[i + 1];
-          const boxBelowTop = boxBelow.y;
-          
-          // Останавливаемся только если коробка ниже остановлена И мы её коснулись
-          if (boxBelow.stopped && boxBottom >= boxBelowTop - 0.5) {
-            box.stopped = true;
-            // Фиксируем позицию точно над коробкой ниже (без зазоров)
-            box.y = boxBelowTop - boxHeightPercent;
-          }
-          // Если коробка ниже ещё движется - эта тоже движется
+        // Если верх коробки выше или на линии - эта коробка и все выше неё могут быть остановлены
+        if (boxTop <= handStopLineY) {
+          firstBoxAboveLineIndex = i;
+          break;
         }
       }
+      
+      // Если есть коробки выше линии, останавливаем их
+      if (firstBoxAboveLineIndex >= 0) {
+        // Проходим от найденной коробки вверх и останавливаем все коробки
+        for (let i = firstBoxAboveLineIndex; i >= 0; i--) {
+          const box = boxesRef.current[i];
+          const boxBottom = box.y + boxHeightPercent;
+          
+          if (i === firstBoxAboveLineIndex) {
+            // Самая нижняя из коробок выше линии - останавливаем её на линии
+            box.stopped = true;
+            box.y = handStopLineY - boxHeightPercent;
+          } else {
+            // Остальные коробки останавливаются над коробкой ниже
+            const boxBelow = boxesRef.current[i + 1];
+            const boxBelowTop = boxBelow.y;
+            box.stopped = true;
+            box.y = boxBelowTop - boxHeightPercent;
+          }
+        }
+      }
+      // Все коробки ниже линии (с индексом > firstBoxAboveLineIndex) продолжают падение
     }
     
     // Двигаем все не остановленные коробки
