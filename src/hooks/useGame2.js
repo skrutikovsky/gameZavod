@@ -7,8 +7,8 @@ const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.25; // Базовая скорость конвейера
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
 const MAX_BOXES_ON_BELT = 8; // Максимальное количество коробок на ленте
-const HAND_STOP_LINE_Y = 78; // Позиция невидимой линии остановки (в процентах)
-const BOX_HEIGHT_PERCENT = 12.5; // Высота коробки в процентах от экрана
+const HAND_STOP_LINE_Y = 82; // Позиция невидимой линии остановки (в процентах) - внизу конвейера
+const BOX_HEIGHT_PERCENT = 10; // Высота коробки в процентах от экрана (без отступов)
 
 export function useGame2() {
   const [gameState, setGameState] = useState({
@@ -125,7 +125,7 @@ export function useGame2() {
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
     
-    // Сначала обновляем позиции всех коробок которые могут двигаться
+    // Сначала сбрасываем состояние stopped у всех коробок
     boxesRef.current.forEach(box => {
       box.stopped = false;
     });
@@ -139,9 +139,10 @@ export function useGame2() {
         
         // Если это самая нижняя коробка и она достигла линии остановки
         if (i === boxesRef.current.length - 1) {
+          // Проверяем пересекла ли нижняя граница коробки линию остановки
           if (boxBottom >= handStopLineY) {
             box.stopped = true;
-            // Фиксируем позицию точно на линии
+            // Фиксируем позицию точно на линии (нижний край коробки совпадает с линией)
             box.y = handStopLineY - BOX_HEIGHT_PERCENT;
           }
         } else {
@@ -151,9 +152,10 @@ export function useGame2() {
           
           // Если коробка ниже остановлена, проверяем касание
           if (boxBelow.stopped) {
-            if (boxBottom >= boxBelowTop - 0.5) {
+            // Проверяем касается ли текущая коробка нижней коробки (без зазоров)
+            if (boxBottom >= boxBelowTop) {
               box.stopped = true;
-              // Фиксируем позицию точно над коробкой ниже
+              // Фиксируем позицию точно над коробкой ниже (без зазора)
               box.y = boxBelowTop - BOX_HEIGHT_PERCENT;
             }
           }
