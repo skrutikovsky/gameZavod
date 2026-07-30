@@ -26,7 +26,6 @@ export function useGame2() {
     boxes: [],
     container: null,
     containerSpawning: false,
-    beltStopped: false,
     levelCompleteShown: false
   });
   
@@ -66,7 +65,6 @@ export function useGame2() {
       boxes: [],
       container: null,
       containerSpawning: false,
-      beltStopped: false,
       levelCompleteShown: false
     });
   }, []);
@@ -80,16 +78,7 @@ export function useGame2() {
 
   const spawnBox = useCallback(() => {
     const currentState = gameStateRef.current;
-    if (!currentState || currentState.beltStopped) return null;
-
-    // Проверка на переполнение ленты
-    if (boxesRef.current.length >= MAX_BOXES_ON_BELT) {
-      setGameState(prev => ({
-        ...prev,
-        beltStopped: true
-      }));
-      return null;
-    }
+    if (!currentState) return null;
 
     const newBox = {
       id: Date.now() + Math.random(),
@@ -137,14 +126,14 @@ export function useGame2() {
     // Если рука активна - проверяем остановку на линии
     if (isHandBlocking) {
       // Находим самую нижнюю коробку, которая ещё НЕ прошла линию полностью
-      // То есть её верхняя часть находится выше или на линии
+      // То есть её нижняя часть находится выше или на линии
       let firstBoxAboveLineIndex = -1;
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
         const box = boxesRef.current[i];
-        const boxTop = box.y;
+        const boxBottom = box.y + boxHeightPercent;
         
-        // Если верх коробки выше или на линии - эта коробка может быть остановлена
-        if (boxTop <= handStopLineY) {
+        // Если низ коробки выше или на линии - эта коробка может быть остановлена
+        if (boxBottom <= handStopLineY) {
           firstBoxAboveLineIndex = i;
           break;
         }
@@ -157,24 +146,10 @@ export function useGame2() {
           const box = boxesRef.current[i];
           
           if (i === firstBoxAboveLineIndex) {
-            // Самая нижняя из коробок выше линии
-            const boxBottom = box.y + boxHeightPercent;
-            
-            // Если нижняя грань коробки уже перелетела линию - коробка не останавливается
-            // и прерывает цепочку остановки для коробок выше
-            if (boxBottom > handStopLineY && box.y > handStopLineY) {
-              // Коробка полностью за линией (и верх и низ ниже линии), она продолжает падать и не влияет на коробки выше
-              // Прерываем цепочку остановки
-              break;
-            } else if (boxBottom <= handStopLineY) {
-              // Коробка еще не достигла линии, просто помечаем что она будет остановлена
-              box.stopped = false;
-            } else {
-              // Коробка достигла линии или прошла её частично (низ ниже линии, но верх выше) - останавливаем на линии
-              box.stopped = true;
-              // Устанавливаем позицию так чтобы низ коробки был на линии
-              box.y = handStopLineY - boxHeightPercent;
-            }
+            // Самая нижняя из коробок выше линии - останавливается на линии
+            box.stopped = true;
+            // Устанавливаем позицию так чтобы низ коробки был на линии
+            box.y = handStopLineY - boxHeightPercent;
           } else {
             // Остальные коробки останавливаются над коробкой ниже
             const boxBelow = boxesRef.current[i + 1];
@@ -194,7 +169,7 @@ export function useGame2() {
           }
         }
       }
-      // Все коробки ниже линии (с индексом > firstBoxAboveLineIndex) продолжают падение
+      // Все коробки у которых низ ниже линии продолжают падение
     }
     
     // Двигаем все не остановленные коробки
@@ -203,22 +178,6 @@ export function useGame2() {
         box.y += currentSpeed;
       }
     });
-
-    // Проверяем переполнение: если есть остановленная коробка у люка (верхняя часть)
-    const boxAtSpawn = boxesRef.current.some(box => box.stopped && box.y < 20);
-    if (boxAtSpawn && boxesRef.current.length >= MAX_BOXES_ON_BELT) {
-      if (!currentState.beltStopped) {
-        setGameState(prev => ({
-          ...prev,
-          beltStopped: true
-        }));
-      }
-    } else if (currentState.beltStopped && !boxAtSpawn) {
-      setGameState(prev => ({
-        ...prev,
-        beltStopped: false
-      }));
-    }
 
     // Спавн контейнера когда нет активного (только если рука не блокирует)
     if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
