@@ -1,8 +1,8 @@
 import React from 'react';
 
-export function Hand({ position }) {
+export function Hand({ position, active }) {
   return (
-    <div className={`hand hand-${position}`}>
+    <div className={`hand hand-${position} ${active ? 'hand-active' : ''}`}>
       <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
         {/* Пальцы */}
         <g fill="#f39c12" stroke="#d35400" strokeWidth="2">

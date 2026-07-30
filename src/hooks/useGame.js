@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const BOX_SIZE = 140; // Размер коробки
 const HAND_POSITION_Y = 85; // Позиция руки в процентах от высоты экрана
 const CHECK_LINE_Y = 78; // Невидимая линия проверки (чуть выше руки)
+const WALL_LINE_Y = 80; // Линия стены руки (где останавливаются коробки)
 const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.27; // Увеличено в 1.5 раза (было 0.18)
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
@@ -21,6 +22,7 @@ export function useGame() {
     maxMultiplier: 1,
     conveyorSpeed: BASE_CONVEYOR_SPEED,
     handPosition: 'left', // 'left' или 'right'
+    handActive: false, // Активна ли рука (создает стену)
     boxes: [],
     levelCompleteShown: false
   });
@@ -32,6 +34,7 @@ export function useGame() {
   const conveyorSpeedRef = useRef(BASE_CONVEYOR_SPEED); // Актуальная скорость в рефе
   const lastSpawnTimeRef = useRef(0); // Время последнего спавна
   const spawnIntervalRef = useRef(0); // Текущий интервал спавна
+  const handActiveRef = useRef(false); // Активна ли рука
   
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -45,6 +48,7 @@ export function useGame() {
     conveyorSpeedRef.current = BASE_CONVEYOR_SPEED;
     lastSpawnTimeRef.current = 0;
     spawnIntervalRef.current = 0;
+    handActiveRef.current = false;
     
     setGameState({
       isRunning: false,
@@ -57,9 +61,19 @@ export function useGame() {
       maxMultiplier: 1,
       conveyorSpeed: BASE_CONVEYOR_SPEED,
       handPosition: 'left',
+      handActive: false,
       boxes: [],
       levelCompleteShown: false
     });
+  }, []);
+
+  const toggleHand = useCallback(() => {
+    const newState = !handActiveRef.current;
+    handActiveRef.current = newState;
+    setGameState(prev => ({
+      ...prev,
+      handActive: newState
+    }));
   }, []);
 
   const moveHand = useCallback((position) => {
@@ -128,11 +142,48 @@ export function useGame() {
     let newMultiplier = currentState.multiplier;
     // Используем скорость из рефа, чтобы она была актуальной
     let currentSpeed = conveyorSpeedRef.current;
+    
+    // Проверяем, активна ли рука (создает стену)
+    const handIsActive = handActiveRef.current;
+    
+    // Сортируем коробки по позиции Y (от меньшего к большему, т.е. сверху вниз)
+    boxesRef.current.sort((a, b) => a.y - b.y);
 
-    // Обновляем позиции всех коробок
-    boxesRef.current.forEach(box => {
+    // Обновляем позиции всех коробок с учетом физики
+    for (let i = 0; i < boxesRef.current.length; i++) {
+      const box = boxesRef.current[i];
+      
+      // Двигаем коробку вперед
       box.y += currentSpeed;
-    });
+      
+      // Если рука активна, проверяем столкновение со стеной руки
+      if (handIsActive) {
+        // Определяем, с какой стороны рука
+        const handIsLeft = currentState.handPosition === 'left';
+        
+        // Проверяем, находится ли коробка на той же стороне, что и рука
+        // Для простоты считаем что коробка на стороне руки если она в пределах конвейера
+        // и рука может её остановить
+        
+        // Если коробка достигла линии стены руки
+        if (box.y >= WALL_LINE_Y) {
+          // Останавливаем коробку на линии стены
+          box.y = WALL_LINE_Y;
+        }
+      }
+      
+      // Проверяем столкновение с предыдущей коробкой (физика толкания)
+      if (i > 0) {
+        const prevBox = boxesRef.current[i - 1];
+        const minDistance = (BOX_SIZE + BOX_GAP_PIXELS) / (window.innerHeight || 800) * 100;
+        
+        // Если текущая коробка наехала на предыдущую
+        if (box.y >= prevBox.y - minDistance) {
+          // Останавливаем текущую коробку вплотную к предыдущей
+          box.y = prevBox.y - minDistance;
+        }
+      }
+    }
 
     // Проверяем коробки при пересечении линии проверки
     boxesRef.current.forEach(box => {
@@ -289,6 +340,7 @@ export function useGame() {
     gameState,
     setGameState,
     moveHand,
+    toggleHand,
     fixBox,
     loseLife,
     updateBoxes,
@@ -300,6 +352,7 @@ export function useGame() {
     BOX_SIZE,
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
+    WALL_LINE_Y,
     BOX_GAP_PIXELS,
     conveyorSpeedRef,
     lastSpawnTimeRef,

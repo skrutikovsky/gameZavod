@@ -10,6 +10,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
     gameState,
     moveHand,
+    toggleHand,
     updateBoxes,
     spawnBox,
     startGame,
@@ -19,6 +20,7 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     BOX_SIZE,
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
+    WALL_LINE_Y,
     BOX_GAP_PIXELS,
     conveyorSpeedRef,
     lastSpawnTimeRef,
@@ -95,6 +97,31 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       moveHand('left');
     } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'В' || e.key === 'в') {
       moveHand('right');
+    } else if (e.key === ' ' || e.code === 'Space') {
+      // Пробел - пока нажат, рука активна
+      // Обработка в handleKeyUp для отпускания
+    }
+  };
+
+  const handleKeyUp = (e) => {
+    if (e.key === ' ' || e.code === 'Space') {
+      // Отпускание пробела деактивирует руку
+      handActiveRef.current = false;
+      setGameState(prev => ({
+        ...prev,
+        handActive: false
+      }));
+    }
+  };
+
+  const handleKeyDownPress = (e) => {
+    if (e.key === ' ' || e.code === 'Space') {
+      // Нажатие пробела активирует руку
+      handActiveRef.current = true;
+      setGameState(prev => ({
+        ...prev,
+        handActive: true
+      }));
     }
   };
 
@@ -103,8 +130,12 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     if (container) {
       container.focus();
       container.addEventListener('keydown', handleKeyDown);
+      container.addEventListener('keyup', handleKeyUp);
+      container.addEventListener('keydown', handleKeyDownPress);
       return () => {
         container.removeEventListener('keydown', handleKeyDown);
+        container.removeEventListener('keyup', handleKeyUp);
+        container.removeEventListener('keydown', handleKeyDownPress);
       };
     }
   }, [moveHand]);
@@ -130,6 +161,24 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
   };
 
+  const handleTouchStart = (e) => {
+    // Касание активирует руку - пока палец на экране, рука активна
+    handActiveRef.current = true;
+    setGameState(prev => ({
+      ...prev,
+      handActive: true
+    }));
+  };
+
+  const handleTouchEnd = (e) => {
+    // Отпускание пальца деактивирует руку
+    handActiveRef.current = false;
+    setGameState(prev => ({
+      ...prev,
+      handActive: false
+    }));
+  };
+
   const handleRestart = () => {
     resetGame();
     startGame();
@@ -150,6 +199,8 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ref={gameContainerRef}
       className="game-container relative w-full h-screen overflow-hidden"
       onTouchMove={handleTouchMove}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       tabIndex={0}
     >
       {/* Статистика игры с кнопкой назад */}
@@ -191,7 +242,13 @@ const Game = ({ level, onGameOver, onBack, onLevelComplete }) => {
       </div>
 
       {/* Рука */}
-      <Hand position={gameState.handPosition} />
+      <Hand position={gameState.handPosition} active={gameState.handActive} />
+
+      {/* Линия стены руки (для отладки, можно убрать позже) */}
+      <div 
+        className="absolute left-0 right-0 border-t-2 border-dashed border-red-500/30 pointer-events-none"
+        style={{ top: `${WALL_LINE_Y}%` }}
+      />
 
       {/* Модальное окно конца игры */}
       {isGameOver && (
