@@ -327,9 +327,19 @@
                 this.inContainer = false;
                 this.falling = false;
                 this.fallY = 0;
+                this.caughtByHand = false;
             }
 
             update() {
+                // Check if box has passed the conveyor edge and should start falling
+                const conveyorEdge = canvas.width - 150;
+                if (!this.falling && !this.inContainer && !this.stopped) {
+                    if (this.x > conveyorEdge) {
+                        this.falling = true;
+                        this.fallY = 0;
+                    }
+                }
+                
                 if (this.falling) {
                     this.fallY += 8;
                     return;
@@ -503,6 +513,14 @@
                 conveyorStopped = true;
             } else {
                 conveyorStopped = false;
+            }
+            
+            // Mark boxes that are falling as having been "caught" by the hand logic
+            // This prevents them from being affected when hand is released
+            for (const box of boxes) {
+                if (box.falling) {
+                    box.caughtByHand = true;
+                }
             }
         }
 
@@ -735,6 +753,12 @@
                 // Release boxes - reset stopped state so they can move again
                 for (const box of boxes) {
                     if (box.falling || box.inContainer) continue;
+                    
+                    // Don't reset boxes that were already falling when hand was pressed
+                    // These should continue falling naturally
+                    if (box.caughtByHand) {
+                        continue;
+                    }
                     
                     // Reset stopped state - boxes will continue moving on conveyor
                     // or falling if they're already in the air
