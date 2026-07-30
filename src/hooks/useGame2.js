@@ -7,7 +7,8 @@ const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.25; // Базовая скорость конвейера
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
 const MAX_BOXES_ON_BELT = 8; // Максимальное количество коробок на ленте
-const HAND_STOP_LINE_Y = 78; // Позиция невидимой линии остановки (в процентах)
+export const HAND_STOP_LINE_Y = 78; // Позиция невидимой линии остановки (в процентах)
+const LEVER_POSITION_X = 25; // Позиция рычага по горизонтали (слева) в %
 
 export function useGame2() {
   const [gameState, setGameState] = useState({
@@ -159,8 +160,13 @@ export function useGame2() {
             // Самая нижняя из коробок выше линии
             const boxBottom = box.y + boxHeightPercent;
             
-            // Если коробка еще не достигла линии - она продолжает падать
-            if (boxBottom < handStopLineY) {
+            // Если нижняя грань коробки уже перелетела линию (коробка полностью за линией) - коробка не останавливается
+            // и прерывает цепочку остановки для коробок выше
+            if (box.y > handStopLineY) {
+              // Коробка полностью за линией (её верх уже ниже линии), она продолжает падать и не влияет на коробки выше
+              // Прерываем цепочку остановки
+              break;
+            } else if (boxBottom < handStopLineY) {
               // Коробка еще не достигла линии, просто помечаем что она будет остановлена
               box.stopped = false;
             } else {
@@ -361,6 +367,7 @@ export function useGame2() {
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
     HAND_POSITION_X,
+    LEVER_POSITION_X,
     conveyorSpeedRef,
     lastSpawnTimeRef
   };
