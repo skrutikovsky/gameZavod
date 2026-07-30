@@ -239,9 +239,13 @@ export function useGame2() {
     boxesRef.current = boxesRef.current.filter(box => {
       if (box.y > 95) {
         // Коробка достигла зоны контейнера
-        // Проверяем: если рука активна в момент достижения зоны контейнера - коробка промахивается
-        if (currentState.container && !isHandBlocking) {
-          // Успешно попала в контейнер
+        // Проверяем состояние контейнера
+        if (currentState.containerSpawning) {
+          // Контейнер на перезарядке - коробка промахивается, отнимаем жизнь
+          livesLost++;
+          return false;
+        } else if (currentState.container) {
+          // Контейнер активен - коробка успешно попадает в него
           containerCountRef.current++;
           boxesFixedThisUpdate++;
           
@@ -278,11 +282,13 @@ export function useGame2() {
             currentSpeed = currentSpeed * 1.02;
             conveyorSpeedRef.current = currentSpeed;
           }
+          return false;
         } else {
-          // Коробка промахнулась мимо контейнера - отнимаем жизнь
+          // Нет контейнера и не на перезарядке - это не должно происходить в нормальной игре
+          // Но на всякий случай считаем как промах
           livesLost++;
+          return false;
         }
-        return false;
       }
       return true;
     });
