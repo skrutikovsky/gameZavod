@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useGame2 } from '../../hooks/useGame2.js';
+import { useGame2, HAND_STOP_LINE_Y } from '../../hooks/useGame2.js';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -19,6 +19,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
     HAND_POSITION_X,
+    LEVER_POSITION_X,
     conveyorSpeedRef,
     lastSpawnTimeRef
   } = useGame2();
@@ -216,19 +217,43 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             }}
           />
         ))}
+        
+        {/* Видимая линия остановки */}
+        <div 
+          className="absolute left-0 right-0 border-t-4 border-dashed border-red-500 opacity-70"
+          style={{
+            top: `${HAND_STOP_LINE_Y}%`
+          }}
+        >
+          <span className="absolute right-2 -top-5 text-xs text-red-500 font-bold">STOP</span>
+        </div>
       </div>
 
-      {/* Рука - теперь просто визуальный индикатор, кнопка слева от конвейера */}
+      {/* Рычаг вместо руки - визуальный индикатор слева от конвейера */}
       <div 
         className="absolute"
         style={{
-          left: `${HAND_POSITION_X}%`,
+          left: `${LEVER_POSITION_X}%`,
           top: `${HAND_POSITION_Y}%`,
           transform: 'translate(-50%, -50%)'
         }}
       >
-        <div className={`w-24 h-24 bg-red-500 rounded-full border-4 border-red-700 shadow-lg flex items-center justify-center ${gameState.handActive ? 'scale-110 bg-red-600' : ''}`}>
-          <span className="text-white text-2xl">🖐️</span>
+        {/* Основание рычага */}
+        <div className="relative w-16 h-24">
+          {/* База */}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-4 bg-gray-700 rounded"></div>
+          {/* Стойка */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-3 h-12 bg-gray-600 rounded"></div>
+          {/* Поворотная часть */}
+          <div 
+            className={`absolute bottom-14 left-1/2 transform -translate-x-1/2 origin-bottom transition-transform duration-150 ${gameState.handActive ? 'rotate-[-30deg]' : 'rotate-[30deg]'}`}
+          >
+            {/* Ручка рычага */}
+            <div className="w-4 h-16 bg-red-600 rounded-full border-2 border-red-800 shadow-lg flex items-center justify-center">
+              {/* Шар на конце */}
+              <div className="absolute -top-3 w-6 h-6 bg-red-500 rounded-full border-2 border-red-700 shadow-md"></div>
+            </div>
+          </div>
         </div>
       </div>
 
