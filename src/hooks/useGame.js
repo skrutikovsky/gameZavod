@@ -133,23 +133,13 @@ export function useGame() {
     const screenHeightPx = window.innerHeight || 800;
     const boxHeightPercent = (BOX_SIZE / screenHeightPx) * 100;
 
-    // Находим самую верхнюю зафиксированную коробку (с минимальным y)
-    const fixedBoxes = boxesRef.current.filter(box => box.fixed);
-    const topFixedBox = fixedBoxes.length > 0 
-      ? fixedBoxes.reduce((min, box) => box.y < min.y ? box : min)
-      : null;
-    
-    // Вычисляем стоп-позицию для новой коробки (над самой верхней зафиксированной)
-    let effectiveStopY = STOP_LINE_Y;
-    if (topFixedBox) {
-      effectiveStopY = topFixedBox.y - boxHeightPercent;
-    }
-
     // Обрабатываем каждую коробку по порядку (от старой к новой)
-    // Важно: обрабатываем только НЕзафиксированные и НЕпроверенные коробки
-    boxesRef.current.forEach((box) => {
-      // Пропускаем уже проверенные/зафиксированные коробки - они не двигаются и не проверяются
-      if (box.checked || box.fixed) return;
+    boxesRef.current.forEach((box, index) => {
+      // Пропускаем уже зафиксированные коробки - они не двигаются
+      if (box.fixed) return;
+      
+      // Пропускаем коробки, которые уже ушли за экран
+      if (box.missed) return;
 
       // Двигаем коробку вниз
       box.y += currentSpeed;
@@ -157,8 +147,19 @@ export function useGame() {
       // Нижняя часть коробки = box.y + boxHeightPercent
       const boxBottom = box.y + boxHeightPercent;
 
-      // Проверяем, достигла ли коробка эффективной стоп-линии
-      if (boxBottom >= effectiveStopY) {
+      // Находим самую верхнюю зафиксированную коробку среди ВСЕХ предыдущих коробок
+      // (тех, что идут перед текущей в массиве)
+      let effectiveStopY = STOP_LINE_Y;
+      for (let i = 0; i < index; i++) {
+        const prevBox = boxesRef.current[i];
+        if (prevBox.fixed && prevBox.y < effectiveStopY) {
+          effectiveStopY = prevBox.y - boxHeightPercent;
+        }
+      }
+
+      // Проверяем, достигла ли нижняя часть коробки эффективной стоп-линии
+      // И коробка еще НЕ была проверена в этом кадре
+      if (boxBottom >= effectiveStopY && !box.checked) {
         box.checked = true;
 
         // Если коробка прямая - ничего не делаем, просто пропускаем (очки не начисляются)
@@ -211,11 +212,15 @@ export function useGame() {
           // Сохраняем оригинальный тип коробки для анимации
           box.originalType = box.type;
           
-          // Скорость НЕ меняем после провала - оставляем текущую
-          // conveyorSpeedRef.current остается без изменений
-          
-          // Коробка остается наклонной и уйдет за экран (не фиксируем её)
+          // Коробка НЕ фиксируется, продолжает падать и уйдет за экран
+          // Помечаем как missed, чтобы не обрабатывать повторно
+          box.missed = true;
         }
+      }
+      
+      // Проверяем, ушла ли коробка за экран (для нефиксированных)
+      if (!box.fixed && box.y > 100) {
+        box.missed = true;
       }
     });
 
@@ -230,14 +235,14 @@ export function useGame() {
       }
     });
 
-    // Фильтруем коробки, ушедшие за экран (только те, что не зафиксированы)
+    // Фильтруем коробки, ушедшие за экран (только те, что помечены как missed)
     boxesRef.current = boxesRef.current.filter(box => {
-      // Фиксированные коробки остаются на месте
+      // Фиксированные коробки остаются
       if (box.fixed) {
         return true;
       }
-      // Нефиксированные коробки удаляем, если ушли за экран
-      if (box.y > 100) {
+      // Нефиксированные удаляем, если ушли за экран
+      if (box.missed && box.y > 100) {
         return false;
       }
       return true;
