@@ -112,6 +112,10 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   // Обработка мыши
   const handleMouseDown = () => {
     setHandActive(true);
+    // Гарантированно устанавливаем фокус на контейнер при клике
+    if (gameContainerRef.current) {
+      gameContainerRef.current.focus();
+    }
   };
 
   const handleMouseUp = () => {
@@ -120,6 +124,10 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
   const handleTouchStart = () => {
     setHandActive(true);
+    // Гарантированно устанавливаем фокус на контейнер при таче
+    if (gameContainerRef.current) {
+      gameContainerRef.current.focus();
+    }
   };
 
   const handleTouchEnd = () => {
@@ -208,7 +216,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.boxes.map((box) => (
           <div
             key={box.id}
-            className={`absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 shadow-md border-2 border-yellow-800 ${box.stopped ? 'opacity-80' : ''}`}
+            className={`absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 shadow-md border-2 border-yellow-900 ${box.stopped ? 'opacity-80' : ''}`}
             style={{
               top: `${box.y}%`,
               width: `calc(${BELT_WIDTH_PERCENT}% + 1px)`,
