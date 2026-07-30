@@ -6,6 +6,7 @@ const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.25; // Базовая скорость конвейера
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
 const MAX_BOXES_ON_BELT = 8; // Максимальное количество коробок на ленте
+const HAND_STOP_LINE_Y = 78; // Позиция невидимой линии остановки (в процентах)
 
 export function useGame2() {
   const [gameState, setGameState] = useState({
@@ -19,7 +20,6 @@ export function useGame2() {
     comboCount: 0,
     maxMultiplier: 1,
     conveyorSpeed: BASE_CONVEYOR_SPEED,
-    handPosition: 'left', // 'left' или 'right'
     handActive: false,
     boxes: [],
     container: null,
@@ -35,12 +35,10 @@ export function useGame2() {
   const lastSpawnTimeRef = useRef(0);
   const containerCapacityRef = useRef(5);
   const containerCountRef = useRef(0);
-  const handPositionRef = useRef('left');
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
     gameStateRef.current = gameState;
-    handPositionRef.current = gameState.handPosition;
   }, [gameState]);
 
   const resetGame = useCallback(() => {
@@ -62,7 +60,6 @@ export function useGame2() {
       comboCount: 0,
       maxMultiplier: 1,
       conveyorSpeed: BASE_CONVEYOR_SPEED,
-      handPosition: 'left',
       handActive: false,
       boxes: [],
       container: null,
@@ -70,13 +67,6 @@ export function useGame2() {
       beltStopped: false,
       levelCompleteShown: false
     });
-  }, []);
-
-  const moveHand = useCallback((position) => {
-    setGameState(prev => ({
-      ...prev,
-      handPosition: position
-    }));
   }, []);
 
   const setHandActive = useCallback((active) => {
@@ -126,28 +116,24 @@ export function useGame2() {
     let newMultiplier = currentState.multiplier;
     let currentSpeed = conveyorSpeedRef.current;
     
-    // Определяем позицию руки (в процентах от высоты)
-    const handY = HAND_POSITION_Y;
-    const handX = handPositionRef.current === 'left' ? 35 : 55; // позиции руки
-    const beltCenterX = 50; // центр конвейера
-    const boxHalfWidthPercent = 12.5; // половина ширины конвейера (25% / 2)
-    
-    // Проверяем, находится ли рука над конвейером
-    const isHandOverBelt = Math.abs(handX - beltCenterX) <= boxHalfWidthPercent;
-    const isHandBlocking = currentState.handActive && isHandOverBelt;
+    // Позиция невидимой линии остановки (стена от руки)
+    const handStopLineY = HAND_STOP_LINE_Y;
+    const isHandBlocking = currentState.handActive;
 
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
     
-    // Если рука активна и над конвейером, она действует как физический барьер
+    // Если рука активна - она создаёт невидимую стену на линии HAND_STOP_LINE_Y
+    // Коробки не могут пройти дальше этой линии
     if (isHandBlocking) {
-      // Находим первую коробку, которая достигла позиции руки
+      // Находим первую коробку, которая достигла или пересекла линию остановки
       let firstBoxAtHand = null;
       for (let i = 0; i < boxesRef.current.length; i++) {
         const box = boxesRef.current[i];
-        // Коробка достигает руки, если её низ достиг позиции руки
-        const boxBottom = box.y + 10; // примерно низ коробки в %
-        if (boxBottom >= handY && !box.stopped) {
+        // Низ коробки (в процентах)
+        const boxBottom = box.y + 12.5; // ~BOX_SIZE / screenHeight * 100
+        
+        if (boxBottom >= handStopLineY && !box.stopped) {
           box.stopped = true;
           if (!firstBoxAtHand) {
             firstBoxAtHand = box;
@@ -155,7 +141,7 @@ export function useGame2() {
         }
       }
       
-      // Если есть коробка, остановленная рукой, все коробки выше неё тоже останавливаются (цепочка)
+      // Если есть коробка, остановленная линией, все коробки выше неё тоже останавливаются (цепочка)
       if (firstBoxAtHand) {
         for (let i = 0; i < boxesRef.current.length; i++) {
           const box = boxesRef.current[i];
@@ -257,11 +243,18 @@ export function useGame2() {
             currentSpeed = currentSpeed * 1.02;
             conveyorSpeedRef.current = currentSpeed;
           }
+        } else {
+          // Коробка промахнулась мимо контейнера - отнимаем жизнь
+          livesLost++;
         }
         return false;
       }
       return true;
     });
+
+    // Обновляем жизни
+    let newLives = currentState.lives - livesLost;
+    if (newLives < 0) newLives = 0;
 
     // Обновляем состояние
     setGameState(prev => ({
@@ -271,6 +264,7 @@ export function useGame2() {
       multiplier: newMultiplier,
       maxMultiplier: Math.max(prev.maxMultiplier, newMultiplier),
       score: prev.score + scoreGained,
+      lives: newLives,
       conveyorSpeed: currentSpeed,
       gameTime: Date.now() - gameStartTimeRef.current
     }));
@@ -307,7 +301,6 @@ export function useGame2() {
 
   return {
     gameState,
-    moveHand,
     setHandActive,
     spawnBox,
     updateBoxes,
