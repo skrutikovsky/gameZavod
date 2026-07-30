@@ -123,8 +123,7 @@ export function useGame2() {
     
     // Позиция невидимой линии остановки (стена от руки)
     const handStopLineY = HAND_STOP_LINE_Y;
-    // Линия блокирует только когда рука НЕ активна (рычаг отпущен)
-    const isHandBlocking = !handActiveRef.current;
+    const isHandBlocking = handActiveRef.current;
 
     // Вычисляем высоту коробки в процентах от высоты экрана
     const screenHeightPx = window.innerHeight || 800;
@@ -138,7 +137,7 @@ export function useGame2() {
       box.y += currentSpeed;
     });
     
-    // Если рука НЕ активна (рычаг отпущен) - линия становится физической преградой
+    // Если рука активна - линия становится физической преградой
     if (isHandBlocking) {
       // Проходим по коробкам снизу вверх и проверяем столкновения
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
