@@ -19,6 +19,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
     HAND_POSITION_X,
+    HAND_STOP_LINE_Y,
     conveyorSpeedRef,
     lastSpawnTimeRef
   } = useGame2();
