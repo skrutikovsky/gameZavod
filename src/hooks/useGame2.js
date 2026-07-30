@@ -80,6 +80,18 @@ export function useGame2() {
     const currentState = gameStateRef.current;
     if (!currentState) return null;
 
+    // Проверяем лимит коробок на ленте
+    const screenHeightPx = window.innerHeight || 800;
+    const boxHeightPercent = (BOX_SIZE / screenHeightPx) * 100;
+    const boxesOnBelt = boxesRef.current.filter(box => {
+      const boxBottom = box.y + boxHeightPercent;
+      return boxBottom < 90; // Коробка считается на ленте если её низ выше зоны контейнера
+    }).length;
+
+    if (boxesOnBelt >= MAX_BOXES_ON_BELT) {
+      return null; // Не спавним новую коробку если лимит достигнут
+    }
+
     const newBox = {
       id: Date.now() + Math.random(),
       y: -20,
@@ -139,17 +151,15 @@ export function useGame2() {
         }
       }
       
-      // Если есть коробки выше линии, останавливаем их
+      // Если есть коробки выше линии, останавливаем их без изменения позиции
       if (firstBoxAboveLineIndex >= 0) {
         // Проходим от найденной коробки вверх и останавливаем все коробки
         for (let i = firstBoxAboveLineIndex; i >= 0; i--) {
           const box = boxesRef.current[i];
           
           if (i === firstBoxAboveLineIndex) {
-            // Самая нижняя из коробок выше линии - останавливается на линии
+            // Самая нижняя из коробок выше линии - просто останавливается
             box.stopped = true;
-            // Устанавливаем позицию так чтобы низ коробки был на линии
-            box.y = handStopLineY - boxHeightPercent;
           } else {
             // Остальные коробки останавливаются над коробкой ниже
             const boxBelow = boxesRef.current[i + 1];
@@ -163,7 +173,6 @@ export function useGame2() {
                 box.stopped = false;
               } else {
                 box.stopped = true;
-                box.y = boxBelowTop - boxHeightPercent;
               }
             }
           }
