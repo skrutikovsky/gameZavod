@@ -139,44 +139,74 @@ export function useGame2() {
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
     
+    // Высота коробки в процентах экрана
+    const screenHeightPx = window.innerHeight || 800;
+    const boxHeightPercent = (BOX_SIZE / screenHeightPx) * 100;
+    const boxGap = 2; // небольшой зазор между коробками в процентах
+    
     // Если рука активна и над конвейером, она действует как физический барьер
+    let barrierY = null;
     if (isHandBlocking) {
-      // Находим первую коробку, которая достигла позиции руки
-      let firstBoxAtHand = null;
-      for (let i = 0; i < boxesRef.current.length; i++) {
-        const box = boxesRef.current[i];
-        // Коробка достигает руки, если её низ достиг позиции руки
-        const boxBottom = box.y + 10; // примерно низ коробки в %
-        if (boxBottom >= handY && !box.stopped) {
-          box.stopped = true;
-          if (!firstBoxAtHand) {
-            firstBoxAtHand = box;
-          }
-        }
-      }
-      
-      // Если есть коробка, остановленная рукой, все коробки выше неё тоже останавливаются (цепочка)
-      if (firstBoxAtHand) {
-        for (let i = 0; i < boxesRef.current.length; i++) {
-          const box = boxesRef.current[i];
-          if (box.y < firstBoxAtHand.y) {
-            box.stopped = true;
-          }
-        }
-      }
-    } else {
-      // Рука не блокирует - все коробки двигаются
-      boxesRef.current.forEach(box => {
-        box.stopped = false;
-      });
+      barrierY = handY;
     }
     
-    // Двигаем все не остановленные коробки
+    // Физическая симуляция: обрабатываем коробки снизу вверх
+    // Каждая коробка может быть остановлена:
+    // 1. Барьером от руки (если активна)
+    // 2. Другой коробкой снизу
+    
+    // Сначала двигаем все коробки
     boxesRef.current.forEach(box => {
-      if (!box.stopped) {
-        box.y += currentSpeed;
-      }
+      box.stopped = false;
+      box.y += currentSpeed;
     });
+    
+    // Теперь применяем коллизии снизу вверх
+    for (let i = boxesRef.current.length - 1; i >= 0; i--) {
+      const currentBox = boxesRef.current[i];
+      const currentBoxBottom = currentBox.y + boxHeightPercent;
+      
+      // Проверка коллизии с барьером от руки
+      if (barrierY !== null && currentBoxBottom >= barrierY) {
+        // Коробка достигла барьера - останавливаем её
+        currentBox.y = barrierY - boxHeightPercent;
+        currentBox.stopped = true;
+      }
+      
+      // Проверка коллизии с коробкой снизу
+      if (i < boxesRef.current.length - 1) {
+        const boxBelow = boxesRef.current[i + 1];
+        const boxBelowTop = boxBelow.y;
+        
+        // Если текущая коробка пересекается с нижней
+        if (currentBoxBottom > boxBelowTop - boxGap) {
+          // Останавливаем текущую коробку вплотную к нижней
+          currentBox.y = boxBelowTop - boxHeightPercent - boxGap;
+          currentBox.stopped = true;
+          
+          // Если нижняя коробка остановлена, то и текущая тоже
+          if (boxBelow.stopped) {
+            currentBox.stopped = true;
+          }
+        }
+      }
+    }
+    
+    // После применения всех коллизий, помечаем коробки как stopped если они уперлись в другую
+    // Это нужно для правильной цепочки остановок
+    for (let i = boxesRef.current.length - 2; i >= 0; i--) {
+      const currentBox = boxesRef.current[i];
+      const boxBelow = boxesRef.current[i + 1];
+      
+      // Если коробка снизу остановлена и текущая касается её
+      if (boxBelow.stopped) {
+        const currentBoxBottom = currentBox.y + boxHeightPercent;
+        const boxBelowTop = boxBelow.y;
+        if (Math.abs(currentBoxBottom - boxBelowTop) < boxGap + 0.1) {
+          currentBox.stopped = true;
+        }
+      }
+    }
 
     // Проверяем переполнение: если есть остановленная коробка у люка (верхняя часть)
     const boxAtSpawn = boxesRef.current.some(box => box.stopped && box.y < 20);
