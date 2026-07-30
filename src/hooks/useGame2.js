@@ -138,18 +138,20 @@ export function useGame2() {
       // Проходим снизу вверх, определяем какие коробки должны остановиться
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
         const box = boxesRef.current[i];
+        const boxTop = box.y;
         const boxBottom = box.y + boxHeightPercent;
         
         // Если это самая нижняя коробка
         if (i === boxesRef.current.length - 1) {
-          // Останавливаем ТОЛЬКО если нижняя граница этой конкретной коробки пересекла линию
-          if (boxBottom >= handStopLineY) {
+          // Останавливаем ТОЛЬКО если верхняя часть коробки ещё НЕ прошла линию
+          // То есть коробка ещё пересекает линию или находится выше неё
+          if (boxTop <= handStopLineY && boxBottom >= handStopLineY) {
             box.stopped = true;
             // Фиксируем позицию точно на линии (нижняя граница коробки = линия)
             box.y = handStopLineY - boxHeightPercent;
           }
-          // Если самая нижняя коробка ещё НЕ достигла линии - она продолжает падать
-          // и все коробки выше тоже продолжают падать
+          // Если коробка уже полностью ниже линии (boxTop > handStopLineY) - она продолжает падать
+          // и все коробки выше тоже продолжают падать пока не достигнут линии
         } else {
           // Это не самая нижняя коробка - проверяем столкновение с коробкой ниже
           const boxBelow = boxesRef.current[i + 1];
