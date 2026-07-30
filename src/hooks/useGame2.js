@@ -143,13 +143,17 @@ export function useGame2() {
         const boxBottom = box.y + boxHeightPercent;
         
         // Проверяем столкновение с линией остановки
-        if (boxBottom >= handStopLineY && box.y < handStopLineY) {
-          // Коробка пересекает линию - останавливаем её на линии
-          box.y = handStopLineY - boxHeightPercent;
-          box.stopped = true;
-        } else if (boxBottom >= handStopLineY) {
-          // Коробка уже ниже линии - продолжает падение (не останавливается)
-          box.stopped = false;
+        // ВАЖНО: останавливаем коробку только если её НИЖНЯЯ ЧАСТЬ достигает линии
+        // и она ещё НЕ была остановлена ранее
+        if (boxBottom >= handStopLineY && !box.stopped) {
+          // Останавливаем коробку ТОЛЬКО если она ещё не пересекла линию полностью
+          // и не находится ниже линии
+          if (box.y < handStopLineY) {
+            // Коробка пересекает линию - останавливаем её точно на линии
+            box.y = handStopLineY - boxHeightPercent;
+            box.stopped = true;
+          }
+          // Если коробка уже ниже линии (box.y >= handStopLineY), она продолжает падение
         }
         
         // Проверяем столкновение с коробкой ниже
