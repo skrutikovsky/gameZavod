@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 const BOX_SIZE = 140; // Размер коробки
 const HAND_POSITION_Y = 85; // Позиция руки в процентах от высоты экрана
-const STOP_LINE_Y = 85; // Стоп-линия (где должна остановиться нижняя часть коробки)
+const CHECK_LINE_Y = 78; // Невидимая линия проверки (чуть выше руки)
 const INITIAL_LIVES = 3;
 const BASE_CONVEYOR_SPEED = 0.27; // Увеличено в 1.5 раза (было 0.18)
 const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от экрана
@@ -129,40 +129,21 @@ export function useGame() {
     // Используем скорость из рефа, чтобы она была актуальной
     let currentSpeed = conveyorSpeedRef.current;
 
-    // Рассчитываем высоту коробки в процентах экрана
-    const screenHeightPx = window.innerHeight || 800;
-    const boxHeightPercent = (BOX_SIZE / screenHeightPx) * 100;
-
-    // Находим самую верхнюю зафиксированную коробку (с минимальным y)
-    const fixedBoxes = boxesRef.current.filter(box => box.fixed);
-    const topFixedBox = fixedBoxes.length > 0 
-      ? fixedBoxes.reduce((min, box) => box.y < min.y ? box : min)
-      : null;
-    
-    // Вычисляем стоп-позицию для новой коробки (над самой верхней зафиксированной)
-    let effectiveStopY = STOP_LINE_Y;
-    if (topFixedBox) {
-      effectiveStopY = topFixedBox.y - boxHeightPercent;
-    }
-
-    // Обрабатываем каждую коробку по порядку (от старой к новой)
-    // Важно: обрабатываем только НЕзафиксированные и НЕпроверенные коробки
-    boxesRef.current.forEach((box) => {
-      // Пропускаем уже проверенные/зафиксированные коробки - они не двигаются и не проверяются
-      if (box.checked || box.fixed) return;
-
-      // Двигаем коробку вниз
+    // Обновляем позиции всех коробок
+    boxesRef.current.forEach(box => {
       box.y += currentSpeed;
+    });
 
-      // Нижняя часть коробки = box.y + boxHeightPercent
-      const boxBottom = box.y + boxHeightPercent;
+    // Проверяем коробки при пересечении линии проверки
+    boxesRef.current.forEach(box => {
+      // Пропускаем уже проверенные коробки
+      if (box.checked) return;
 
-      // Проверяем, достигла ли коробка эффективной стоп-линии
-      if (boxBottom >= effectiveStopY) {
+      // Проверяем пересечение линии проверки (снизу вверх)
+      if (box.y >= CHECK_LINE_Y) {
         box.checked = true;
 
         // Если коробка прямая - ничего не делаем, просто пропускаем (очки не начисляются)
-        // Коробка продолжит движение и уйдет за экран
         if (box.type === 'straight') {
           return;
         }
@@ -172,9 +153,6 @@ export function useGame() {
 
         if (currentState.handPosition === correctHand) {
           // УСПЕХ: рука в правильном положении
-          // Останавливаем коробку так, чтобы её нижняя часть была на эффективной стоп-линии
-          // ВАЖНО: устанавливаем позицию точно, без телепортации
-          box.y = effectiveStopY - boxHeightPercent;
           box.fixed = true;
           
           boxesFixedThisUpdate++;
@@ -214,7 +192,7 @@ export function useGame() {
           // Скорость НЕ меняем после провала - оставляем текущую
           // conveyorSpeedRef.current остается без изменений
           
-          // Коробка остается наклонной и уйдет за экран (не фиксируем её)
+          // Коробка остается наклонной и уйдет за экран
         }
       }
     });
@@ -230,13 +208,8 @@ export function useGame() {
       }
     });
 
-    // Фильтруем коробки, ушедшие за экран (только те, что не зафиксированы)
+    // Фильтруем коробки, ушедшие за экран
     boxesRef.current = boxesRef.current.filter(box => {
-      // Фиксированные коробки остаются на месте
-      if (box.fixed) {
-        return true;
-      }
-      // Нефиксированные коробки удаляем, если ушли за экран
       if (box.y > 100) {
         return false;
       }
