@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useGame2, HAND_STOP_LINE_Y } from '../../hooks/useGame2.js';
 import { GameStats } from '../UI/GameStats';
-import { Modal } from '../UI/Modal';
-import { Button } from '../UI/Button';
 
 const BOX_SIZE = 100; // Размер коробки в пикселях
 
@@ -257,23 +255,6 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </div>
       </div>
 
-      {/* Модальное окно конца игры */}
-      {isGameOver && (
-        <Modal
-          title="Игра окончена!"
-          message={`Время: ${formatTime(gameState.gameTime)}\nСчёт: ${gameState.score}\nЗакрыто контейнеров: ${gameState.containersClosed}`}
-        >
-          <div className="space-y-4">
-            <Button onClick={handleRestart} variant="primary">
-              Рестарт
-            </Button>
-            <Button onClick={onGameOver} variant="secondary">
-              В главное меню
-            </Button>
-          </div>
-        </Modal>
-      )}
-      
       {/* Индикатор остановки ленты */}
       {gameState.beltStopped && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-red-500/90 text-white px-6 py-4 rounded-lg shadow-lg text-center">
