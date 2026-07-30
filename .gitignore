@@ -2,15 +2,11 @@
 # Build artifacts
 dist/
 build/
-*.min.js
-*.min.css
-*.bundle.js
+*.js
+*.css
 
 # Dependencies
 node_modules/
-
-# Logs
-*.log
 
 # Environment
 .env
@@ -20,27 +16,26 @@ node_modules/
 # Editors
 .vscode/
 .idea/
+
+# Logs and temp files
+*.log
+*.tmp
 *.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
 *.so
-*.egg-info/
-.eggs/
+*.a
+*.out
 
 # Compressed files
 *.zip
@@ -61,8 +56,15 @@ __pycache__/
 *.Z
 *.lz
 *.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Cache
+.mypy_cache/
+.pytest_cache/
+.gradle/
+target/
 ```
