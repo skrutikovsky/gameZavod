@@ -209,7 +209,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.boxes.map((box) => (
           <div
             key={box.id}
-            className={`absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 shadow-md border-2 border-yellow-800 ${box.stopped ? 'opacity-80' : ''}`}
+            className="absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 shadow-md border-2 border-yellow-800"
             style={{
               top: `${box.y}%`,
               width: `calc(${BELT_WIDTH_PERCENT}% + 1px)`,
