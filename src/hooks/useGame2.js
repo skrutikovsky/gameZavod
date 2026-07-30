@@ -130,6 +130,11 @@ export function useGame2() {
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
     
+    // Сбрасываем статус stopped у всех коробок
+    boxesRef.current.forEach(box => {
+      box.stopped = false;
+    });
+    
     // Если рука активна - линия становится физической преградой
     if (isHandBlocking) {
       // Проходим по коробкам снизу вверх и проверяем столкновения
@@ -139,10 +144,14 @@ export function useGame2() {
         
         // Проверяем столкновение с линией остановки
         // Останавливаем коробку только если её нижняя часть достигла или пересекла линию
-        // И она ещё не остановлена
-        if (boxBottom >= handStopLineY && !box.stopped) {
-          // Коробка достигла линии - останавливаем её движение
+        // И при этом верхняя часть ещё выше линии (коробка находится на линии)
+        if (boxBottom >= handStopLineY && box.y < handStopLineY) {
+          // Коробка пересекает линию - останавливаем её так чтобы низ был точно на линии
+          box.y = handStopLineY - boxHeightPercent;
           box.stopped = true;
+        } else if (boxBottom > handStopLineY && box.y >= handStopLineY) {
+          // Коробка полностью ниже линии - она уже прошла через неё, не трогаем её
+          // Она продолжит падение к контейнеру
         }
         
         // Проверяем столкновение с коробкой ниже
@@ -155,6 +164,7 @@ export function useGame2() {
             
             // Если коробка коснулась коробки ниже
             if (currentBoxBottom >= boxBelowTop) {
+              box.y = boxBelowTop - boxHeightPercent;
               box.stopped = true;
             }
           }
@@ -168,35 +178,6 @@ export function useGame2() {
         box.y += currentSpeed;
       }
     });
-    
-    // После движения корректируем позиции всех остановленных коробок
-    // чтобы они стояли плотно друг к другу и на линии
-    if (isHandBlocking) {
-      // Проходим по коробкам снизу вверх для коррекции позиций
-      for (let i = boxesRef.current.length - 1; i >= 0; i--) {
-        const box = boxesRef.current[i];
-        const boxBottom = box.y + boxHeightPercent;
-        
-        // Если остановленная коробка пересекла линию - ставим её точно на линию
-        if (box.stopped && boxBottom >= handStopLineY) {
-          box.y = handStopLineY - boxHeightPercent;
-        }
-        
-        // Проверяем столкновение с коробкой ниже для коррекции позиции
-        if (i < boxesRef.current.length - 1) {
-          const boxBelow = boxesRef.current[i + 1];
-          if (boxBelow.stopped) {
-            const boxBelowTop = boxBelow.y;
-            const currentBoxBottom = box.y + boxHeightPercent;
-            
-            // Если есть зазор или перекрытие с коробкой ниже - ставим вплотную
-            if (Math.abs(currentBoxBottom - boxBelowTop) > 0.01) {
-              box.y = boxBelowTop - boxHeightPercent;
-            }
-          }
-        }
-      }
-    }
 
     // Спавн контейнера когда нет активного (только если рука не блокирует)
     if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
