@@ -460,36 +460,28 @@
         function checkHandCollision() {
             if (!handIsDown) return;
 
-            // The hand creates an invisible wall at handX position
-            // All boxes that would pass this line are stopped
-            const handLeftEdge = handX - 40;
-            const handRightEdge = handX + 40;
-
-            // First, find all boxes that are directly under the hand and stop them
-            heldBoxes = [];
+            // When hand is down, boxes continue moving normally
+            // The "invisible line" at conveyorY level acts as a temporary floor
+            // Boxes stop only if their bottom edge goes below conveyorY level
             
-            for (let i = boxes.length - 1; i >= 0; i--) {
-                const box = boxes[i];
+            for (const box of boxes) {
                 if (box.falling || box.inContainer) continue;
                 
-                // Check if box is under the hand horizontally
-                if (box.x < handRightEdge && box.x + box.width > handLeftEdge) {
-                    // Box is under the hand - it's stopped by the "wall"
-                    if (!box.stopped) {
-                        box.stopped = true;
-                        heldBoxes.push(box);
-                    }
+                // Check if box bottom is below the invisible line (conveyorY)
+                // If so, the box stops as if hitting a floor
+                if (box.y + box.height > conveyorY) {
+                    box.stopped = true;
                 }
             }
 
-            // Now apply chain physics: boxes behind stopped boxes should also stop
+            // Apply chain physics: boxes behind stopped boxes should also stop
             // but only if they are touching (forming a chain)
             // Sort boxes by x position to process them from right to left
             const activeBoxes = boxes.filter(b => !b.falling && !b.inContainer);
             activeBoxes.sort((a, b) => b.x - a.x); // Right to left
             
             // Process from rightmost to leftmost
-            // If a box is stopped, check if the next box to the left is touching it
+            // If a box is stopped and the next box touches it, stop the next box too
             for (let i = 0; i < activeBoxes.length - 1; i++) {
                 const currentBox = activeBoxes[i];
                 const nextBox = activeBoxes[i + 1];
@@ -760,18 +752,12 @@
                 handY = handDownY;
             } else {
                 handY = handUpY;
-                // Release boxes - check which boxes should fall based on support
+                // Release boxes - reset stopped state so they continue moving
                 for (const box of boxes) {
                     if (box.falling || box.inContainer) continue;
                     
-                    // If box has no support, it falls
-                    if (!box.supported) {
-                        box.falling = true;
-                        box.stopped = false;
-                    } else {
-                        // Box has support, just release the stopped state
-                        box.stopped = false;
-                    }
+                    // Reset stopped state - boxes will continue moving
+                    box.stopped = false;
                 }
                 heldBoxes = [];
                 conveyorStopped = false;
