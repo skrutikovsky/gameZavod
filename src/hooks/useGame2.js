@@ -136,14 +136,14 @@ export function useGame2() {
     // Если рука активна - проверяем остановку на невидимой линии
     if (isHandBlocking) {
       // Находим самую нижнюю коробку, которая ещё НЕ прошла линию полностью
-      // То есть её нижняя часть находится выше или на линии
+      // То есть её нижняя часть находится выше линии
       let firstBoxAboveLineIndex = -1;
       for (let i = boxesRef.current.length - 1; i >= 0; i--) {
         const box = boxesRef.current[i];
         const boxBottom = box.y + boxHeightPercent;
         
         // Если низ коробки выше или на линии - эта коробка может быть остановлена
-        if (boxBottom <= handStopLineY + 0.1) {
+        if (boxBottom <= handStopLineY) {
           firstBoxAboveLineIndex = i;
           break;
         }
@@ -159,14 +159,16 @@ export function useGame2() {
             // Самая нижняя из коробок выше линии
             const boxBottom = box.y + boxHeightPercent;
             
-            // Если коробка достигла или пересекла линию - останавливаем её на линии
-            if (boxBottom >= handStopLineY) {
+            // Если коробка еще не достигла линии - она продолжает падать
+            if (boxBottom < handStopLineY) {
+              // Коробка еще не достигла линии, просто помечаем что она будет остановлена
+              box.stopped = false;
+            } else {
               // Коробка достигла линии - останавливаем на линии
               box.stopped = true;
               // Устанавливаем позицию так чтобы низ коробки был на линии
               box.y = handStopLineY - boxHeightPercent;
             }
-            // Иначе коробка продолжает падать пока не достигнет линии
           } else {
             // Остальные коробки останавливаются над коробкой ниже
             const boxBelow = boxesRef.current[i + 1];
@@ -175,12 +177,13 @@ export function useGame2() {
               const boxBelowTop = boxBelow.y;
               const boxBottom = box.y + boxHeightPercent;
               
-              // Если коробка достигла или пересекла коробку ниже - останавливаем
-              if (boxBottom >= boxBelowTop) {
+              // Если коробка еще не достигла коробки ниже
+              if (boxBottom < boxBelowTop) {
+                box.stopped = false;
+              } else {
                 box.stopped = true;
                 box.y = boxBelowTop - boxHeightPercent;
               }
-              // Иначе коробка продолжает падать
             }
           }
         }
