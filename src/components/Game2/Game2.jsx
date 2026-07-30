@@ -93,13 +93,25 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   useEffect(() => {
     const container = gameContainerRef.current;
     if (container) {
-      // Гарантированно устанавливаем фокус
-      container.focus({ preventScroll: true });
+      // Гарантированно устанавливаем фокус с небольшой задержкой
+      const focusTimeout = setTimeout(() => {
+        container.focus({ preventScroll: true });
+      }, 100);
+      
       container.addEventListener('keydown', handleKeyDown);
       container.addEventListener('keyup', handleKeyUp);
+      
+      // Также устанавливаем фокус при клике на контейнер
+      const handleClick = () => {
+        container.focus();
+      };
+      container.addEventListener('click', handleClick);
+      
       return () => {
+        clearTimeout(focusTimeout);
         container.removeEventListener('keydown', handleKeyDown);
         container.removeEventListener('keyup', handleKeyUp);
+        container.removeEventListener('click', handleClick);
       };
     }
   }, [setHandActive]);
