@@ -371,6 +371,14 @@
             getBottomY() {
                 return this.y + this.height;
             }
+
+            getRightX() {
+                return this.x + this.width;
+            }
+
+            getLeftX() {
+                return this.x;
+            }
         }
 
         class Container {
@@ -451,37 +459,45 @@
         function checkHandCollision() {
             if (!handIsDown) return;
 
-            // Check which boxes are caught by the hand
+            // The hand creates an invisible wall at handX position
+            // All boxes that would pass this line are stopped
+            const handLeftEdge = handX - 40;
+            const handRightEdge = handX + 40;
+
+            // First, find all boxes that are directly under the hand and stop them
             heldBoxes = [];
             
             for (let i = boxes.length - 1; i >= 0; i--) {
                 const box = boxes[i];
                 if (box.falling || box.inContainer) continue;
                 
-                // Hand catches box only by bottom edge
-                const handBottom = handDownY + 30; // Hand extends down a bit
-                const boxBottom = box.getBottomY();
-                
-                // Check if box is under the hand horizontally and hand is at or below box bottom
-                if (box.x < handX + 40 && box.x + box.width > handX - 40) {
-                    if (handBottom >= boxBottom - 5) { // Small tolerance
-                        if (!box.stopped) {
-                            box.stopped = true;
-                            heldBoxes.push(box);
-                        }
+                // Check if box is under the hand horizontally
+                if (box.x < handRightEdge && box.x + box.width > handLeftEdge) {
+                    // Box is under the hand - it's stopped by the "wall"
+                    if (!box.stopped) {
+                        box.stopped = true;
+                        heldBoxes.push(box);
                     }
                 }
             }
 
-            // Stop all boxes behind the held boxes
-            for (let i = boxes.length - 1; i >= 0; i--) {
-                const box = boxes[i];
-                if (box.falling || box.inContainer) continue;
+            // Now apply chain physics: boxes behind stopped boxes should also stop
+            // but only if they are touching (forming a chain)
+            // Sort boxes by x position to process them from right to left
+            const activeBoxes = boxes.filter(b => !b.falling && !b.inContainer);
+            activeBoxes.sort((a, b) => b.x - a.x); // Right to left
+            
+            // Process from rightmost to leftmost
+            // If a box is stopped, check if the next box to the left is touching it
+            for (let i = 0; i < activeBoxes.length - 1; i++) {
+                const currentBox = activeBoxes[i];
+                const nextBox = activeBoxes[i + 1];
                 
-                for (const heldBox of heldBoxes) {
-                    if (box.x < heldBox.x && box.x + box.width >= heldBox.x - 5) {
-                        box.stopped = true;
-                        break;
+                // If current box is stopped and next box touches it, stop the next box too
+                if (currentBox.stopped) {
+                    // Check if next box's right edge touches or overlaps current box's left edge
+                    if (nextBox.getRightX() >= currentBox.getLeftX() - 2) {
+                        nextBox.stopped = true;
                     }
                 }
             }
@@ -721,8 +737,8 @@
                 handY = handDownY;
             } else {
                 handY = handUpY;
-                // Release boxes
-                for (const box of heldBoxes) {
+                // Release boxes - reset stopped state for all boxes
+                for (const box of boxes) {
                     box.stopped = false;
                 }
                 heldBoxes = [];
@@ -788,8 +804,28 @@
                 currentContainer.update();
             }
 
+            // First update: move boxes that aren't stopped
             for (const box of boxes) {
                 box.update();
+            }
+
+            // Apply box-to-box collision (chain physics)
+            // Sort boxes by x position to process them from right to left
+            const activeBoxes = boxes.filter(b => !b.falling && !b.inContainer);
+            activeBoxes.sort((a, b) => b.x - a.x); // Right to left
+            
+            // Process from rightmost to leftmost
+            // If a box is stopped and the next box touches it, stop the next box too
+            for (let i = 0; i < activeBoxes.length - 1; i++) {
+                const currentBox = activeBoxes[i];
+                const nextBox = activeBoxes[i + 1];
+                
+                if (currentBox.stopped) {
+                    // Check if next box's right edge touches or overlaps current box's left edge
+                    if (nextBox.getRightX() >= currentBox.getLeftX() - 2) {
+                        nextBox.stopped = true;
+                    }
+                }
             }
 
             // Collisions
