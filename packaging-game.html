@@ -461,8 +461,9 @@
             if (!handIsDown) return;
 
             // When hand is down, the "invisible line" at conveyorY level acts as a temporary floor
-            // Boxes stop ONLY if their bottom edge goes below conveyorY AND they have support under them
-            // Boxes without support (over gap between containers) continue falling
+            // Boxes continue their natural movement (conveyor or falling)
+            // The hand only stops boxes that are currently below the line AND have support under them
+            // This prevents boxes from jumping - they just continue their path
             
             for (const box of boxes) {
                 if (box.falling || box.inContainer) continue;
@@ -484,8 +485,9 @@
                 }
                 
                 // Only stop the box if it's below the line AND has support
-                // If no support, let it continue falling
-                if (hasSupport && box.y + box.height > conveyorY) {
+                // If no support, let it continue moving/falling naturally
+                // IMPORTANT: We do NOT change box.y here - boxes stay where they are
+                if (hasSupport && box.y + box.height > conveyorY && !box.stopped) {
                     box.stopped = true;
                 }
             }
