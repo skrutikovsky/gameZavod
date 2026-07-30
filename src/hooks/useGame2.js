@@ -36,12 +36,10 @@ export function useGame2() {
   const lastSpawnTimeRef = useRef(0);
   const containerCapacityRef = useRef(5);
   const containerCountRef = useRef(0);
-  const handActiveRef = useRef(false);
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
     gameStateRef.current = gameState;
-    handActiveRef.current = gameState.handActive;
   }, [gameState]);
 
   const resetGame = useCallback(() => {
@@ -123,7 +121,7 @@ export function useGame2() {
     
     // Позиция невидимой линии остановки (стена от руки)
     const handStopLineY = HAND_STOP_LINE_Y;
-    const isHandBlocking = handActiveRef.current;
+    const isHandBlocking = currentState.handActive;
 
     // Вычисляем высоту коробки в процентах от высоты экрана
     const screenHeightPx = window.innerHeight || 800;
@@ -132,9 +130,9 @@ export function useGame2() {
     // Сортируем коробки по позиции Y (сверху вниз)
     boxesRef.current.sort((a, b) => a.y - b.y);
     
-    // Двигаем все коробки вниз
+    // Сбрасываем статус stopped у всех коробок
     boxesRef.current.forEach(box => {
-      box.y += currentSpeed;
+      box.stopped = false;
     });
     
     // Если рука активна - линия становится физической преградой
@@ -173,6 +171,13 @@ export function useGame2() {
         }
       }
     }
+    
+    // Двигаем все не остановленные коробки
+    boxesRef.current.forEach(box => {
+      if (!box.stopped) {
+        box.y += currentSpeed;
+      }
+    });
 
     // Спавн контейнера когда нет активного (только если рука не блокирует)
     if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
