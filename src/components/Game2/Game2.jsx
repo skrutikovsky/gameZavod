@@ -18,6 +18,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     resetGame,
     BELT_WIDTH_PERCENT,
     HAND_POSITION_Y,
+    HAND_POSITION_X,
     conveyorSpeedRef,
     lastSpawnTimeRef
   } = useGame2();
@@ -216,11 +217,13 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ))}
       </div>
 
-      {/* Рука - теперь просто визуальный индикатор, кнопка всегда по центру */}
+      {/* Рука - теперь просто визуальный индикатор, кнопка слева от конвейера */}
       <div 
-        className="absolute left-1/2 transform -translate-x-1/2"
+        className="absolute"
         style={{
+          left: `${HAND_POSITION_X}%`,
           top: `${HAND_POSITION_Y}%`,
+          transform: 'translate(-50%, -50%)'
         }}
       >
         <div className={`w-24 h-24 bg-red-500 rounded-full border-4 border-red-700 shadow-lg flex items-center justify-center ${gameState.handActive ? 'scale-110 bg-red-600' : ''}`}>
