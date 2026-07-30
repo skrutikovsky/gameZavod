@@ -169,6 +169,24 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           width: `${BELT_WIDTH_PERCENT}%`
         }}
       >
+        {/* Видимая линия остановки (рычаг) */}
+        <div 
+          className="absolute left-0 right-0 border-t-4 border-dashed border-red-500 z-10"
+          style={{
+            top: `${HAND_STOP_LINE_Y}%`,
+          }}
+        >
+          {/* Индикатор рычага слева от линии */}
+          <div 
+            className="absolute -left-8 transform -translate-y-1/2 w-6 h-12 bg-gray-700 rounded border-2 border-gray-500 flex items-center justify-center"
+            style={{
+              top: '50%',
+            }}
+          >
+            <div className={`w-2 h-8 bg-red-600 rounded transition-transform duration-100 ${gameState.handActive ? 'rotate-45' : '-rotate-45'}`}></div>
+          </div>
+        </div>
+        
         {/* Лючок сверху */}
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-gray-700 to-gray-800 border-b-4 border-gray-600">
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-3/4 h-4 bg-gray-900"></div>
@@ -218,7 +236,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ))}
       </div>
 
-      {/* Рука - теперь просто визуальный индикатор, кнопка слева от конвейера */}
+      {/* Рычаг - визуальный индикатор слева от конвейера */}
       <div 
         className="absolute"
         style={{
@@ -227,8 +245,11 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           transform: 'translate(-50%, -50%)'
         }}
       >
-        <div className={`w-24 h-24 bg-red-500 rounded-full border-4 border-red-700 shadow-lg flex items-center justify-center ${gameState.handActive ? 'scale-110 bg-red-600' : ''}`}>
-          <span className="text-white text-2xl">🖐️</span>
+        <div className={`w-16 h-24 bg-gray-700 rounded-lg border-4 border-gray-500 shadow-lg flex items-center justify-center relative ${gameState.handActive ? 'scale-105' : ''}`}>
+          {/* Основание рычага */}
+          <div className="absolute bottom-2 w-12 h-3 bg-gray-600 rounded"></div>
+          {/* Сам рычаг */}
+          <div className={`w-3 h-16 bg-red-600 rounded transition-transform duration-100 origin-bottom ${gameState.handActive ? 'rotate-45' : '-rotate-45'}`}></div>
         </div>
       </div>
 
