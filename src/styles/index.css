@@ -118,6 +118,17 @@ body {
   100% { transform: translateX(-50%) rotate(15deg) scale(1); }
 }
 
+/* Анимация ошибки контейнера - увеличение на 10% и покраснение в течение 1 секунды */
+.container-error-anim {
+  animation: containerErrorAnim 1s ease;
+}
+
+@keyframes containerErrorAnim {
+  0% { transform: translate(-50%, -50%) scale(1); background-color: rgb(37, 99, 235); }
+  50% { transform: translate(-50%, -50%) scale(1.1); background-color: rgb(220, 38, 38); }
+  100% { transform: translate(-50%, -50%) scale(1); background-color: rgb(37, 99, 235); }
+}
+
 .hand {
   position: absolute;
   width: 120px;

@@ -4,7 +4,7 @@ import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
 
-const BOX_SIZE = 100; // Размер коробки в пикселях
+const BOX_SIZE = 120; // Размер коробки в пикселях (увеличен для квадратной формы)
 
 const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -190,7 +190,7 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {/* Контейнер внизу */}
         {gameState.container && !gameState.containerSpawning && (
           <div 
-            className="absolute left-1/2 transform -translate-x-1/2 bg-blue-600 rounded-lg flex items-center justify-center border-4 border-blue-800 shadow-lg"
+            className={`absolute left-1/2 transform -translate-x-1/2 rounded-lg flex items-center justify-center border-4 shadow-lg ${gameState.containerErrorAnim ? 'container-error-anim bg-blue-600 border-blue-800' : 'bg-blue-600 border-blue-800'}`}
             style={{
               top: `${gameState.container.y}%`,
               width: '80%',
