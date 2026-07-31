@@ -221,13 +221,17 @@ const Game2 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.boxes.map((box) => (
           <div
             key={box.id}
-            className="absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 shadow-md border-2 border-yellow-800"
+            className="absolute left-1/2 transform -translate-x-1/2 bg-yellow-600 shadow-md border-2 border-yellow-800 flex items-center justify-center"
             style={{
               top: `${box.y}%`,
               width: `${BOX_SIZE}px`,
               height: `${BOX_SIZE}px`,
             }}
-          />
+          >
+            {box.isInChainGroup && (
+              <div className="text-white text-2xl font-bold">🔗</div>
+            )}
+          </div>
         ))}
         
         {/* Видимая линия остановки */}
