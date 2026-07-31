@@ -43,6 +43,7 @@ export function useGame2() {
   const containerChainedCountRef = useRef(0); // Счетчик цепочки коробок с isChained=true
   const containerErrorAnimRef = useRef(false); // Флаг анимации ошибки контейнера
   const containerErrorAnimStartTimeRef = useRef(0); // Время начала анимации ошибки
+  const lastAcceptedBoxYRef = useRef(null); // Y-позиция последней коробки принятой контейнером
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -60,6 +61,7 @@ export function useGame2() {
     containerChainedCountRef.current = 0;
     containerErrorAnimRef.current = false;
     containerErrorAnimStartTimeRef.current = 0;
+    lastAcceptedBoxYRef.current = null; // Сбрасываем позицию последней коробки
 
     setGameState({
       isRunning: false,
@@ -298,6 +300,7 @@ export function useGame2() {
       setTimeout(() => {
         containerCountRef.current = 0;
         containerChainedCountRef.current = 0; // Сбрасываем счетчик цепочки при новом контейнере
+        lastAcceptedBoxYRef.current = null; // Сбрасываем позицию последней коробки
         // Генерируем случайную вместимость контейнера от 2 до 7
         const newCapacity = generateContainerCapacity();
         setGameState(prev => ({
@@ -344,14 +347,30 @@ export function useGame2() {
     
     // Обрабатываем коробки которые пересекли линию регистрации
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // Ключевое изменение: проверяем что ВСЕ коробки в текущей партии идут ОДНОЙ непрерывной цепочкой
-      // без разрывов с предыдущими коробками (если они были)
+      // Ключевое изменение: проверяем что ВСЕ коробки для контейнера идут ОДНОЙ непрерывной цепочкой
+      // без разрывов. Если контейнер требует 5 коробок, они должны прийти все сразу одной группой,
+      // либо частями но без разрывов между частями.
       
       // Проверяем что в партии нет коробок без связности
-      const nonChainedBoxesInBatch = boxesReachedContainer.filter(box => !box.isInChainGroup).length;
+      const nonChainedBoxesInBatch = boxesReachedContainer.filter(box => !box.isChained).length;
       
-      if (nonChainedBoxesInBatch > 0) {
-        // ОШИБКА: Есть коробки без связности в партии - значит они пришли отдельной группой после разрыва
+      // Дополнительная проверка: если контейнер уже частично заполнен, новые коробки должны
+      // соприкасаться с последними коробками которые уже вошли в контейнер
+      let hasGap = false;
+      if (containerCountRef.current > 0 && lastAcceptedBoxYRef.current !== null) {
+        // Проверяем соприкасается ли первая коробка новой партии с последней принятой
+        const firstNewBox = boxesReachedContainer[0];
+        const lastAcceptedBottom = lastAcceptedBoxYRef.current + boxHeightPercent;
+        const firstNewTop = firstNewBox.y;
+        
+        // Если нет соприкосновения - значит есть разрыв
+        if (Math.abs(lastAcceptedBottom - firstNewTop) > 1) {
+          hasGap = true;
+        }
+      }
+      
+      if (nonChainedBoxesInBatch > 0 || hasGap) {
+        // ОШИБКА: Есть коробки без связности в партии ИЛИ есть разрыв между партиями
         livesLost++;
         containerErrorAnimRef.current = true;
         containerErrorAnimStartTimeRef.current = Date.now();
@@ -359,6 +378,7 @@ export function useGame2() {
         // Сбрасываем счетчики
         containerCountRef.current = 0;
         containerChainedCountRef.current = 0;
+        lastAcceptedBoxYRef.current = null;
         
         // Отправляем контейнер на перезарядку
         setGameState(prev => ({
@@ -371,6 +391,7 @@ export function useGame2() {
         setTimeout(() => {
           containerCountRef.current = 0;
           containerChainedCountRef.current = 0;
+        lastAcceptedBoxYRef.current = null;
           containerErrorAnimRef.current = false;
           containerErrorAnimStartTimeRef.current = 0;
           const newCapacity = generateContainerCapacity();
@@ -400,6 +421,7 @@ export function useGame2() {
         // Сбрасываем счетчики
         containerCountRef.current = 0;
         containerChainedCountRef.current = 0;
+        lastAcceptedBoxYRef.current = null;
         
         // Отправляем контейнер на перезарядку
         setGameState(prev => ({
@@ -412,6 +434,7 @@ export function useGame2() {
         setTimeout(() => {
           containerCountRef.current = 0;
           containerChainedCountRef.current = 0;
+        lastAcceptedBoxYRef.current = null;
           containerErrorAnimRef.current = false;
           containerErrorAnimStartTimeRef.current = 0;
           const newCapacity = generateContainerCapacity();
@@ -434,6 +457,8 @@ export function useGame2() {
         containerChainedCountRef.current++;
         containerCountRef.current++;
         boxesFixedThisUpdate++;
+        // Запоминаем Y-позицию последней принятой коробки
+        lastAcceptedBoxYRef.current = box.y;
       });
       
       setGameState(prev => ({
@@ -472,6 +497,7 @@ export function useGame2() {
         setTimeout(() => {
           containerCountRef.current = 0;
           containerChainedCountRef.current = 0;
+        lastAcceptedBoxYRef.current = null;
           const newCapacity = generateContainerCapacity();
           setGameState(prev => ({
             ...prev,
@@ -488,6 +514,7 @@ export function useGame2() {
       // Коробки достигли контейнера но он на перезарядке - отнимаем жизни за каждую
       livesLost += boxesReachedContainer.length;
       containerChainedCountRef.current = 0;
+        lastAcceptedBoxYRef.current = null;
     }
 
     // Обрабатываем анимацию ошибки контейнера (сбрасываем через 1 секунду)
