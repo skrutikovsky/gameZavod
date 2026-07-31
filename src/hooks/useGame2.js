@@ -40,6 +40,11 @@ export function useGame2() {
   const containerChainedCountRef = useRef(0); // Счетчик цепочки коробок с isChained=true
   const containerErrorAnimRef = useRef(false); // Флаг анимации ошибки контейнера
   const containerErrorAnimStartTimeRef = useRef(0); // Время начала анимации ошибки
+  // Переменные для отслеживания интервалов между коробками
+  const firstBoxEnterTimeRef = useRef(0); // Время входа первой коробки в контейнер
+  const lastBoxEnterTimeRef = useRef(0); // Время входа последней коробки
+  const expectedIntervalRef = useRef(0); // Ожидаемый интервал между коробками (мс)
+  const boxIntervalHistoryRef = useRef([]); // История интервалов для вычисления среднего
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -57,6 +62,10 @@ export function useGame2() {
     containerChainedCountRef.current = 0;
     containerErrorAnimRef.current = false;
     containerErrorAnimStartTimeRef.current = 0;
+    firstBoxEnterTimeRef.current = 0;
+    lastBoxEnterTimeRef.current = 0;
+    expectedIntervalRef.current = 0;
+    boxIntervalHistoryRef.current = [];
 
     setGameState({
       isRunning: false,
@@ -310,22 +319,59 @@ export function useGame2() {
     // НО НЕ УДАЛЯЕМ их сразу - оставляем для расчета связности в следующих кадрах
     const boxesReachedContainer = [];
     const boxesToRemove = [];
+    const currentTime = Date.now();
     
     boxesRef.current.forEach(box => {
       if (box.y > 95 && !box.markedForDeletion) {
         // Коробка достигла контейнера впервые - помечаем её
         box.markedForDeletion = true;
-        box.markedTime = Date.now();
+        box.markedTime = currentTime;
         boxesReachedContainer.push(box);
+        
+        // Отслеживаем время входа первой коробки для нового контейнера
+        if (currentState.container && containerCountRef.current === 0) {
+          firstBoxEnterTimeRef.current = currentTime;
+          lastBoxEnterTimeRef.current = currentTime;
+          boxIntervalHistoryRef.current = []; // Сбрасываем историю интервалов
+          expectedIntervalRef.current = 0;
+        } else if (currentState.container && containerCountRef.current > 0) {
+          // Вычисляем интервал с последней коробкой
+          const interval = currentTime - lastBoxEnterTimeRef.current;
+          lastBoxEnterTimeRef.current = currentTime;
+          
+          // Добавляем интервал в историю
+          boxIntervalHistoryRef.current.push(interval);
+          
+          // Вычисляем средний интервал (скользящее среднее)
+          if (boxIntervalHistoryRef.current.length > 0) {
+            const sum = boxIntervalHistoryRef.current.reduce((a, b) => a + b, 0);
+            expectedIntervalRef.current = sum / boxIntervalHistoryRef.current.length;
+          }
+        }
       } else if (box.markedForDeletion) {
         // Коробка уже помечена - проверяем, пора ли удалить
-        if (Date.now() - box.markedTime > 300) {
+        if (currentTime - box.markedTime > 300) {
           boxesToRemove.push(box.id);
         } else {
           // Ещё держим в массиве для расчета связности
         }
       }
     });
+    
+    // Проверяем таймаут между коробками для текущего контейнера
+    // Если прошло больше времени чем ожидаемый интервал + погрешность и следующая коробка не поступила
+    let timeoutError = false;
+    if (currentState.container && containerCountRef.current > 0 && containerCountRef.current < currentState.container.capacity) {
+      const timeSinceLastBox = currentTime - lastBoxEnterTimeRef.current;
+      // Погрешность 33% от ожидаемого интервала, но не менее 10мс
+      const tolerance = Math.max(expectedIntervalRef.current * 0.33, 10);
+      const timeoutThreshold = expectedIntervalRef.current + tolerance;
+      
+      // Если есть ожидаемый интервал и время превысило порог
+      if (expectedIntervalRef.current > 0 && timeSinceLastBox > timeoutThreshold) {
+        timeoutError = true;
+      }
+    }
     
     // Удаляем коробки которые продержались достаточно долго
     if (boxesToRemove.length > 0) {
@@ -381,6 +427,10 @@ export function useGame2() {
           setTimeout(() => {
             containerCountRef.current = 0;
             containerChainedCountRef.current = 0;
+            firstBoxEnterTimeRef.current = 0;
+            lastBoxEnterTimeRef.current = 0;
+            expectedIntervalRef.current = 0;
+            boxIntervalHistoryRef.current = [];
             // Генерируем случайную вместимость для следующего контейнера
             const newCapacity = generateContainerCapacity();
             setGameState(prev => ({
@@ -399,7 +449,13 @@ export function useGame2() {
         // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
         livesLost++;
         containerErrorAnimRef.current = true;
-        containerErrorAnimStartTimeRef.current = Date.now();
+        containerErrorAnimStartTimeRef.current = currentTime;
+        
+        // Сбрасываем переменные интервалов
+        firstBoxEnterTimeRef.current = 0;
+        lastBoxEnterTimeRef.current = 0;
+        expectedIntervalRef.current = 0;
+        boxIntervalHistoryRef.current = [];
         
         // Отправляем контейнер на перезарядку
         setGameState(prev => ({
@@ -414,6 +470,10 @@ export function useGame2() {
           containerChainedCountRef.current = 0;
           containerErrorAnimRef.current = false;
           containerErrorAnimStartTimeRef.current = 0;
+          firstBoxEnterTimeRef.current = 0;
+          lastBoxEnterTimeRef.current = 0;
+          expectedIntervalRef.current = 0;
+          boxIntervalHistoryRef.current = [];
           // Генерируем случайную вместимость для следующего контейнера
           const newCapacity = generateContainerCapacity();
           setGameState(prev => ({
@@ -427,6 +487,48 @@ export function useGame2() {
           }));
         }, 1000);
       }
+    } else if (timeoutError && currentState.container && !currentState.containerSpawning) {
+      // ТАЙМАУТ: Прошло слишком много времени с последней коробки и контейнер не заполнен
+      // Это означает что игрок пропустил нужное количество коробок
+      livesLost++;
+      containerErrorAnimRef.current = true;
+      containerErrorAnimStartTimeRef.current = currentTime;
+      
+      // Сбрасываем переменные интервалов
+      firstBoxEnterTimeRef.current = 0;
+      lastBoxEnterTimeRef.current = 0;
+      expectedIntervalRef.current = 0;
+      boxIntervalHistoryRef.current = [];
+      
+      // Отправляем контейнер на перезарядку
+      setGameState(prev => ({
+        ...prev,
+        container: null,
+        containerSpawning: true
+      }));
+      
+      // Запускаем таймер перезарядки
+      setTimeout(() => {
+        containerCountRef.current = 0;
+        containerChainedCountRef.current = 0;
+        containerErrorAnimRef.current = false;
+        containerErrorAnimStartTimeRef.current = 0;
+        firstBoxEnterTimeRef.current = 0;
+        lastBoxEnterTimeRef.current = 0;
+        expectedIntervalRef.current = 0;
+        boxIntervalHistoryRef.current = [];
+        // Генерируем случайную вместимость для следующего контейнера
+        const newCapacity = generateContainerCapacity();
+        setGameState(prev => ({
+          ...prev,
+          containerSpawning: false,
+          container: {
+            y: 88,
+            count: 0,
+            capacity: newCapacity
+          }
+        }));
+      }, 1000);
     } else if (boxesReachedContainer.length > 0 && (!currentState.container || currentState.containerSpawning)) {
       // Коробки достигли контейнера но он на перезарядке - отнимаем жизни за каждую
       livesLost += boxesReachedContainer.length;
@@ -434,9 +536,8 @@ export function useGame2() {
     }
 
     // Обрабатываем анимацию ошибки контейнера (сбрасываем через 1 секунду)
-    const now = Date.now();
     if (containerErrorAnimRef.current && containerErrorAnimStartTimeRef.current) {
-      if (now - containerErrorAnimStartTimeRef.current > 1000) {
+      if (currentTime - containerErrorAnimStartTimeRef.current > 1000) {
         containerErrorAnimRef.current = false;
         containerErrorAnimStartTimeRef.current = 0;
       }
