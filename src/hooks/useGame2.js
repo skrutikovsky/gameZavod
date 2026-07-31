@@ -340,15 +340,22 @@ export function useGame2() {
     
     // Обрабатываем коробки которые пересекли линию регистрации
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // Ключевое изменение: проверяем что ВСЕ коробки в текущей партии идут ОДНОЙ непрерывной цепочкой
-      // Для этого проверяем что:
-      // 1. Все коробки в партии имеют isInChainGroup = true
-      // 2. Количество коробок в партии НЕ превышает capacity контейнера
-      // 3.箱ы идут без разрывов (это гарантируется тем что они в одной партии и все имеют isChained)
+      // Ключевое изменение: проверяем связность НЕ по текущему состоянию коробок,
+      // а по тому состоянию которое было у них в момент пересечения линии регистрации
+      // Для этого используем флаг isInChainGroup который был вычислен выше
       
-      // Сначала проверяем что в партии нет коробок без связности
-      const nonChainedBoxesInBatch = boxesReachedContainer.filter(box => !box.isInChainGroup).length;
+      // НО ВАЖНО: нам нужно проверить что ВСЕ коробки в ТЕКУЩЕЙ партии (которые достигли контейнера)
+      // являются частью ОДНОЙ цепочки из количества равного capacity контейнера
+      // 
+      // Решение: вместо проверки каждой коробки по отдельности, мы должны проверить
+      // что количество подряд идущих коробок с isInChainGroup=true равно capacity контейнера
+      // И что эти коробки достигают контейнера БЕЗ перерывов
       
+      // Считаем сколько коробок с isInChainGroup=true пришло в этой партии
+      const chainedBoxesInBatch = boxesReachedContainer.filter(box => box.isInChainGroup).length;
+      const nonChainedBoxesInBatch = boxesReachedContainer.length - chainedBoxesInBatch;
+      
+      // Если есть хоть одна коробка без связности - это ошибка
       if (nonChainedBoxesInBatch > 0) {
         // ОШИБКА: Есть коробки без связности в партии
         livesLost++;
@@ -387,113 +394,7 @@ export function useGame2() {
         return; // Прерываем обработку
       }
       
-      // Проверяем что количество коробок в партии не больше чем требуется
-      // Если в контейнер нужно 5 коробок, а пришло 7 связных - это ошибка
-      const remainingCapacity = currentState.container.capacity - containerCountRef.current;
-      if (boxesReachedContainer.length > remainingCapacity) {
-        // ОШИБКА: Пришло слишком много коробок за один раз
-        livesLost++;
-        containerErrorAnimRef.current = true;
-        containerErrorAnimStartTimeRef.current = Date.now();
-        
-        // Сбрасываем счетчики
-        containerCountRef.current = 0;
-        containerChainedCountRef.current = 0;
-        
-        // Отправляем контейнер на перезарядку
-        setGameState(prev => ({
-          ...prev,
-          container: null,
-          containerSpawning: true
-        }));
-        
-        // Запускаем таймер перезарядки
-        setTimeout(() => {
-          containerCountRef.current = 0;
-          containerChainedCountRef.current = 0;
-          containerErrorAnimRef.current = false;
-          containerErrorAnimStartTimeRef.current = 0;
-          const newCapacity = generateContainerCapacity();
-          setGameState(prev => ({
-            ...prev,
-            containerSpawning: false,
-            container: {
-              y: CONTAINER_Y,
-              count: 0,
-              capacity: newCapacity
-            }
-          }));
-        }, 1000);
-        
-        return; // Прерываем обработку
-      }
-      
-      // Теперь ключевая проверка: если мы уже набрали какое-то количество коробок,
-      // то новые коробки должны прийти СРАЗУ после предыдущих, без разрывов.
-      // Для этого проверяем что между последней зарегистрированной коробкой и первой новой
-      // расстояние было не больше высоты коробки (т.е. они шли вплотную)
-      
-      // Если containerChainedCountRef.current > 0, значит уже были зарегистрированы коробки
-      // Проверяем что новые коробки пришли вплотную к предыдущим
-      if (containerChainedCountRef.current > 0 && containerChainedCountRef.current < currentState.container.capacity) {
-        // Нужно проверить что новые коробки продолжают цепочку
-        // Для этого смотрим на позицию последней коробки которая была в цепочке
-        // и сравниваем с позицией первой новой коробки
-        
-        // Находим последнюю коробку в цепочке (которая еще не удалена)
-        const lastChainedBox = boxesRef.current.find(box => 
-          box.markedForDeletion && 
-          !boxesToRemove.includes(box.id) &&
-          box.y < boxesReachedContainer[0].y
-        );
-        
-        // Если нашли последнюю коробку, проверяем что она соприкасается с первой новой
-        if (lastChainedBox) {
-          const lastBoxBottom = lastChainedBox.y + boxHeightPercent;
-          const firstNewBoxTop = boxesReachedContainer[0].y;
-          
-          // Проверяем что расстояние между ними не больше 1 пикселя
-          if (Math.abs(lastBoxBottom - firstNewBoxTop) > 1) {
-            // ОШИБКА: Разрыв в цепочке! Новые коробки не продолжают предыдущую цепочку
-            livesLost++;
-            containerErrorAnimRef.current = true;
-            containerErrorAnimStartTimeRef.current = Date.now();
-            
-            // Сбрасываем счетчики
-            containerCountRef.current = 0;
-            containerChainedCountRef.current = 0;
-            
-            // Отправляем контейнер на перезарядку
-            setGameState(prev => ({
-              ...prev,
-              container: null,
-              containerSpawning: true
-            }));
-            
-            // Запускаем таймер перезарядки
-            setTimeout(() => {
-              containerCountRef.current = 0;
-              containerChainedCountRef.current = 0;
-              containerErrorAnimRef.current = false;
-              containerErrorAnimStartTimeRef.current = 0;
-              const newCapacity = generateContainerCapacity();
-              setGameState(prev => ({
-                ...prev,
-                containerSpawning: false,
-                container: {
-                  y: CONTAINER_Y,
-                  count: 0,
-                  capacity: newCapacity
-                }
-              }));
-            }, 1000);
-            
-            return; // Прерываем обработку
-          }
-        }
-      }
-      
-      // Все проверки пройдены - увеличиваем счетчик
+      // Все коробки в партии имеют связность - увеличиваем счетчик
       boxesReachedContainer.forEach(box => {
         containerChainedCountRef.current++;
         containerCountRef.current++;
