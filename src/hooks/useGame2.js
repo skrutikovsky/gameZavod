@@ -204,6 +204,7 @@ export function useGame2() {
     // Вычисляем флаг isChained для всех коробок
     // isChained = true если у коробки есть соприкосновение с ДРУГОЙ коробкой (верхней ИЛИ нижней)
     // Это вычисляется на каждом тике чтобы отслеживать текущее состояние цепочки
+    // Используем жесткий хитбокс (1 пиксель) для точного определения касания
     boxesRef.current.forEach((box, index) => {
       box.isChained = false;
       
@@ -212,8 +213,8 @@ export function useGame2() {
         const boxAbove = boxesRef.current[index - 1];
         const boxAboveBottom = boxAbove.y + boxHeightPercent;
         const currentBoxTop = box.y;
-        // Если нижняя граница верхней коробки касается или перекрывает верхнюю границу текущей
-        if (Math.abs(boxAboveBottom - currentBoxTop) < 5) {
+        // Жесткая проверка касания (разница <= 1 пиксель)
+        if (Math.abs(boxAboveBottom - currentBoxTop) <= 1) {
           box.isChained = true;
         }
       }
@@ -223,8 +224,8 @@ export function useGame2() {
         const boxBelow = boxesRef.current[index + 1];
         const boxBelowTop = boxBelow.y;
         const currentBoxBottom = box.y + boxHeightPercent;
-        // Если нижняя граница текущей коробки касается или перекрывает верхнюю границу нижней
-        if (Math.abs(currentBoxBottom - boxBelowTop) < 5) {
+        // Жесткая проверка касания (разница <= 1 пиксель)
+        if (Math.abs(currentBoxBottom - boxBelowTop) <= 1) {
           box.isChained = true;
         }
       }
@@ -233,6 +234,7 @@ export function useGame2() {
     // isInChainGroup = true если коробка является частью группы из 2+ коробок идущих подряд
     // Группа считается "цепочкой" только если в ней 2 или более коробки соприкасаются друг с другом
     // Сначала находим все группы соприкасающихся коробок
+    // Используем жесткий хитбокс (1 пиксель) для определения касания
     const groups = [];
     let currentGroup = [];
     
@@ -247,7 +249,8 @@ export function useGame2() {
         const lastBoxBottom = lastBox.y + boxHeightPercent;
         const currentBoxTop = currentBox.y;
         
-        if (Math.abs(lastBoxBottom - currentBoxTop) < 5) {
+        // Жесткая проверка касания (разница <= 1 пиксель)
+        if (Math.abs(lastBoxBottom - currentBoxTop) <= 1) {
           // Соприкасается - добавляем в группу
           currentGroup.push(i);
         } else {
@@ -304,14 +307,30 @@ export function useGame2() {
 
     // Проверяем коробки, достигшие контейнера
     // Собираем коробки которые достигли контейнера в этом кадре
+    // НО НЕ УДАЛЯЕМ их сразу - оставляем для расчета связности в следующих кадрах
     const boxesReachedContainer = [];
-    boxesRef.current = boxesRef.current.filter(box => {
-      if (box.y > 95) {
+    const boxesToRemove = [];
+    
+    boxesRef.current.forEach(box => {
+      if (box.y > 95 && !box.markedForDeletion) {
+        // Коробка достигла контейнера впервые - помечаем её
+        box.markedForDeletion = true;
+        box.markedTime = Date.now();
         boxesReachedContainer.push(box);
-        return false;
+      } else if (box.markedForDeletion) {
+        // Коробка уже помечена - проверяем, пора ли удалить
+        if (Date.now() - box.markedTime > 300) {
+          boxesToRemove.push(box.id);
+        } else {
+          // Ещё держим в массиве для расчета связности
+        }
       }
-      return true;
     });
+    
+    // Удаляем коробки которые продержались достаточно долго
+    if (boxesToRemove.length > 0) {
+      boxesRef.current = boxesRef.current.filter(box => !boxesToRemove.includes(box.id));
+    }
     
     // Обрабатываем коробки которые достигли контейнера
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
