@@ -9,6 +9,9 @@ const BELT_WIDTH_PERCENT = 25; // Ширина конвейера в % от эк
 const MAX_BOXES_ON_BELT = 8; // Максимальное количество коробок на ленте
 export const HAND_STOP_LINE_Y = 78; // Позиция линии остановки (в процентах)
 const LEVER_POSITION_X = 25; // Позиция рычага по горизонтали (слева) в %
+const CONTAINER_Y = 88; // Позиция контейнера в процентах
+// Невидимая линия регистрации - на одну высоту коробки ниже контейнера
+// Вычисляется динамически в updateBoxes где известен screenHeight
 
 export function useGame2() {
   const [gameState, setGameState] = useState({
@@ -306,23 +309,26 @@ export function useGame2() {
     }
 
     // Проверяем коробки, достигшие контейнера
-    // Собираем коробки которые достигли контейнера в этом кадре
-    // НО НЕ УДАЛЯЕМ их сразу - оставляем для расчета связности в следующих кадрах
+    // Используем невидимую линию регистрации ниже контейнера
+    // Коробки регистрируются только когда пересекают эту линию
+    // Линия находится на одну высоту коробки ниже дна контейнера
+    const registerLineY = CONTAINER_Y + boxHeightPercent;
     const boxesReachedContainer = [];
     const boxesToRemove = [];
     
+    // Сначала обновляем флаги для коробок которые пересекли линию регистрации
     boxesRef.current.forEach(box => {
-      if (box.y > 95 && !box.markedForDeletion) {
-        // Коробка достигла контейнера впервые - помечаем её
+      const boxCenterY = box.y + boxHeightPercent / 2;
+      
+      if (boxCenterY >= registerLineY && !box.markedForDeletion) {
+        // Коробка пересекла линию регистрации впервые - помечаем её
         box.markedForDeletion = true;
         box.markedTime = Date.now();
         boxesReachedContainer.push(box);
       } else if (box.markedForDeletion) {
         // Коробка уже помечена - проверяем, пора ли удалить
-        if (Date.now() - box.markedTime > 300) {
+        if (Date.now() - box.markedTime > 500) {
           boxesToRemove.push(box.id);
-        } else {
-          // Ещё держим в массиве для расчета связности
         }
       }
     });
@@ -332,74 +338,33 @@ export function useGame2() {
       boxesRef.current = boxesRef.current.filter(box => !boxesToRemove.includes(box.id));
     }
     
-    // Обрабатываем коробки которые достигли контейнера
+    // Обрабатываем коробки которые пересекли линию регистрации
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // Проверяем все ли коробки в цепочке имеют isInChainGroup=true (являются частью группы идущих подряд)
-      const allInChain = boxesReachedContainer.every(box => box.isInChainGroup);
+      // Ключевое изменение: проверяем связность НЕ по текущему состоянию коробок,
+      // а по тому состоянию которое было у них в момент пересечения линии регистрации
+      // Для этого используем флаг isInChainGroup который был вычислен выше
       
-      if (allInChain) {
-        // Все коробки в цепочке - увеличиваем счетчик
-        boxesReachedContainer.forEach(box => {
-          containerChainedCountRef.current++;
-          containerCountRef.current++;
-          boxesFixedThisUpdate++;
-        });
-        
-        setGameState(prev => ({
-          ...prev,
-          container: prev.container ? {
-            ...prev.container,
-            count: containerCountRef.current
-          } : null
-        }));
-        
-        // Проверка на заполнение контейнера
-        if (containerCountRef.current >= currentState.container.capacity) {
-          // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
-          scoreGained += 100 * newMultiplier;
-          newComboCount++;
-          
-          if (newComboCount >= 30) {
-            newMultiplier = 2;
-          } else if (newComboCount >= 10) {
-            newMultiplier = 1.5;
-          } else {
-            newMultiplier = 1;
-          }
-          
-          setGameState(prev => ({
-            ...prev,
-            containersClosed: prev.containersClosed + 1,
-            container: null,
-            containerSpawning: true
-          }));
-          
-          currentSpeed = currentSpeed * 1.02;
-          conveyorSpeedRef.current = currentSpeed;
-          
-          // Запускаем таймер перезарядки
-          setTimeout(() => {
-            containerCountRef.current = 0;
-            containerChainedCountRef.current = 0;
-            // Генерируем случайную вместимость для следующего контейнера
-            const newCapacity = generateContainerCapacity();
-            setGameState(prev => ({
-              ...prev,
-              containerSpawning: false,
-              container: {
-                y: 88,
-                count: 0,
-                capacity: newCapacity
-              }
-            }));
-          }, 1000);
-        }
-      } else {
-        // ОШИБКА: Хотя бы одна коробка не является частью цепочки (isInChainGroup=false)
-        // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
+      // НО ВАЖНО: нам нужно проверить что ВСЕ коробки в ТЕКУЩЕЙ партии (которые достигли контейнера)
+      // являются частью ОДНОЙ цепочки из количества равного capacity контейнера
+      // 
+      // Решение: вместо проверки каждой коробки по отдельности, мы должны проверить
+      // что количество подряд идущих коробок с isInChainGroup=true равно capacity контейнера
+      // И что эти коробки достигают контейнера БЕЗ перерывов
+      
+      // Считаем сколько коробок с isInChainGroup=true пришло в этой партии
+      const chainedBoxesInBatch = boxesReachedContainer.filter(box => box.isInChainGroup).length;
+      const nonChainedBoxesInBatch = boxesReachedContainer.length - chainedBoxesInBatch;
+      
+      // Если есть хоть одна коробка без связности - это ошибка
+      if (nonChainedBoxesInBatch > 0) {
+        // ОШИБКА: Есть коробки без связности в партии
         livesLost++;
         containerErrorAnimRef.current = true;
         containerErrorAnimStartTimeRef.current = Date.now();
+        
+        // Сбрасываем счетчики
+        containerCountRef.current = 0;
+        containerChainedCountRef.current = 0;
         
         // Отправляем контейнер на перезарядку
         setGameState(prev => ({
@@ -414,13 +379,70 @@ export function useGame2() {
           containerChainedCountRef.current = 0;
           containerErrorAnimRef.current = false;
           containerErrorAnimStartTimeRef.current = 0;
-          // Генерируем случайную вместимость для следующего контейнера
           const newCapacity = generateContainerCapacity();
           setGameState(prev => ({
             ...prev,
             containerSpawning: false,
             container: {
-              y: 88,
+              y: CONTAINER_Y,
+              count: 0,
+              capacity: newCapacity
+            }
+          }));
+        }, 1000);
+        
+        return; // Прерываем обработку
+      }
+      
+      // Все коробки в партии имеют связность - увеличиваем счетчик
+      boxesReachedContainer.forEach(box => {
+        containerChainedCountRef.current++;
+        containerCountRef.current++;
+        boxesFixedThisUpdate++;
+      });
+      
+      setGameState(prev => ({
+        ...prev,
+        container: prev.container ? {
+          ...prev.container,
+          count: containerCountRef.current
+        } : null
+      }));
+      
+      // Проверка на заполнение контейнера
+      if (containerCountRef.current >= currentState.container.capacity) {
+        // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
+        scoreGained += 100 * newMultiplier;
+        newComboCount++;
+        
+        if (newComboCount >= 30) {
+          newMultiplier = 2;
+        } else if (newComboCount >= 10) {
+          newMultiplier = 1.5;
+        } else {
+          newMultiplier = 1;
+        }
+        
+        setGameState(prev => ({
+          ...prev,
+          containersClosed: prev.containersClosed + 1,
+          container: null,
+          containerSpawning: true
+        }));
+        
+        currentSpeed = currentSpeed * 1.02;
+        conveyorSpeedRef.current = currentSpeed;
+        
+        // Запускаем таймер перезарядки
+        setTimeout(() => {
+          containerCountRef.current = 0;
+          containerChainedCountRef.current = 0;
+          const newCapacity = generateContainerCapacity();
+          setGameState(prev => ({
+            ...prev,
+            containerSpawning: false,
+            container: {
+              y: CONTAINER_Y,
               count: 0,
               capacity: newCapacity
             }
