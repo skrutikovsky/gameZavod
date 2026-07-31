@@ -234,10 +234,17 @@ export function useGame2() {
       }
     });
 
-    // isInChainGroup = true если коробка является частью группы из 2+ коробок идущих подряд
-    // Группа считается "цепочкой" только если в ней 2 или более коробки соприкасаются друг с другом
-    // Сначала находим все группы соприкасающихся коробок
-    // Используем жесткий хитбокс (1 пиксель) для определения касания
+    // isInChainGroup = true ТОЛЬКО для коробок которые являются частью непрерывной цепочки
+    // и количество которых НЕ превышает capacity текущего контейнера
+    // Это ключевое изменение: мы ограничиваем количество коробок с флагом до требуемого контейнером
+    boxesRef.current.forEach((box, index) => {
+      box.isInChainGroup = false;
+    });
+    
+    // Если есть активный контейнер, ограничиваем длину цепочки его capacity
+    const maxChainLength = currentState.container ? currentState.container.capacity : 2;
+    
+    // Находим все группы соприкасающихся коробок
     const groups = [];
     let currentGroup = [];
     
@@ -270,17 +277,14 @@ export function useGame2() {
       groups.push([...currentGroup]);
     }
     
-    // Теперь устанавливаем isInChainGroup = true только для коробок в группах из 2+ элементов
-    boxesRef.current.forEach((box, index) => {
-      box.isInChainGroup = false;
-    });
-    
+    // Теперь устанавливаем isInChainGroup = true только для первых maxChainLength коробок в каждой группе
     groups.forEach(group => {
       if (group.length >= 2) {
-        // Это цепочка из 2+ коробок - все коробки в группе получают isInChainGroup = true
-        group.forEach(idx => {
-          boxesRef.current[idx].isInChainGroup = true;
-        });
+        // Это цепочка из 2+ коробок - помечаем только первые maxChainLength коробок
+        const boxesToMark = Math.min(group.length, maxChainLength);
+        for (let i = 0; i < boxesToMark; i++) {
+          boxesRef.current[group[i]].isInChainGroup = true;
+        }
       }
     });
 
@@ -341,16 +345,13 @@ export function useGame2() {
     // Обрабатываем коробки которые пересекли линию регистрации
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
       // Ключевое изменение: проверяем что ВСЕ коробки в текущей партии идут ОДНОЙ непрерывной цепочкой
-      // Для этого проверяем что:
-      // 1. Все коробки в партии имеют isInChainGroup = true
-      // 2. Количество коробок в партии НЕ превышает capacity контейнера
-      // 3.箱ы идут без разрывов (это гарантируется тем что они в одной партии и все имеют isChained)
+      // без разрывов с предыдущими коробками (если они были)
       
-      // Сначала проверяем что в партии нет коробок без связности
+      // Проверяем что в партии нет коробок без связности
       const nonChainedBoxesInBatch = boxesReachedContainer.filter(box => !box.isInChainGroup).length;
       
       if (nonChainedBoxesInBatch > 0) {
-        // ОШИБКА: Есть коробки без связности в партии
+        // ОШИБКА: Есть коробки без связности в партии - значит они пришли отдельной группой после разрыва
         livesLost++;
         containerErrorAnimRef.current = true;
         containerErrorAnimStartTimeRef.current = Date.now();
@@ -426,71 +427,6 @@ export function useGame2() {
         }, 1000);
         
         return; // Прерываем обработку
-      }
-      
-      // Теперь ключевая проверка: если мы уже набрали какое-то количество коробок,
-      // то новые коробки должны прийти СРАЗУ после предыдущих, без разрывов.
-      // Для этого проверяем что между последней зарегистрированной коробкой и первой новой
-      // расстояние было не больше высоты коробки (т.е. они шли вплотную)
-      
-      // Если containerChainedCountRef.current > 0, значит уже были зарегистрированы коробки
-      // Проверяем что новые коробки пришли вплотную к предыдущим
-      if (containerChainedCountRef.current > 0 && containerChainedCountRef.current < currentState.container.capacity) {
-        // Нужно проверить что новые коробки продолжают цепочку
-        // Для этого смотрим на позицию последней коробки которая была в цепочке
-        // и сравниваем с позицией первой новой коробки
-        
-        // Находим последнюю коробку в цепочке (которая еще не удалена)
-        const lastChainedBox = boxesRef.current.find(box => 
-          box.markedForDeletion && 
-          !boxesToRemove.includes(box.id) &&
-          box.y < boxesReachedContainer[0].y
-        );
-        
-        // Если нашли последнюю коробку, проверяем что она соприкасается с первой новой
-        if (lastChainedBox) {
-          const lastBoxBottom = lastChainedBox.y + boxHeightPercent;
-          const firstNewBoxTop = boxesReachedContainer[0].y;
-          
-          // Проверяем что расстояние между ними не больше 1 пикселя
-          if (Math.abs(lastBoxBottom - firstNewBoxTop) > 1) {
-            // ОШИБКА: Разрыв в цепочке! Новые коробки не продолжают предыдущую цепочку
-            livesLost++;
-            containerErrorAnimRef.current = true;
-            containerErrorAnimStartTimeRef.current = Date.now();
-            
-            // Сбрасываем счетчики
-            containerCountRef.current = 0;
-            containerChainedCountRef.current = 0;
-            
-            // Отправляем контейнер на перезарядку
-            setGameState(prev => ({
-              ...prev,
-              container: null,
-              containerSpawning: true
-            }));
-            
-            // Запускаем таймер перезарядки
-            setTimeout(() => {
-              containerCountRef.current = 0;
-              containerChainedCountRef.current = 0;
-              containerErrorAnimRef.current = false;
-              containerErrorAnimStartTimeRef.current = 0;
-              const newCapacity = generateContainerCapacity();
-              setGameState(prev => ({
-                ...prev,
-                containerSpawning: false,
-                container: {
-                  y: CONTAINER_Y,
-                  count: 0,
-                  capacity: newCapacity
-                }
-              }));
-            }, 1000);
-            
-            return; // Прерываем обработку
-          }
-        }
       }
       
       // Все проверки пройдены - увеличиваем счетчик
