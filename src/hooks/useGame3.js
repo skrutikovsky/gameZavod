@@ -27,7 +27,7 @@ const getRandomItemType = () => {
 };
 
 // Генерация 60 предметов с заданными пропорциями
-const generateItems = (forDropAnimation = false) => {
+const generateItems = () => {
   const items = [];
   const counts = [
     Math.round(TOTAL_ITEMS_PER_ROUND * 0.03), // тип 1 - 3%
@@ -53,8 +53,7 @@ const generateItems = (forDropAnimation = false) => {
         id: `item-${itemId++}`,
         type: typeIdx + 1,
         x: Math.random() * 80 + 10, // 10-90% ширины правой части
-        y: forDropAnimation ? -20 : Math.random() * 80 + 10, // При анимации - выше экрана
-        isFalling: forDropAnimation, // Флаг для анимации падения
+        y: Math.random() * 80 + 10, // 10-90% высоты
       });
     }
   }
@@ -80,7 +79,6 @@ export const useGame3 = () => {
     items: [],
     draggedItem: null,
     dragPosition: { x: 0, y: 0 },
-    dragOffset: { offsetX: 0, offsetY: 0 },
     isRoundComplete: false,
   });
 
@@ -88,8 +86,7 @@ export const useGame3 = () => {
   const originalPositionRef = useRef(null);
 
   const startGame = useCallback(() => {
-    // Генерируем предметы с анимацией падения (isFalling=true)
-    const initialItems = generateItems(true);
+    const initialItems = generateItems();
     setGameState(prev => ({
       ...prev,
       items: initialItems,
@@ -102,18 +99,6 @@ export const useGame3 = () => {
       })),
       isRoundComplete: false,
     }));
-    
-    // Запускаем анимацию падения - через 50мс убираем флаг isFalling и устанавливаем нормальные Y координаты
-    setTimeout(() => {
-      setGameState(prev => ({
-        ...prev,
-        items: prev.items.map(item => ({
-          ...item,
-          y: Math.random() * 80 + 10, // Случайная позиция по вертикали
-          isFalling: false,
-        })),
-      }));
-    }, 50);
   }, []);
 
   const handleDragStart = useCallback((item, event) => {
@@ -121,20 +106,13 @@ export const useGame3 = () => {
     originalPositionRef.current = { x: item.x, y: item.y };
     
     const rect = event.target.getBoundingClientRect();
-    // Вычисляем смещение курсора относительно центра предмета для реалистичного захвата
-    const clientX = event.clientX || (event.touches?.[0]?.clientX || 0);
-    const clientY = event.clientY || (event.touches?.[0]?.clientY || 0);
-    const offsetX = clientX - rect.left - rect.width / 2;
-    const offsetY = clientY - rect.top - rect.height / 2;
-    
     setGameState(prev => ({
       ...prev,
       draggedItem: item,
       dragPosition: {
-        x: clientX,
-        y: clientY,
+        x: event.clientX || (event.touches?.[0]?.clientX || 0),
+        y: event.clientY || (event.touches?.[0]?.clientY || 0),
       },
-      dragOffset: { offsetX, offsetY }, // Сохраняем смещение для правильного позиционирования
     }));
   }, []);
 
@@ -267,23 +245,11 @@ export const useGame3 = () => {
   useEffect(() => {
     if (gameState.items.length === 0) {
       setTimeout(() => {
-        const newItems = generateItems(true); // С анимацией падения
+        const newItems = generateItems();
         setGameState(prev => ({
           ...prev,
           items: newItems,
         }));
-        
-        // Запускаем анимацию падения для новых предметов
-        setTimeout(() => {
-          setGameState(prev => ({
-            ...prev,
-            items: prev.items.map(item => ({
-              ...item,
-              y: Math.random() * 80 + 10, // Случайная позиция по вертикали
-              isFalling: false,
-            })),
-          }));
-        }, 50);
       }, 500);
     }
   }, [gameState.items.length]);

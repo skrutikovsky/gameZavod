@@ -27,14 +27,6 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const handleMouseMove = (e) => {
       if (gameState.draggedItem) {
         handleDragMove(e);
-        
-        // Обновляем позицию перетаскиваемого элемента
-        if (draggedItemElementRef.current) {
-          const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
-          const clientY = e.clientY || e.touches?.[0]?.clientY || 0;
-          draggedItemElementRef.current.style.left = `${clientX - dragOffsetRef.current.x}px`;
-          draggedItemElementRef.current.style.top = `${clientY - dragOffsetRef.current.y}px`;
-        }
       }
     };
 
@@ -82,12 +74,6 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
         handleDragEnd(dropZone);
       }
-      
-      // Очищаем элемент перетаскивания
-      if (draggedItemElementRef.current) {
-        document.body.removeChild(draggedItemElementRef.current);
-        draggedItemElementRef.current = null;
-      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -107,27 +93,49 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
     const clientY = e.clientY || e.touches?.[0]?.clientY || 0;
     
-    // Вычисляем смещение относительно точки захвата (где пользователь взял предмет)
+    // Вычисляем смещение относительно центра предмета
     dragOffsetRef.current = {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2,
     };
     
     handleDragStart(item, e);
     
-    // Создаем визуальный элемент для перетаскивания - БЕЗ изменений стиля (без прозрачности, скейла и т.д.)
+    // Создаем визуальный элемент для перетаскивания
     const element = e.target.cloneNode(true);
     element.style.position = 'fixed';
     element.style.pointerEvents = 'none';
     element.style.zIndex = '1000';
-    // Не меняем opacity, transform, width, height - предмет выглядит точно так же как оригинал
+    element.style.opacity = '0.8';
     element.style.width = `${rect.width}px`;
     element.style.height = `${rect.height}px`;
-    // Позиционируем элемент так, чтобы точка захвата совпадала с курсором
-    element.style.left = `${clientX - dragOffsetRef.current.x}px`;
-    element.style.top = `${clientY - dragOffsetRef.current.y}px`;
     document.body.appendChild(element);
     draggedItemElementRef.current = element;
+
+    const updateDragElement = (clientX, clientY) => {
+      if (draggedItemElementRef.current) {
+        draggedItemElementRef.current.style.left = `${clientX - dragOffsetRef.current.x - rect.width / 2}px`;
+        draggedItemElementRef.current.style.top = `${clientY - dragOffsetRef.current.y - rect.height / 2}px`;
+      }
+    };
+
+    const onMouseMove = (moveEvent) => {
+      const moveClientX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX || 0;
+      const moveClientY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY || 0;
+      updateDragElement(moveClientX, moveClientY);
+    };
+
+    const onMouseUpHandler = () => {
+      if (draggedItemElementRef.current) {
+        document.body.removeChild(draggedItemElementRef.current);
+        draggedItemElementRef.current = null;
+      }
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUpHandler);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUpHandler);
   }, [handleDragStart]);
 
   // Получение иконки для типа предмета
@@ -231,9 +239,8 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
-              top: item.isFalling ? '-60px' : `${item.y}%`, // При анимации падения - выше экрана
+              top: `${item.y}%`,
               transform: 'translate(-50%, -50%)',
-              transition: item.isFalling ? 'top 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}
