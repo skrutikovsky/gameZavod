@@ -54,7 +54,6 @@ const generateItems = () => {
         type: typeIdx + 1,
         x: Math.random() * 80 + 10, // 10-90% ширины правой части
         y: Math.random() * 80 + 10, // 10-90% высоты
-        isFalling: true, // Флаг для анимации падения
       });
     }
   }
@@ -81,12 +80,10 @@ export const useGame3 = () => {
     draggedItem: null,
     dragPosition: { x: 0, y: 0 },
     isRoundComplete: false,
-    gameStarted: false, // Флаг что игра уже запущена (для предотвращения двойного респавна)
   });
 
   const draggedItemRef = useRef(null);
   const originalPositionRef = useRef(null);
-  const dragOffsetRef = useRef({ offsetX: 0, offsetY: 0 }); // Смещение точки захвата относительно центра
 
   const startGame = useCallback(() => {
     const initialItems = generateItems();
@@ -101,31 +98,20 @@ export const useGame3 = () => {
         name: ITEM_TYPES[i].name,
       })),
       isRoundComplete: false,
-      gameStarted: true,
     }));
   }, []);
 
-  const handleDragStart = useCallback((item, event, itemElement) => {
+  const handleDragStart = useCallback((item, event) => {
     draggedItemRef.current = item;
     originalPositionRef.current = { x: item.x, y: item.y };
     
-    // Вычисляем смещение точки захвата относительно центра предмета
-    const rect = itemElement.getBoundingClientRect();
-    const clientX = event.clientX || (event.touches?.[0]?.clientX || 0);
-    const clientY = event.clientY || (event.touches?.[0]?.clientY || 0);
-    
-    // Сохраняем смещение где игрок взял предмет относительно его центра
-    dragOffsetRef.current = {
-      offsetX: (clientX - rect.left) - rect.width / 2,
-      offsetY: (clientY - rect.top) - rect.height / 2,
-    };
-    
+    const rect = event.target.getBoundingClientRect();
     setGameState(prev => ({
       ...prev,
       draggedItem: item,
       dragPosition: {
-        x: clientX,
-        y: clientY,
+        x: event.clientX || (event.touches?.[0]?.clientX || 0),
+        y: event.clientY || (event.touches?.[0]?.clientY || 0),
       },
     }));
   }, []);
@@ -255,9 +241,9 @@ export const useGame3 = () => {
     });
   }, []);
 
-  // Эффект для проверки завершения раунда - теперь предметы появляются с анимацией падения
+  // Эффект для проверки завершения раунда
   useEffect(() => {
-    if (gameState.items.length === 0 && gameState.gameStarted) {
+    if (gameState.items.length === 0) {
       setTimeout(() => {
         const newItems = generateItems();
         setGameState(prev => ({
@@ -266,17 +252,7 @@ export const useGame3 = () => {
         }));
       }, 500);
     }
-  }, [gameState.items.length, gameState.gameStarted]);
-
-  // Функция для завершения анимации падения предмета
-  const finishFallingAnimation = useCallback((itemId) => {
-    setGameState(prev => ({
-      ...prev,
-      items: prev.items.map(item =>
-        item.id === itemId ? { ...item, isFalling: false } : item
-      ),
-    }));
-  }, []);
+  }, [gameState.items.length]);
 
   return {
     gameState,
@@ -286,8 +262,6 @@ export const useGame3 = () => {
     handleDragEnd,
     updateItemPosition,
     checkRoundComplete,
-    finishFallingAnimation,
-    dragOffsetRef,
     ITEM_TYPES,
     MAX_BOX_COUNT,
   };

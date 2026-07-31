@@ -8,8 +8,6 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     handleDragStart,
     handleDragMove,
     handleDragEnd,
-    finishFallingAnimation,
-    dragOffsetRef,
     ITEM_TYPES,
     MAX_BOX_COUNT,
   } = useGame3();
@@ -18,6 +16,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const leftPanelRef = useRef(null);
   const rightPanelRef = useRef(null);
   const draggedItemElementRef = useRef(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     startGame();
@@ -94,25 +93,29 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
     const clientY = e.clientY || e.touches?.[0]?.clientY || 0;
     
-    handleDragStart(item, e, e.target);
+    // Вычисляем смещение относительно центра предмета
+    dragOffsetRef.current = {
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2,
+    };
     
-    // Создаем визуальный элемент для перетаскивания - клон без изменений стиля
+    handleDragStart(item, e);
+    
+    // Создаем визуальный элемент для перетаскивания
     const element = e.target.cloneNode(true);
     element.style.position = 'fixed';
     element.style.pointerEvents = 'none';
     element.style.zIndex = '1000';
-    // Убираем все трансформации чтобы предмет не искажался
-    element.style.transform = 'none';
+    element.style.opacity = '0.8';
     element.style.width = `${rect.width}px`;
     element.style.height = `${rect.height}px`;
     document.body.appendChild(element);
     draggedItemElementRef.current = element;
 
-    const updateDragElement = (moveClientX, moveClientY) => {
+    const updateDragElement = (clientX, clientY) => {
       if (draggedItemElementRef.current) {
-        // Центрируем предмет относительно курсора с учетом смещения точки захвата
-        draggedItemElementRef.current.style.left = `${moveClientX - rect.width / 2}px`;
-        draggedItemElementRef.current.style.top = `${moveClientY - rect.height / 2}px`;
+        draggedItemElementRef.current.style.left = `${clientX - dragOffsetRef.current.x - rect.width / 2}px`;
+        draggedItemElementRef.current.style.top = `${clientY - dragOffsetRef.current.y - rect.height / 2}px`;
       }
     };
 
@@ -233,16 +236,14 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105`}
+            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
-              top: item.isFalling ? '-60px' : `${item.y}%`, // Начальная позиция выше экрана для анимации падения
+              top: `${item.y}%`,
               transform: 'translate(-50%, -50%)',
-              transition: item.isFalling ? 'top 0.5s ease-in' : 'none',
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}
-            onTransitionEnd={() => item.isFalling && finishFallingAnimation(item.id)}
           >
             {getItemIcon(item.type)}
           </div>
