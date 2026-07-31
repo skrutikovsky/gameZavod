@@ -395,89 +395,46 @@ export function useGame2() {
         } : null
       }));
       
-      // Проверка на заполнение контейнера - теперь проверяем что ВСЕ коробки образуют единую цепочку
+      // Проверка на заполнение контейнера
       if (containerCountRef.current >= currentState.container.capacity) {
-        // ПРОВЕРЯЕМ: все ли коробки в контейнере образуют непрерывную цепочку
-        // Для этого нужно проверить что каждая коробка соприкасается с предыдущей
-        let isContinuousChain = true;
+        // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
+        scoreGained += 100 * newMultiplier;
+        newComboCount++;
         
-        // Получаем все коробки которые сейчас в "зоне контейнера" (помечены на удаление)
-        const boxesInContainer = boxesRef.current.filter(box => box.markedForDeletion);
-        
-        // Сортируем их по позиции Y (сверху вниз)
-        boxesInContainer.sort((a, b) => a.y - b.y);
-        
-        // Проверяем что каждая коробка соприкасается с предыдущей
-        for (let i = 1; i < boxesInContainer.length; i++) {
-          const prevBox = boxesInContainer[i - 1];
-          const currentBox = boxesInContainer[i];
-          const prevBoxBottom = prevBox.y + boxHeightPercent;
-          const currentBoxTop = currentBox.y;
-          
-          // Если расстояние больше 1 пикселя - разрыв в цепочке
-          if (Math.abs(prevBoxBottom - currentBoxTop) > 1) {
-            isContinuousChain = false;
-            break;
-          }
+        if (newComboCount >= 30) {
+          newMultiplier = 2;
+        } else if (newComboCount >= 10) {
+          newMultiplier = 1.5;
+        } else {
+          newMultiplier = 1;
         }
         
-        if (isContinuousChain) {
-          // УСПЕХ: Контейнер заполнен правильным количеством связных коробок подряд
-          scoreGained += 100 * newMultiplier;
-          newComboCount++;
-          
-          if (newComboCount >= 30) {
-            newMultiplier = 2;
-          } else if (newComboCount >= 10) {
-            newMultiplier = 1.5;
-          } else {
-            newMultiplier = 1;
-          }
-          
-          setGameState(prev => ({
-            ...prev,
-            containersClosed: prev.containersClosed + 1,
-            container: null,
-            containerSpawning: true
-          }));
-          
-          currentSpeed = currentSpeed * 1.02;
-          conveyorSpeedRef.current = currentSpeed;
-          
-          // Запускаем таймер перезарядки
-          setTimeout(() => {
-            containerCountRef.current = 0;
-            containerChainedCountRef.current = 0;
-            // Генерируем случайную вместимость для следующего контейнера
-            const newCapacity = generateContainerCapacity();
-            setGameState(prev => ({
-              ...prev,
-              containerSpawning: false,
-              container: {
-                y: 88,
-                count: 0,
-                capacity: newCapacity
-              }
-            }));
-          }, 1000);
-        } else {
-          // ОШИБКА: Коробки не образуют непрерывную цепочку (были разрывы)
-          // Отнимаем жизни за неправильное заполнение
-          livesLost++;
-          
-          // Запускаем анимацию ошибки контейнера
-          containerErrorAnimRef.current = true;
-          containerErrorAnimStartTimeRef.current = Date.now();
-          
-          // Сбрасываем счетчики
+        setGameState(prev => ({
+          ...prev,
+          containersClosed: prev.containersClosed + 1,
+          container: null,
+          containerSpawning: true
+        }));
+        
+        currentSpeed = currentSpeed * 1.02;
+        conveyorSpeedRef.current = currentSpeed;
+        
+        // Запускаем таймер перезарядки
+        setTimeout(() => {
           containerCountRef.current = 0;
           containerChainedCountRef.current = 0;
-          
-          // Очищаем коробки из контейнера (помечаем на немедленное удаление)
-          boxesInContainer.forEach(box => {
-            box.markedTime = Date.now() - 300; // Чтобы удалились сразу
-          });
-        }
+          // Генерируем случайную вместимость для следующего контейнера
+          const newCapacity = generateContainerCapacity();
+          setGameState(prev => ({
+            ...prev,
+            containerSpawning: false,
+            container: {
+              y: 88,
+              count: 0,
+              capacity: newCapacity
+            }
+          }));
+        }, 1000);
       }
     } else if (boxesReachedContainer.length > 0 && (!currentState.container || currentState.containerSpawning)) {
       // Коробки достигли контейнера но он на перезарядке - отнимаем жизни за каждую
