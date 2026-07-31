@@ -201,9 +201,9 @@ export function useGame2() {
       }
     });
 
-    // Вычисляем флаг isChained для всех коробок после переключения рычага
-    // isChained = true если у коробки есть соприкосновение с другой коробкой (верхней или нижней)
-    // Это вычисляется на "первом тике" после переключения рычага
+    // Вычисляем флаг isChained для всех коробок
+    // isChained = true если у коробки есть соприкосновение с ДРУГОЙ коробкой (верхней ИЛИ нижней)
+    // Это вычисляется на каждом тике чтобы отслеживать текущее состояние цепочки
     boxesRef.current.forEach((box, index) => {
       box.isChained = false;
       
@@ -213,60 +213,70 @@ export function useGame2() {
         const boxAboveBottom = boxAbove.y + boxHeightPercent;
         const currentBoxTop = box.y;
         // Если нижняя граница верхней коробки касается или перекрывает верхнюю границу текущей
-        if (Math.abs(boxAboveBottom - currentBoxTop) < currentSpeed + 1) {
+        if (Math.abs(boxAboveBottom - currentBoxTop) < 5) {
           box.isChained = true;
         }
       }
       
       // Проверяем соприкосновение с коробкой ниже
-      if (!box.isChained && index < boxesRef.current.length - 1) {
+      if (index < boxesRef.current.length - 1) {
         const boxBelow = boxesRef.current[index + 1];
         const boxBelowTop = boxBelow.y;
         const currentBoxBottom = box.y + boxHeightPercent;
         // Если нижняя граница текущей коробки касается или перекрывает верхнюю границу нижней
-        if (Math.abs(currentBoxBottom - boxBelowTop) < currentSpeed + 1) {
+        if (Math.abs(currentBoxBottom - boxBelowTop) < 5) {
           box.isChained = true;
         }
       }
     });
 
-    // Дополнительный флаг: isInChainGroup - true если коробка является частью группы коробок идущих подряд
-    // Это нужно для того чтобы последняя коробка в цепочке тоже считалась "в цепочке"
+    // isInChainGroup = true если коробка является частью группы из 2+ коробок идущих подряд
+    // Группа считается "цепочкой" только если в ней 2 или более коробки соприкасаются друг с другом
+    // Сначала находим все группы соприкасающихся коробок
+    const groups = [];
+    let currentGroup = [];
+    
+    for (let i = 0; i < boxesRef.current.length; i++) {
+      if (currentGroup.length === 0) {
+        currentGroup = [i];
+      } else {
+        // Проверяем соприкасается ли текущая коробка с последней в группе
+        const lastIdx = currentGroup[currentGroup.length - 1];
+        const lastBox = boxesRef.current[lastIdx];
+        const currentBox = boxesRef.current[i];
+        const lastBoxBottom = lastBox.y + boxHeightPercent;
+        const currentBoxTop = currentBox.y;
+        
+        if (Math.abs(lastBoxBottom - currentBoxTop) < 5) {
+          // Соприкасается - добавляем в группу
+          currentGroup.push(i);
+        } else {
+          // Не соприкасается - завершаем текущую группу и начинаем новую
+          if (currentGroup.length > 0) {
+            groups.push([...currentGroup]);
+          }
+          currentGroup = [i];
+        }
+      }
+    }
+    // Добавляем последнюю группу
+    if (currentGroup.length > 0) {
+      groups.push([...currentGroup]);
+    }
+    
+    // Теперь устанавливаем isInChainGroup = true только для коробок в группах из 2+ элементов
     boxesRef.current.forEach((box, index) => {
       box.isInChainGroup = false;
-      
-      // Коробка считается в группе если:
-      // 1. Она имеет isChained=true (соприкасается с соседом), ИЛИ
-      // 2. Она соприкасается с коробкой которая isInChainGroup=true
-      if (box.isChained) {
-        box.isInChainGroup = true;
-      }
     });
     
-    // Пропускаем несколько раз чтобы распространить флаг isInChainGroup по всей цепочке
-    for (let pass = 0; pass < boxesRef.current.length; pass++) {
-      boxesRef.current.forEach((box, index) => {
-        if (!box.isInChainGroup) {
-          // Проверяем соседей
-          if (index > 0) {
-            const boxAbove = boxesRef.current[index - 1];
-            const boxAboveBottom = boxAbove.y + boxHeightPercent;
-            const currentBoxTop = box.y;
-            if (Math.abs(boxAboveBottom - currentBoxTop) < currentSpeed + 1 && boxAbove.isInChainGroup) {
-              box.isInChainGroup = true;
-            }
-          }
-          if (!box.isInChainGroup && index < boxesRef.current.length - 1) {
-            const boxBelow = boxesRef.current[index + 1];
-            const boxBelowTop = boxBelow.y;
-            const currentBoxBottom = box.y + boxHeightPercent;
-            if (Math.abs(currentBoxBottom - boxBelowTop) < currentSpeed + 1 && boxBelow.isInChainGroup) {
-              box.isInChainGroup = true;
-            }
-          }
-        }
-      });
-    }
+    groups.forEach(group => {
+      if (group.length >= 2) {
+        // Это цепочка из 2+ коробок - все коробки в группе получают isInChainGroup = true
+        group.forEach(idx => {
+          boxesRef.current[idx].isInChainGroup = true;
+        });
+      }
+    });
 
     // Спавн контейнера когда нет активного (только если рука не блокирует)
     if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
