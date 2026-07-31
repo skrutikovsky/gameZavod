@@ -230,6 +230,44 @@ export function useGame2() {
       }
     });
 
+    // Дополнительный флаг: isInChainGroup - true если коробка является частью группы коробок идущих подряд
+    // Это нужно для того чтобы последняя коробка в цепочке тоже считалась "в цепочке"
+    boxesRef.current.forEach((box, index) => {
+      box.isInChainGroup = false;
+      
+      // Коробка считается в группе если:
+      // 1. Она имеет isChained=true (соприкасается с соседом), ИЛИ
+      // 2. Она соприкасается с коробкой которая isInChainGroup=true
+      if (box.isChained) {
+        box.isInChainGroup = true;
+      }
+    });
+    
+    // Пропускаем несколько раз чтобы распространить флаг isInChainGroup по всей цепочке
+    for (let pass = 0; pass < boxesRef.current.length; pass++) {
+      boxesRef.current.forEach((box, index) => {
+        if (!box.isInChainGroup) {
+          // Проверяем соседей
+          if (index > 0) {
+            const boxAbove = boxesRef.current[index - 1];
+            const boxAboveBottom = boxAbove.y + boxHeightPercent;
+            const currentBoxTop = box.y;
+            if (Math.abs(boxAboveBottom - currentBoxTop) < currentSpeed + 1 && boxAbove.isInChainGroup) {
+              box.isInChainGroup = true;
+            }
+          }
+          if (!box.isInChainGroup && index < boxesRef.current.length - 1) {
+            const boxBelow = boxesRef.current[index + 1];
+            const boxBelowTop = boxBelow.y;
+            const currentBoxBottom = box.y + boxHeightPercent;
+            if (Math.abs(currentBoxBottom - boxBelowTop) < currentSpeed + 1 && boxBelow.isInChainGroup) {
+              box.isInChainGroup = true;
+            }
+          }
+        }
+      });
+    }
+
     // Спавн контейнера когда нет активного (только если рука не блокирует)
     if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
       setGameState(prev => ({
@@ -267,10 +305,10 @@ export function useGame2() {
     
     // Обрабатываем коробки которые достигли контейнера
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // Проверяем все ли коробки в цепочке имеют isChained=true
-      const allChained = boxesReachedContainer.every(box => box.isChained);
+      // Проверяем все ли коробки в цепочке имеют isInChainGroup=true (являются частью группы идущих подряд)
+      const allInChain = boxesReachedContainer.every(box => box.isInChainGroup);
       
-      if (allChained) {
+      if (allInChain) {
         // Все коробки в цепочке - увеличиваем счетчик
         boxesReachedContainer.forEach(box => {
           containerChainedCountRef.current++;
@@ -328,7 +366,7 @@ export function useGame2() {
           }, 1000);
         }
       } else {
-        // ОШИБКА: Хотя бы одна коробка без флага isChained попала в контейнер
+        // ОШИБКА: Хотя бы одна коробка не является частью цепочки (isInChainGroup=false)
         // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
         livesLost++;
         containerErrorAnimRef.current = true;
