@@ -257,23 +257,16 @@ export const useGame3 = () => {
 
   // Эффект для проверки завершения раунда - теперь предметы появляются с анимацией падения
   useEffect(() => {
-    if (gameState.items.length === 0 && gameState.gameStarted && !gameState.isRoundComplete) {
-      // Не спавним предметы если игра только началась - это делает startGame()
-      return;
-    }
-    
-    if (gameState.items.length === 0 && gameState.gameStarted && gameState.isRoundComplete) {
-      // Все предметы разложены - спавним новые с задержкой
+    if (gameState.items.length === 0 && gameState.gameStarted) {
       setTimeout(() => {
         const newItems = generateItems();
         setGameState(prev => ({
           ...prev,
           items: newItems,
-          isRoundComplete: false, // Сбрасываем флаг чтобы можно было снова заспавнить
         }));
       }, 500);
     }
-  }, [gameState.items.length, gameState.gameStarted, gameState.isRoundComplete]);
+  }, [gameState.items.length, gameState.gameStarted]);
 
   // Функция для завершения анимации падения предмета
   const finishFallingAnimation = useCallback((itemId) => {
