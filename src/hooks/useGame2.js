@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const BOX_SIZE = 100; // Размер коробки в пикселях
+const BOX_SIZE = 120; // Размер коробки в пикселях (увеличен для квадратной формы)
 const HAND_POSITION_Y = 78; // Позиция руки в процентах от высоты экрана
 const HAND_POSITION_X = 25; // Позиция руки по горизонтали (слева) в %
 const INITIAL_LIVES = 3;
@@ -37,6 +37,9 @@ export function useGame2() {
   const containerCapacityRef = useRef(5);
   const containerCountRef = useRef(0);
   const handActiveRef = useRef(false); // Реф для мгновенной реакции руки
+  const containerChainedCountRef = useRef(0); // Счетчик цепочки коробок с isChained=true
+  const containerErrorAnimRef = useRef(false); // Флаг анимации ошибки контейнера
+  const containerErrorAnimStartTimeRef = useRef(0); // Время начала анимации ошибки
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -51,6 +54,9 @@ export function useGame2() {
     containerCapacityRef.current = 5;
     containerCountRef.current = 0;
     handActiveRef.current = false; // Сбрасываем состояние руки
+    containerChainedCountRef.current = 0;
+    containerErrorAnimRef.current = false;
+    containerErrorAnimStartTimeRef.current = 0;
 
     setGameState({
       isRunning: false,
@@ -98,7 +104,8 @@ export function useGame2() {
     const newBox = {
       id: Date.now() + Math.random(),
       y: -20,
-      stopped: false
+      stopped: false,
+      isChained: false // Флаг цепочки: true если коробка соприкасается с другой
     };
 
     boxesRef.current = [...boxesRef.current, newBox];
@@ -194,6 +201,35 @@ export function useGame2() {
       }
     });
 
+    // Вычисляем флаг isChained для всех коробок после переключения рычага
+    // isChained = true если у коробки есть соприкосновение с другой коробкой (верхней или нижней)
+    // Это вычисляется на "первом тике" после переключения рычага
+    boxesRef.current.forEach((box, index) => {
+      box.isChained = false;
+      
+      // Проверяем соприкосновение с коробкой выше
+      if (index > 0) {
+        const boxAbove = boxesRef.current[index - 1];
+        const boxAboveBottom = boxAbove.y + boxHeightPercent;
+        const currentBoxTop = box.y;
+        // Если нижняя граница верхней коробки касается или перекрывает верхнюю границу текущей
+        if (Math.abs(boxAboveBottom - currentBoxTop) < currentSpeed + 1) {
+          box.isChained = true;
+        }
+      }
+      
+      // Проверяем соприкосновение с коробкой ниже
+      if (!box.isChained && index < boxesRef.current.length - 1) {
+        const boxBelow = boxesRef.current[index + 1];
+        const boxBelowTop = boxBelow.y;
+        const currentBoxBottom = box.y + boxHeightPercent;
+        // Если нижняя граница текущей коробки касается или перекрывает верхнюю границу нижней
+        if (Math.abs(currentBoxBottom - boxBelowTop) < currentSpeed + 1) {
+          box.isChained = true;
+        }
+      }
+    });
+
     // Спавн контейнера когда нет активного (только если рука не блокирует)
     if (!isHandBlocking && !currentState.container && !currentState.containerSpawning) {
       setGameState(prev => ({
@@ -203,6 +239,7 @@ export function useGame2() {
 
       setTimeout(() => {
         containerCountRef.current = 0;
+        containerChainedCountRef.current = 0; // Сбрасываем счетчик цепочки при новом контейнере
         // Генерируем случайную вместимость контейнера от 2 до 7
         const newCapacity = generateContainerCapacity();
         setGameState(prev => ({
@@ -225,47 +262,86 @@ export function useGame2() {
         if (currentState.containerSpawning || !currentState.container) {
           // Контейнер на перезарядке или отсутствует - коробка промахивается, отнимаем жизнь
           livesLost++;
+          // Сбрасываем счетчик цепочки
+          containerChainedCountRef.current = 0;
           return false;
         } else {
-          // Контейнер активен - коробка успешно попадает в него
-          containerCountRef.current++;
-          boxesFixedThisUpdate++;
-          
-          setGameState(prev => ({
-            ...prev,
-            container: prev.container ? {
-              ...prev.container,
-              count: containerCountRef.current
-            } : null
-          }));
-
-          // Проверка на заполнение контейнера
-          if (currentState.container && containerCountRef.current >= currentState.container.capacity) {
-            // Контейнер заполнен - сразу отправляем на перезарядку
-            scoreGained += 100 * newMultiplier;
-            newComboCount++;
+          // Контейнер активен - проверяем флаг isChained
+          if (box.isChained) {
+            // Коробка в цепочке - увеличиваем счетчик
+            containerChainedCountRef.current++;
+            containerCountRef.current++;
+            boxesFixedThisUpdate++;
             
-            if (newComboCount >= 30) {
-              newMultiplier = 2;
-            } else if (newComboCount >= 10) {
-              newMultiplier = 1.5;
-            } else {
-              newMultiplier = 1;
-            }
-
             setGameState(prev => ({
               ...prev,
-              containersClosed: prev.containersClosed + 1,
+              container: prev.container ? {
+                ...prev.container,
+                count: containerCountRef.current
+              } : null
+            }));
+
+            // Проверка на заполнение контейнера
+            if (containerCountRef.current >= currentState.container.capacity) {
+              // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
+              scoreGained += 100 * newMultiplier;
+              newComboCount++;
+              
+              if (newComboCount >= 30) {
+                newMultiplier = 2;
+              } else if (newComboCount >= 10) {
+                newMultiplier = 1.5;
+              } else {
+                newMultiplier = 1;
+              }
+
+              setGameState(prev => ({
+                ...prev,
+                containersClosed: prev.containersClosed + 1,
+                container: null,
+                containerSpawning: true
+              }));
+
+              currentSpeed = currentSpeed * 1.02;
+              conveyorSpeedRef.current = currentSpeed;
+              
+              // Запускаем таймер перезарядки
+              setTimeout(() => {
+                containerCountRef.current = 0;
+                containerChainedCountRef.current = 0;
+                // Генерируем случайную вместимость для следующего контейнера
+                const newCapacity = generateContainerCapacity();
+                setGameState(prev => ({
+                  ...prev,
+                  containerSpawning: false,
+                  container: {
+                    y: 88,
+                    count: 0,
+                    capacity: newCapacity
+                  }
+                }));
+              }, 1000);
+            }
+          } else {
+            // ОШИБКА: Коробка без флага isChained попала в контейнер
+            // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
+            livesLost++;
+            containerErrorAnimRef.current = true;
+            containerErrorAnimStartTimeRef.current = Date.now();
+            
+            // Отправляем контейнер на перезарядку
+            setGameState(prev => ({
+              ...prev,
               container: null,
               containerSpawning: true
             }));
-
-            currentSpeed = currentSpeed * 1.02;
-            conveyorSpeedRef.current = currentSpeed;
             
             // Запускаем таймер перезарядки
             setTimeout(() => {
               containerCountRef.current = 0;
+              containerChainedCountRef.current = 0;
+              containerErrorAnimRef.current = false;
+              containerErrorAnimStartTimeRef.current = 0;
               // Генерируем случайную вместимость для следующего контейнера
               const newCapacity = generateContainerCapacity();
               setGameState(prev => ({
@@ -285,6 +361,15 @@ export function useGame2() {
       return true;
     });
 
+    // Обрабатываем анимацию ошибки контейнера (сбрасываем через 1 секунду)
+    const now = Date.now();
+    if (containerErrorAnimRef.current && containerErrorAnimStartTimeRef.current) {
+      if (now - containerErrorAnimStartTimeRef.current > 1000) {
+        containerErrorAnimRef.current = false;
+        containerErrorAnimStartTimeRef.current = 0;
+      }
+    }
+
     // Обновляем жизни
     let newLives = currentState.lives - livesLost;
     if (newLives < 0) newLives = 0;
@@ -299,7 +384,8 @@ export function useGame2() {
       score: prev.score + scoreGained,
       lives: newLives,
       conveyorSpeed: currentSpeed,
-      gameTime: Date.now() - gameStartTimeRef.current
+      gameTime: Date.now() - gameStartTimeRef.current,
+      containerErrorAnim: containerErrorAnimRef.current
     }));
   }, []);
 
