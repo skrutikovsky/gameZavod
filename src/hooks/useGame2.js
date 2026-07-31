@@ -334,95 +334,86 @@ export function useGame2() {
     
     // Обрабатываем коробки которые достигли контейнера
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // Сортируем достигшие коробки по позиции Y (сверху вниз)
-      boxesReachedContainer.sort((a, b) => a.y - b.y);
+      // Проверяем все ли коробки в цепочке имеют isInChainGroup=true (являются частью группы идущих подряд)
+      const allInChain = boxesReachedContainer.every(box => box.isInChainGroup);
       
-      // Находим самую верхнюю коробку среди тех, что достигли контейнера в этом кадре
-      const topmostReachedBox = boxesReachedContainer[0];
-      
-      // Проверяем, связана ли самая верхняя из достигших коробок с любой коробкой выше неё
-      // которая ещё не достигла контейнера (не помечена на удаление)
-      let isConnectedToAbove = false;
-      
-      // Ищем ближайшую коробку выше самой верхней из достигших контейнера
-      for (const box of boxesRef.current) {
-        if (!box.markedForDeletion && box.y < topmostReachedBox.y) {
-          const boxBottom = box.y + boxHeightPercent;
-          const currentBoxTop = topmostReachedBox.y;
-          
-          // Проверяем, соприкасается ли эта коробка с достигнувшей контейнера
-          if (Math.abs(boxBottom - currentBoxTop) <= 1) {
-            isConnectedToAbove = true;
-            break;
-          }
-        }
-      }
-      
-      // Определяем, является ли текущая партия коробок продолжением цепочки
-      let shouldResetCounter = false;
-      
-      if (containerChainedCountRef.current === 0) {
-        // Это первая коробка/партия в новом контейнере
-        // Цепочка начинается, сбрасывать не нужно
-        shouldResetCounter = false;
-      } else if (isConnectedToAbove) {
-        // Есть связь с предыдущей коробкой - цепочка продолжается
-        shouldResetCounter = false;
-      } else {
-        // Нет связи с предыдущей коробкой, но счетчик не нулевой
-        // Значит был разрыв в цепочке - сбрасываем счетчик
-        shouldResetCounter = true;
-      }
-      
-      // Если был разрыв, сбрасываем счетчики перед добавлением новых коробок
-      if (shouldResetCounter) {
-        containerChainedCountRef.current = 0;
-        containerCountRef.current = 0;
-      }
-      
-      // Добавляем все коробки из текущей партии к счетчику
-      boxesReachedContainer.forEach(box => {
-        containerChainedCountRef.current++;
-        containerCountRef.current++;
-        boxesFixedThisUpdate++;
-      });
-      
-      setGameState(prev => ({
-        ...prev,
-        container: prev.container ? {
-          ...prev.container,
-          count: containerCountRef.current
-        } : null
-      }));
-      
-      // Проверка на заполнение контейнера
-      if (containerCountRef.current >= currentState.container.capacity) {
-        // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
-        scoreGained += 100 * newMultiplier;
-        newComboCount++;
-        
-        if (newComboCount >= 30) {
-          newMultiplier = 2;
-        } else if (newComboCount >= 10) {
-          newMultiplier = 1.5;
-        } else {
-          newMultiplier = 1;
-        }
+      if (allInChain) {
+        // Все коробки в цепочке - увеличиваем счетчик
+        boxesReachedContainer.forEach(box => {
+          containerChainedCountRef.current++;
+          containerCountRef.current++;
+          boxesFixedThisUpdate++;
+        });
         
         setGameState(prev => ({
           ...prev,
-          containersClosed: prev.containersClosed + 1,
+          container: prev.container ? {
+            ...prev.container,
+            count: containerCountRef.current
+          } : null
+        }));
+        
+        // Проверка на заполнение контейнера
+        if (containerCountRef.current >= currentState.container.capacity) {
+          // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
+          scoreGained += 100 * newMultiplier;
+          newComboCount++;
+          
+          if (newComboCount >= 30) {
+            newMultiplier = 2;
+          } else if (newComboCount >= 10) {
+            newMultiplier = 1.5;
+          } else {
+            newMultiplier = 1;
+          }
+          
+          setGameState(prev => ({
+            ...prev,
+            containersClosed: prev.containersClosed + 1,
+            container: null,
+            containerSpawning: true
+          }));
+          
+          currentSpeed = currentSpeed * 1.02;
+          conveyorSpeedRef.current = currentSpeed;
+          
+          // Запускаем таймер перезарядки
+          setTimeout(() => {
+            containerCountRef.current = 0;
+            containerChainedCountRef.current = 0;
+            // Генерируем случайную вместимость для следующего контейнера
+            const newCapacity = generateContainerCapacity();
+            setGameState(prev => ({
+              ...prev,
+              containerSpawning: false,
+              container: {
+                y: 88,
+                count: 0,
+                capacity: newCapacity
+              }
+            }));
+          }, 1000);
+        }
+      } else {
+        // ОШИБКА: Хотя бы одна коробка не является частью цепочки (isInChainGroup=false)
+        // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
+        livesLost++;
+        containerErrorAnimRef.current = true;
+        containerErrorAnimStartTimeRef.current = Date.now();
+        
+        // Отправляем контейнер на перезарядку
+        setGameState(prev => ({
+          ...prev,
           container: null,
           containerSpawning: true
         }));
-        
-        currentSpeed = currentSpeed * 1.02;
-        conveyorSpeedRef.current = currentSpeed;
         
         // Запускаем таймер перезарядки
         setTimeout(() => {
           containerCountRef.current = 0;
           containerChainedCountRef.current = 0;
+          containerErrorAnimRef.current = false;
+          containerErrorAnimStartTimeRef.current = 0;
           // Генерируем случайную вместимость для следующего контейнера
           const newCapacity = generateContainerCapacity();
           setGameState(prev => ({
