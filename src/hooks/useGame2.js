@@ -40,6 +40,9 @@ export function useGame2() {
   const containerChainedCountRef = useRef(0); // Счетчик цепочки коробок с isChained=true
   const containerErrorAnimRef = useRef(false); // Флаг анимации ошибки контейнера
   const containerErrorAnimStartTimeRef = useRef(0); // Время начала анимации ошибки
+  const lastBoxArrivalTimeRef = useRef(0); // Время прибытия последней коробки в контейнер
+  const containerWaitingForNextRef = useRef(false); // Флаг ожидания следующей коробки
+  const containerTimeoutIdRef = useRef(null); // ID таймера ожидания следующей коробки
 
   // Обновляем ref при изменении состояния
   useEffect(() => {
@@ -57,6 +60,12 @@ export function useGame2() {
     containerChainedCountRef.current = 0;
     containerErrorAnimRef.current = false;
     containerErrorAnimStartTimeRef.current = 0;
+    lastBoxArrivalTimeRef.current = 0;
+    containerWaitingForNextRef.current = false;
+    if (containerTimeoutIdRef.current) {
+      clearTimeout(containerTimeoutIdRef.current);
+      containerTimeoutIdRef.current = null;
+    }
 
     setGameState({
       isRunning: false,
@@ -334,28 +343,133 @@ export function useGame2() {
     
     // Обрабатываем коробки которые достигли контейнера
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // Проверяем все ли коробки в цепочке имеют isInChainGroup=true (являются частью группы идущих подряд)
-      const allInChain = boxesReachedContainer.every(box => box.isInChainGroup);
+      // Сортируем достигшие коробки по позиции Y (сверху вниз)
+      boxesReachedContainer.sort((a, b) => a.y - b.y);
       
-      if (allInChain) {
-        // Все коробки в цепочке - увеличиваем счетчик
-        boxesReachedContainer.forEach(box => {
-          containerChainedCountRef.current++;
-          containerCountRef.current++;
-          boxesFixedThisUpdate++;
+      // Находим самую верхнюю коробку среди тех, что достигли контейнера в этом кадре
+      const topmostReachedBox = boxesReachedContainer[0];
+      
+      // Проверяем, связана ли самая верхняя из достигших коробок с любой коробкой выше неё
+      // которая ещё не достигла контейнера (не помечена на удаление)
+      let isConnectedToAbove = false;
+      
+      // Ищем ближайшую коробку выше самой верхней из достигших контейнера
+      for (const box of boxesRef.current) {
+        if (!box.markedForDeletion && box.y < topmostReachedBox.y) {
+          const boxBottom = box.y + boxHeightPercent;
+          const currentBoxTop = topmostReachedBox.y;
+          
+          // Проверяем, соприкасается ли эта коробка с достигнувшей контейнера
+          if (Math.abs(boxBottom - currentBoxTop) <= 1) {
+            isConnectedToAbove = true;
+            break;
+          }
+        }
+      }
+      
+      // Вычисляем интервал между прибытием коробок для динамического таймаута
+      const now = Date.now();
+      let timeSinceLastBox = now - lastBoxArrivalTimeRef.current;
+      let expectedInterval = 30; // Базовый интервал 30мс
+      
+      // Если это не первая коробка и у нас есть предыдущий интервал, используем его
+      if (containerChainedCountRef.current > 0 && lastBoxArrivalTimeRef.current > 0) {
+        // Динамически вычисляем ожидаемый интервал на основе времени между последними коробками
+        // Добавляем погрешность 50% к интервалу
+        expectedInterval = timeSinceLastBox * 1.1; // 10% запас
+        // Ограничиваем минимальный и максимальный интервал
+        expectedInterval = Math.max(20, Math.min(100, expectedInterval));
+      }
+      
+      // Проверяем, не произошел ли разрыв в цепочке по времени
+      // Если прошло больше ожидаемого интервала с последней коробки и это не первая коробка
+      if (containerChainedCountRef.current > 0 && 
+          lastBoxArrivalTimeRef.current > 0 && 
+          timeSinceLastBox > expectedInterval + 33) {
+        // Произошел разрыв во времени - сбрасываем счетчики и отнимаем жизнь
+        containerChainedCountRef.current = 0;
+        containerCountRef.current = 0;
+        livesLost++;
+        
+        // Запускаем анимацию ошибки контейнера
+        containerErrorAnimRef.current = true;
+        containerErrorAnimStartTimeRef.current = Date.now();
+        
+        // Очищаем коробки из контейнера
+        const boxesInContainer = boxesRef.current.filter(box => box.markedForDeletion);
+        boxesInContainer.forEach(box => {
+          box.markedTime = Date.now() - 300; // Чтобы удалились сразу
         });
+      }
+      
+      // Определяем, является ли текущая партия коробок продолжением цепочки
+      let shouldResetCounter = false;
+      
+      if (containerChainedCountRef.current === 0) {
+        // Это первая коробка/партия в новом контейнере
+        // Цепочка начинается, сбрасывать не нужно
+        shouldResetCounter = false;
+      } else if (isConnectedToAbove) {
+        // Есть связь с предыдущей коробкой - цепочка продолжается
+        shouldResetCounter = false;
+      } else {
+        // Нет связи с предыдущей коробкой, но счетчик не нулевой
+        // Значит был разрыв в цепочке - сбрасываем счетчик
+        shouldResetCounter = true;
+      }
+      
+      // Если был разрыв, сбрасываем счетчики перед добавлением новых коробок
+      if (shouldResetCounter) {
+        containerChainedCountRef.current = 0;
+        containerCountRef.current = 0;
+      }
+      
+      // Обновляем время прибытия последней коробки
+      lastBoxArrivalTimeRef.current = now;
+      
+      // Добавляем все коробки из текущей партии к счетчику
+      boxesReachedContainer.forEach(box => {
+        containerChainedCountRef.current++;
+        containerCountRef.current++;
+        boxesFixedThisUpdate++;
+      });
+      
+      setGameState(prev => ({
+        ...prev,
+        container: prev.container ? {
+          ...prev.container,
+          count: containerCountRef.current
+        } : null
+      }));
+      
+      // Проверка на заполнение контейнера - теперь проверяем что ВСЕ коробки образуют единую цепочку
+      if (containerCountRef.current >= currentState.container.capacity) {
+        // ПРОВЕРЯЕМ: все ли коробки в контейнере образуют непрерывную цепочку
+        // Для этого нужно проверить что каждая коробка соприкасается с предыдущей
+        let isContinuousChain = true;
         
-        setGameState(prev => ({
-          ...prev,
-          container: prev.container ? {
-            ...prev.container,
-            count: containerCountRef.current
-          } : null
-        }));
+        // Получаем все коробки которые сейчас в "зоне контейнера" (помечены на удаление)
+        const boxesInContainer = boxesRef.current.filter(box => box.markedForDeletion);
         
-        // Проверка на заполнение контейнера
-        if (containerCountRef.current >= currentState.container.capacity) {
-          // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
+        // Сортируем их по позиции Y (сверху вниз)
+        boxesInContainer.sort((a, b) => a.y - b.y);
+        
+        // Проверяем что каждая коробка соприкасается с предыдущей
+        for (let i = 1; i < boxesInContainer.length; i++) {
+          const prevBox = boxesInContainer[i - 1];
+          const currentBox = boxesInContainer[i];
+          const prevBoxBottom = prevBox.y + boxHeightPercent;
+          const currentBoxTop = currentBox.y;
+          
+          // Если расстояние больше 1 пикселя - разрыв в цепочке
+          if (Math.abs(prevBoxBottom - currentBoxTop) > 1) {
+            isContinuousChain = false;
+            break;
+          }
+        }
+        
+        if (isContinuousChain) {
+          // УСПЕХ: Контейнер заполнен правильным количеством связных коробок подряд
           scoreGained += 100 * newMultiplier;
           newComboCount++;
           
@@ -393,39 +507,72 @@ export function useGame2() {
               }
             }));
           }, 1000);
-        }
-      } else {
-        // ОШИБКА: Хотя бы одна коробка не является частью цепочки (isInChainGroup=false)
-        // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
-        livesLost++;
-        containerErrorAnimRef.current = true;
-        containerErrorAnimStartTimeRef.current = Date.now();
-        
-        // Отправляем контейнер на перезарядку
-        setGameState(prev => ({
-          ...prev,
-          container: null,
-          containerSpawning: true
-        }));
-        
-        // Запускаем таймер перезарядки
-        setTimeout(() => {
+        } else {
+          // ОШИБКА: Коробки не образуют непрерывную цепочку (были разрывы)
+          // Отнимаем жизни за неправильное заполнение
+          livesLost++;
+          
+          // Запускаем анимацию ошибки контейнера
+          containerErrorAnimRef.current = true;
+          containerErrorAnimStartTimeRef.current = Date.now();
+          
+          // Сбрасываем счетчики
           containerCountRef.current = 0;
           containerChainedCountRef.current = 0;
-          containerErrorAnimRef.current = false;
-          containerErrorAnimStartTimeRef.current = 0;
-          // Генерируем случайную вместимость для следующего контейнера
-          const newCapacity = generateContainerCapacity();
+          
+          // Очищаем коробки из контейнера (помечаем на немедленное удаление)
+          boxesInContainer.forEach(box => {
+            box.markedTime = Date.now() - 300; // Чтобы удалились сразу
+          });
+        }
+      }
+      
+      // Проверяем, не нужно ли запустить таймер ожидания следующей коробки
+      // Если мы получили часть коробок но еще не заполнили контейнер
+      if (containerCountRef.current > 0 && 
+          containerCountRef.current < currentState.container.capacity) {
+        // Запускаем таймер ожидания следующей коробки
+        // Если следующая коробка не придет вовремя - считаем это ошибкой
+        
+        // Очищаем предыдущий таймер если он есть
+        if (containerTimeoutIdRef.current) {
+          clearTimeout(containerTimeoutIdRef.current);
+        }
+        
+        // Вычисляем динамический таймаут на основе интервала между коробками
+        // Используем последний измеренный интервал + 33мс запас
+        let timeoutDuration = expectedInterval + 33;
+        // Ограничиваем минимальное и максимальное время ожидания
+        timeoutDuration = Math.max(50, Math.min(200, timeoutDuration));
+        
+        containerTimeoutIdRef.current = setTimeout(() => {
+          // Таймер истек - следующая коробка не пришла вовремя
+          // Это означает разрыв в цепочке - отнимаем жизнь и сбрасываем контейнер
+          containerChainedCountRef.current = 0;
+          containerCountRef.current = 0;
+          
+          // Отнимаем жизнь
+          livesLost++;
+          
+          // Запускаем анимацию ошибки контейнера
+          containerErrorAnimRef.current = true;
+          containerErrorAnimStartTimeRef.current = Date.now();
+          
+          // Очищаем коробки из контейнера
+          const boxesInContainer = boxesRef.current.filter(box => box.markedForDeletion);
+          boxesInContainer.forEach(box => {
+            box.markedTime = Date.now() - 300; // Чтобы удалились сразу
+          });
+          
+          // Обновляем состояние для отображения потери жизни
           setGameState(prev => ({
             ...prev,
-            containerSpawning: false,
-            container: {
-              y: 88,
-              count: 0,
-              capacity: newCapacity
-            }
+            lives: prev.lives - 1,
+            containerErrorAnim: true
           }));
-        }, 1000);
+          
+          containerTimeoutIdRef.current = null;
+        }, timeoutDuration);
       }
     } else if (boxesReachedContainer.length > 0 && (!currentState.container || currentState.containerSpawning)) {
       // Коробки достигли контейнера но он на перезарядке - отнимаем жизни за каждую
