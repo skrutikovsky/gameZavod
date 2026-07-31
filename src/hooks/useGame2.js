@@ -334,51 +334,11 @@ export function useGame2() {
     
     // Обрабатываем коробки которые достигли контейнера
     if (boxesReachedContainer.length > 0 && currentState.container && !currentState.containerSpawning) {
-      // НОВАЯ ЛОГИКА: Проверяем что коробки достигают контейнера непрерывной цепочкой
-      // без перерывов. Для этого смотрим на последние коробки в массиве boxesRef
-      // и проверяем что они все соприкасаются друг с другом и их количество >= capacity
+      // Проверяем все ли коробки в цепочке имеют isInChainGroup=true (являются частью группы идущих подряд)
+      const allInChain = boxesReachedContainer.every(box => box.isInChainGroup);
       
-      const requiredCount = currentState.container.capacity;
-      
-      // Сортируем коробки по Y (сверху вниз, т.е. по порядку достижения контейнера)
-      const sortedBoxes = [...boxesRef.current].sort((a, b) => a.y - b.y);
-      
-      // Находим самую нижнюю коробку (последнюю достигшую контейнера)
-      // И проверяем цепочку снизу вверх
-      let consecutiveChainedCount = 0;
-      let lastBoxY = null;
-      
-      // Проходим по коробкам снизу вверх (от последних к первым)
-      for (let i = sortedBoxes.length - 1; i >= 0; i--) {
-        const box = sortedBoxes[i];
-        
-        // Пропускаем коробки которые ещё не достигли зоны контейнера
-        if (box.y < 85) {
-          break; // Цепочка прерывается так как дошли до коробок выше зоны контейнера
-        }
-        
-        if (lastBoxY === null) {
-          // Это самая нижняя коробка - начинаем отсчет
-          consecutiveChainedCount = 1;
-          lastBoxY = box.y;
-        } else {
-          // Проверяем соприкасается ли эта коробка с предыдущей (нижней)
-          const expectedY = lastBoxY - boxHeightPercent;
-          const isTouching = Math.abs(box.y - expectedY) <= 1;
-          
-          if (isTouching) {
-            consecutiveChainedCount++;
-            lastBoxY = box.y;
-          } else {
-            // Цепочка прервалась - останавливаемся
-            break;
-          }
-        }
-      }
-      
-      // Проверяем набрали ли необходимую непрерывную цепочку
-      if (consecutiveChainedCount >= requiredCount) {
-        // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
+      if (allInChain) {
+        // Все коробки в цепочке - увеличиваем счетчик
         boxesReachedContainer.forEach(box => {
           containerChainedCountRef.current++;
           containerCountRef.current++;
@@ -394,7 +354,8 @@ export function useGame2() {
         }));
         
         // Проверка на заполнение контейнера
-        if (containerCountRef.current >= requiredCount) {
+        if (containerCountRef.current >= currentState.container.capacity) {
+          // УСПЕХ: Контейнер заполнен правильным количеством коробок подряд
           scoreGained += 100 * newMultiplier;
           newComboCount++;
           
@@ -434,7 +395,8 @@ export function useGame2() {
           }, 1000);
         }
       } else {
-        // ОШИБКА: Цепочка прервалась или недостаточно коробок подряд
+        // ОШИБКА: Хотя бы одна коробка не является частью цепочки (isInChainGroup=false)
+        // Это означает что цепочка прервалась - контейнер закрывается с ошибкой
         livesLost++;
         containerErrorAnimRef.current = true;
         containerErrorAnimStartTimeRef.current = Date.now();
