@@ -279,13 +279,16 @@ export function useGame2() {
       groups.push([...currentGroup]);
     }
     
-    // Теперь устанавливаем isInChainGroup = true только для первых maxChainLength коробок в каждой группе
+    // Теперь устанавливаем isInChainGroup = true только для НИЖНИХ maxChainLength коробок в каждой группе
+    // Счет ведется с нижней коробки (ближайшей к контейнеру), т.е. с конца группы
     groups.forEach(group => {
       if (group.length >= 2) {
-        // Это цепочка из 2+ коробок - помечаем только первые maxChainLength коробок
+        // Это цепочка из 2+ коробок - помечаем только нижние maxChainLength коробок
         const boxesToMark = Math.min(group.length, maxChainLength);
+        // Берем коробки с конца группы (нижние = ближе к контейнеру)
         for (let i = 0; i < boxesToMark; i++) {
-          boxesRef.current[group[i]].isInChainGroup = true;
+          const boxIndex = group[group.length - 1 - i]; // Берем с конца
+          boxesRef.current[boxIndex].isInChainGroup = true;
         }
       }
     });
