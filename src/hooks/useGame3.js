@@ -136,34 +136,35 @@ export const useGame3 = () => {
 
     setGameState(prev => {
       // Если dropped в соответствующую коробку
-      if (dropZone === 'box' && item.type === dropZone) {
-        const newBoxes = prev.boxes.map(box => {
-          if (box.type === item.type) {
-            const newCount = box.count + 1;
+      if (typeof dropZone === 'number' && dropZone === item.type) {
+        const box = prev.boxes.find(b => b.type === item.type);
+        const newCount = box.count + 1;
+        let pointsEarned = 0;
+        
+        const newBoxes = prev.boxes.map(b => {
+          if (b.type === item.type) {
             if (newCount >= MAX_BOX_COUNT) {
               // Коробка заполнена - начисляем очки и сбрасываем счетчик
+              pointsEarned = b.points;
               return {
-                ...box,
+                ...b,
                 count: 0,
               };
             }
             return {
-              ...box,
+              ...b,
               count: newCount,
             };
           }
-          return box;
+          return b;
         });
-
-        const pointsEarned = prev.boxes.find(b => b.type === item.type)?.points || 0;
-        const boxWasFull = prev.boxes.find(b => b.type === item.type)?.count === MAX_BOX_COUNT - 1;
 
         // Удаляем предмет из списка
         const newItems = prev.items.filter(i => i.id !== item.id);
 
         return {
           ...prev,
-          score: boxWasFull ? prev.score + pointsEarned : prev.score,
+          score: prev.score + pointsEarned,
           boxes: newBoxes,
           items: newItems,
           draggedItem: null,
@@ -172,23 +173,34 @@ export const useGame3 = () => {
 
       // Если dropped на доску-плоскость - предмет остается там где его бросили
       if (dropZone === 'board') {
-        const newItems = prev.items.map(i => {
-          if (i.id === item.id) {
-            // Вычисляем новые координаты относительно правой части
-            return {
-              ...i,
-              x: i.x,
-              y: i.y,
-            };
-          }
-          return i;
-        });
+        // Вычисляем новые координаты относительно правой части
+        const rightPanel = document.querySelector('[data-right-panel]');
+        if (rightPanel) {
+          const rect = rightPanel.getBoundingClientRect();
+          const newX = ((gameState.dragPosition.x - rect.left) / rect.width) * 100;
+          const newY = ((gameState.dragPosition.y - rect.top) / rect.height) * 100;
+          
+          // Ограничиваем координаты пределами доски (5-95%)
+          const clampedX = Math.max(5, Math.min(95, newX));
+          const clampedY = Math.max(5, Math.min(95, newY));
+          
+          const newItems = prev.items.map(i => {
+            if (i.id === item.id) {
+              return {
+                ...i,
+                x: clampedX,
+                y: clampedY,
+              };
+            }
+            return i;
+          });
 
-        return {
-          ...prev,
-          items: newItems,
-          draggedItem: null,
-        };
+          return {
+            ...prev,
+            items: newItems,
+            draggedItem: null,
+          };
+        }
       }
 
       // В любом другом случае - возвращаем предмет обратно
@@ -200,7 +212,7 @@ export const useGame3 = () => {
 
     draggedItemRef.current = null;
     originalPositionRef.current = null;
-  }, []);
+  }, [gameState.dragPosition]);
 
   const updateItemPosition = useCallback((itemId, newX, newY) => {
     setGameState(prev => ({

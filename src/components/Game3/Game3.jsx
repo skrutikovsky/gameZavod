@@ -16,6 +16,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const leftPanelRef = useRef(null);
   const rightPanelRef = useRef(null);
   const draggedItemElementRef = useRef(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     startGame();
@@ -87,6 +88,17 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   // Обработчик начала перетаскивания
   const onItemDragStart = useCallback((item, e) => {
     e.preventDefault();
+    
+    const rect = e.target.getBoundingClientRect();
+    const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
+    const clientY = e.clientY || e.touches?.[0]?.clientY || 0;
+    
+    // Вычисляем смещение относительно центра предмета
+    dragOffsetRef.current = {
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2,
+    };
+    
     handleDragStart(item, e);
     
     // Создаем визуальный элемент для перетаскивания
@@ -95,20 +107,22 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     element.style.pointerEvents = 'none';
     element.style.zIndex = '1000';
     element.style.opacity = '0.8';
+    element.style.width = `${rect.width}px`;
+    element.style.height = `${rect.height}px`;
     document.body.appendChild(element);
     draggedItemElementRef.current = element;
 
     const updateDragElement = (clientX, clientY) => {
       if (draggedItemElementRef.current) {
-        draggedItemElementRef.current.style.left = `${clientX - 25}px`;
-        draggedItemElementRef.current.style.top = `${clientY - 25}px`;
+        draggedItemElementRef.current.style.left = `${clientX - dragOffsetRef.current.x - rect.width / 2}px`;
+        draggedItemElementRef.current.style.top = `${clientY - dragOffsetRef.current.y - rect.height / 2}px`;
       }
     };
 
     const onMouseMove = (moveEvent) => {
-      const clientX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX || 0;
-      const clientY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY || 0;
-      updateDragElement(clientX, clientY);
+      const moveClientX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX || 0;
+      const moveClientY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY || 0;
+      updateDragElement(moveClientX, moveClientY);
     };
 
     const onMouseUpHandler = () => {
@@ -173,7 +187,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           <div
             key={box.type}
             data-box-type={box.type}
-            className={`relative ${getItemColor(box.type)} rounded-lg p-3 shadow-lg border-4 border-white/30 transition-all hover:scale-105`}
+            className={`relative ${getItemColor(box.type)} rounded-lg p-3 shadow-lg border-4 border-white/30 transition-all hover:scale-102`}
           >
             <div className="flex items-center justify-between">
               <span className="text-3xl">{getItemIcon(box.type)}</span>
@@ -206,19 +220,23 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {/* Правая панель - доска-плоскость (2/3 ширины) */}
       <div 
         ref={rightPanelRef}
-        className="h-full bg-gradient-to-b from-slate-800 to-slate-600 p-4 relative"
+        data-right-panel
+        className="h-full bg-gradient-to-b from-stone-400 to-stone-500 p-4 relative border-l-8 border-stone-600 shadow-inner"
         style={{ width: '66.67%' }}
       >
-        <h2 className="text-white text-xl font-bold mb-4">Доска предметов</h2>
-        <div className="text-white/70 text-sm mb-2">
-          Предметов на доске: {gameState.items.length}
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+')] opacity-30 pointer-events-none"></div>
+        <div className="relative z-10">
+          <h2 className="text-white text-xl font-bold mb-4 drop-shadow-lg">Доска предметов</h2>
+          <div className="text-white/90 text-sm mb-2 font-medium drop-shadow">
+            Предметов на доске: {gameState.items.length}
+          </div>
         </div>
         
         {/* Предметы на доске */}
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-md cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/50 hover:scale-110 transition-transform`}
+            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
               top: `${item.y}%`,

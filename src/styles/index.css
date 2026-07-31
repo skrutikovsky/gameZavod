@@ -224,3 +224,8 @@ body {
     border-radius: 6px;
   }
 }
+
+/* Стили для Game3 - hover эффект для коробок */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
