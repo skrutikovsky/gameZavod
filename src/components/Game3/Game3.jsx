@@ -72,7 +72,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           dropZone = 'board';
         }
 
-        handleDragEnd(dropZone, dragPos);
+        handleDragEnd(dropZone);
       }
     };
 
@@ -240,11 +240,11 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform ${gameState.draggedItem?.id === item.id ? 'item-hidden' : ''} ${item.isFalling ? 'item-drop-bounce' : ''} ${!item.isFalling && item.scatterDirection === 'left' ? 'item-scatter-left' : ''} ${!item.isFalling && item.scatterDirection === 'right' ? 'item-scatter-right' : ''}`}
+            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
               top: item.isFalling ? `${item.y}%` : `${item.targetY || item.y}%`,
-              transition: item.isFalling ? 'none' : 'none',
+              transition: item.isFalling ? 'top 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}

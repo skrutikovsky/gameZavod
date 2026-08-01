@@ -50,8 +50,6 @@ const generateItems = (startFromTop = false) => {
   for (let typeIdx = 0; typeIdx < counts.length; typeIdx++) {
     for (let i = 0; i < counts[typeIdx]; i++) {
       const targetY = Math.random() * 80 + 10; // Целевая позиция для анимации падения (10-90% высоты)
-      // Определяем направление разлета (left/right) для реалистичного разброса
-      const scatterDir = Math.random() < 0.5 ? 'left' : 'right';
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
@@ -59,7 +57,6 @@ const generateItems = (startFromTop = false) => {
         y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
         targetY: targetY,
         isFalling: startFromTop, // Флаг анимации падения
-        scatterDirection: scatterDir, // Направление разлета
       });
     }
   }
@@ -87,7 +84,6 @@ export const useGame3 = () => {
     dragPosition: { x: 0, y: 0 },
     isRoundComplete: false,
     gameStarted: false, // Флаг что игра началась (для анимации первого респавна)
-    scatterDirection: {}, // Направление разлета для каждого предмета (left/right)
   });
 
   const draggedItemRef = useRef(null);
@@ -150,7 +146,7 @@ export const useGame3 = () => {
     }));
   }, []);
 
-  const handleDragEnd = useCallback((dropZone, dragPosition) => {
+  const handleDragEnd = useCallback((dropZone) => {
     if (!draggedItemRef.current) return;
 
     const item = draggedItemRef.current;
@@ -199,10 +195,8 @@ export const useGame3 = () => {
         const rightPanel = document.querySelector('[data-right-panel]');
         if (rightPanel) {
           const rect = rightPanel.getBoundingClientRect();
-          // Учитываем размер предмета (48px = w-12) для центрирования под курсором
-          const itemSize = 48;
-          const newX = ((dragPosition.x - rect.left - itemSize / 2) / rect.width) * 100;
-          const newY = ((dragPosition.y - rect.top - itemSize / 2) / rect.height) * 100;
+          const newX = ((gameState.dragPosition.x - rect.left) / rect.width) * 100;
+          const newY = ((gameState.dragPosition.y - rect.top) / rect.height) * 100;
           
           // Ограничиваем координаты пределами доски (5-95%)
           const clampedX = Math.max(5, Math.min(95, newX));
@@ -238,7 +232,7 @@ export const useGame3 = () => {
 
     draggedItemRef.current = null;
     originalPositionRef.current = null;
-  }, []);
+  }, [gameState.dragPosition]);
 
   const updateItemPosition = useCallback((itemId, newX, newY) => {
     setGameState(prev => ({
@@ -293,7 +287,7 @@ export const useGame3 = () => {
             y: item.targetY, // Устанавливаем финальную позицию
           })),
         }));
-      }, 800); // Время анимации должно совпадать с transition в CSS (0.8s для dropBounce)
+      }, 600); // Время анимации должно совпадать с transition в CSS
       return () => clearTimeout(timeout);
     }
   }, [gameState.items]);
