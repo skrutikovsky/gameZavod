@@ -230,35 +230,35 @@ body {
   transform: scale(1.02);
 }
 
-/* Анимация падения с отскоком для предметов Game3 */
+/* Анимация падения с отскоком для предметов Game3 - реалистичная физика */
 @keyframes dropBounce {
   0% {
-    transform: translateY(-100vh);
-    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+    transform: translateY(-150vh) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.8, 0.2); /* Быстрое ускорение вниз */
   }
-  60% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  55% {
+    transform: translateY(0) rotate(5deg);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); /* Замедление перед отскоком */
   }
-  75% {
-    transform: translateY(-20px);
-    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  70% {
+    transform: translateY(-40px) rotate(-3deg);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.8, 0.2);
   }
-  85% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  80% {
+    transform: translateY(0) rotate(2deg);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
   }
-  92% {
-    transform: translateY(-8px);
-    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  90% {
+    transform: translateY(-15px) rotate(-1deg);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.8, 0.2);
   }
   100% {
-    transform: translateY(0);
+    transform: translateY(0) rotate(0deg);
   }
 }
 
 .item-drop-bounce {
-  animation: dropBounce 0.8s ease-out forwards;
+  animation: dropBounce 1s ease-out forwards;
 }
 
 /* Скрытие оригинального предмета при перетаскивании */
