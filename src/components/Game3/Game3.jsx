@@ -1,7 +1,16 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useGame3 } from '../../hooks/useGame3';
 
 const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
+  // Обработчик появления новых предметов для анимации
+  const handleItemSpawned = useCallback((itemIds) => {
+    setAnimatingItems(new Set(itemIds));
+    // Удаляем предметы из списка анимируемых после завершения анимации (800ms)
+    setTimeout(() => {
+      setAnimatingItems(new Set());
+    }, 800);
+  }, []);
+
   const {
     gameState,
     startGame,
@@ -10,13 +19,16 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     handleDragEnd,
     ITEM_TYPES,
     MAX_BOX_COUNT,
-  } = useGame3();
+  } = useGame3(handleItemSpawned);
 
   const gameContainerRef = useRef(null);
   const leftPanelRef = useRef(null);
   const rightPanelRef = useRef(null);
   const draggedItemElementRef = useRef(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  // Состояние для анимации появления предметов
+  const [animatingItems, setAnimatingItems] = useState(new Set());
 
   useEffect(() => {
     startGame();
@@ -237,21 +249,66 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </div>
         
         {/* Предметы на доске */}
-        {gameState.items.map((item) => (
-          <div
-            key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105`}
-            style={{
-              left: `${item.x}%`,
-              top: `${item.y}%`,
-            }}
-            onMouseDown={(e) => onItemDragStart(item, e)}
-            onTouchStart={(e) => onItemDragStart(item, e)}
-          >
-            {getItemIcon(item.type)}
-          </div>
-        ))}
+        {gameState.items.map((item) => {
+          // Генерируем уникальные параметры падения для каждого предмета на основе его id
+          const itemHash = item.id.split('-').reduce((acc, str) => acc + str.charCodeAt(0), 0);
+          const randomOffsetX = ((itemHash % 100) / 100 - 0.5) * 40; // -20% to 20%
+          const randomRotation = (itemHash % 360) - 180; // -180 to 180 degrees
+          
+          return (
+            <div
+              key={item.id}
+              className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105`}
+              style={{
+                left: `${item.x}%`,
+                top: `${item.y}%`,
+                animation: animatingItems.has(item.id) 
+                  ? `dropIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`
+                  : undefined,
+                '--random-offset-x': `${randomOffsetX}%`,
+                '--random-rotation': `${randomRotation}deg`,
+              }}
+              onMouseDown={(e) => onItemDragStart(item, e)}
+              onTouchStart={(e) => onItemDragStart(item, e)}
+            >
+              {getItemIcon(item.type)}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Стили для анимации падения предметов */}
+      <style>{`
+        @keyframes dropIn {
+          0% {
+            transform: translateY(-100vh) translateX(var(--random-offset-x)) scale(0.3) rotate(var(--random-rotation));
+            opacity: 0;
+          }
+          50% {
+            transform: translateY(0) translateX(0) scale(1.15, 0.9) rotate(0deg);
+            opacity: 1;
+          }
+          65% {
+            transform: translateY(-25px) translateX(0) scale(0.95, 1.05) rotate(0deg);
+          }
+          75% {
+            transform: translateY(0) translateX(0) scale(1.05, 0.95) rotate(0deg);
+          }
+          85% {
+            transform: translateY(-12px) translateX(0) scale(0.98, 1.02) rotate(0deg);
+          }
+          92% {
+            transform: translateY(0) translateX(0) scale(1.02, 0.98) rotate(0deg);
+          }
+          96% {
+            transform: translateY(-6px) translateX(0) scale(0.99, 1.01) rotate(0deg);
+          }
+          100% {
+            transform: translateY(0) translateX(0) scale(1) rotate(0deg);
+            opacity: 1;
+          }
+        }
+      `}</style>
 
       {/* Кнопка назад */}
       <button
