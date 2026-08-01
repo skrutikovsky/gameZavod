@@ -57,13 +57,6 @@ const generateItems = () => {
         type: typeIdx + 1,
         x: targetX,
         y: targetY,
-        // Для анимации падения: начальная позиция сверху (-10%), текущая анимационная позиция
-        animX: targetX,
-        animY: -10,
-        isFalling: true,
-        bouncePhase: 0,
-        bounceOffsetX: 0,
-        bounceOffsetY: 0,
       });
     }
   }
@@ -95,12 +88,9 @@ export const useGame3 = () => {
   const draggedItemRef = useRef(null);
   const originalPositionRef = useRef(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 }); // Смещение точки захвата предмета
-  const animationFrameRef = useRef(null);
-  const itemsInitializedRef = useRef(false);
 
   const startGame = useCallback(() => {
     const initialItems = generateItems();
-    itemsInitializedRef.current = true;
     
     setGameState(prev => ({
       ...prev,
@@ -279,115 +269,22 @@ export const useGame3 = () => {
     });
   }, []);
 
-  // Анимация падения предметов с отскоками
+  // Эффект для проверки завершения раунда (респавн после очистки всех предметов)
   useEffect(() => {
-    if (!itemsInitializedRef.current || gameState.items.length === 0) return;
-
-    const animateItems = () => {
-      let needsAnimation = false;
-      
-      setGameState(prev => {
-        const updatedItems = prev.items.map(item => {
-          if (!item.isFalling) return item;
-          
-          needsAnimation = true;
-          
-          const targetX = item.x;
-          const targetY = item.y;
-          
-          // Фаза 1: Падение сверху до целевой Y позиции
-          if (item.animY < targetY) {
-            const fallSpeed = 3; // Скорость падения
-            let newY = item.animY + fallSpeed;
-            
-            if (newY >= targetY) {
-              newY = targetY;
-              // Предмет достиг целевой позиции по Y, начинаем отскоки
-              return {
-                ...item,
-                animY: newY,
-                bouncePhase: 1,
-                bounceOffsetX: (Math.random() - 0.5) * 20, // Случайное направление по X
-                bounceOffsetY: -15, // Первый отскок вверх
-              };
-            }
-            
-            return {
-              ...item,
-              animY: newY,
-            };
-          }
-          
-          // Фаза 2: Отскоки (2-3 отскока)
-          if (item.bouncePhase >= 1 && item.bouncePhase <= 3) {
-            let newBounceOffsetY = item.bounceOffsetY + 1; // Гравитация для отскока
-            let newBounceOffsetX = item.bounceOffsetX;
-            
-            // Если отскок достиг "земли" (Y = 0)
-            if (newBounceOffsetY >= 0) {
-              newBounceOffsetY = 0;
-              // Переход к следующей фазе отскока или завершение
-              if (item.bouncePhase < 3) {
-                // Следующий отскок с меньшей амплитудой
-                return {
-                  ...item,
-                  bouncePhase: item.bouncePhase + 1,
-                  bounceOffsetX: (Math.random() - 0.5) * (20 / item.bouncePhase),
-                  bounceOffsetY: -15 / item.bouncePhase,
-                };
-              } else {
-                // Завершение анимации
-                return {
-                  ...item,
-                  isFalling: false,
-                  bouncePhase: 0,
-                  bounceOffsetX: 0,
-                  bounceOffsetY: 0,
-                };
-              }
-            }
-            
-            return {
-              ...item,
-              bounceOffsetX: newBounceOffsetX,
-              bounceOffsetY: newBounceOffsetY,
-            };
-          }
-          
-          return item;
-        });
-        
-        return {
+    if (gameState.items.length === 0) {
+      setTimeout(() => {
+        const newItems = generateItems();
+        setGameState(prev => ({
           ...prev,
-          items: updatedItems,
-        };
-      });
-      
-      if (needsAnimation) {
-        animationFrameRef.current = requestAnimationFrame(animateItems);
-      }
-    };
-    
-    // Запускаем анимацию через небольшой延迟 чтобы DOM успел отрендериться
-    const timeoutId = setTimeout(() => {
-      animationFrameRef.current = requestAnimationFrame(animateItems);
-    }, 50);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+          items: newItems,
+        }));
+      }, 500);
+    }
   }, [gameState.items.length]);
 
   // Очистка таймеров при размонтировании
   useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
+    return () => {};
   }, []);
 
   return {
