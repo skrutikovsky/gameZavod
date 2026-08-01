@@ -240,10 +240,10 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105`}
+            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
-              top: item.spawnAnimation ? `-20%` : `${item.targetY || item.y}%`,
+              top: item.spawnAnimation ? `${item.y}%` : `${item.targetY || item.y}%`,
               transition: 'none',
               opacity: gameState.draggedItem?.id === item.id ? 0 : 1,
               animation: item.spawnAnimation ? `dropBounceWithSpread 0.8s ease-out forwards` : 'none',
