@@ -240,13 +240,13 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-all`}
+            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
-              top: `${item.y}%`,
+              top: item.isFalling ? `${item.y}%` : `${item.targetY || item.y}%`,
               // Анимация падения с отскоком: используем cubic-bezier для эффекта пружины
               transition: item.isFalling 
-                ? 'top 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.6s ease-out' 
+                ? 'top 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53), left 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53)' 
                 : 'none',
               opacity: gameState.hiddenItemId === item.id ? 0 : 1, // Скрываем оригинал пока тащим копию
               pointerEvents: gameState.hiddenItemId === item.id ? 'none' : 'auto', // Отключаем события пока скрыт

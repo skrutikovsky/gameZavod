@@ -57,8 +57,9 @@ const generateItems = (startFromTop = false) => {
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
-        x: targetX + spreadX, // Позиция X с учетом разброса
+        x: startFromTop ? 50 + spreadX : targetX, // При старте сверху - центр с разбросом, иначе целевая позиция
         y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
+        targetX: targetX + spreadX, // Финальная позиция X с учетом разброса
         targetY: targetY, // Финальная позиция Y
         isFalling: startFromTop, // Флаг анимации падения
       });
@@ -164,9 +165,6 @@ export const useGame3 = () => {
 
     const item = draggedItemRef.current;
     const originalPos = originalPositionRef.current;
-    // Используем актуальную позицию курсора из gameState.dragPosition
-    const cursorX = gameState.dragPosition.x;
-    const cursorY = gameState.dragPosition.y;
 
     setGameState(prev => {
       // Сначала показываем оригинальный предмет (сбрасываем hiddenItemId)
@@ -217,9 +215,9 @@ export const useGame3 = () => {
         const rightPanel = document.querySelector('[data-right-panel]');
         if (rightPanel) {
           const rect = rightPanel.getBoundingClientRect();
-          // Используем актуальную позицию курсора для точного позиционирования
-          const newX = ((cursorX - rect.left) / rect.width) * 100;
-          const newY = ((cursorY - rect.top) / rect.height) * 100;
+          // Используем сохраненную позицию из dropPositionRef для точного позиционирования
+          const newX = ((dropPositionRef.current.x - rect.left) / rect.width) * 100;
+          const newY = ((dropPositionRef.current.y - rect.top) / rect.height) * 100;
           
           // Ограничиваем координаты пределами доски (5-95%)
           const clampedX = Math.max(5, Math.min(95, newX));
@@ -251,7 +249,8 @@ export const useGame3 = () => {
 
     draggedItemRef.current = null;
     originalPositionRef.current = null;
-  }, [gameState.dragPosition]);
+    dropPositionRef.current = { x: 0, y: 0 }; // Сбрасываем позицию drop
+  }, []);
 
   const updateItemPosition = useCallback((itemId, newX, newY) => {
     setGameState(prev => ({
@@ -297,7 +296,10 @@ export const useGame3 = () => {
   useEffect(() => {
     const fallingItems = gameState.items.filter(item => item.isFalling);
     if (fallingItems.length > 0) {
-      // Анимация падения: предметы падают сверху и приземляются на targetY
+      // Анимация падения с отскоком:
+      // 1. Падение вниз (600ms)
+      // 2. Первый отскок вверх и вниз (300ms)
+      // 3. Второй отскок (150ms)
       const timeout1 = setTimeout(() => {
         setGameState(prev => ({
           ...prev,
@@ -306,6 +308,7 @@ export const useGame3 = () => {
               return {
                 ...item,
                 isFalling: false,
+                x: item.targetX, // Устанавливаем финальную позицию X
                 y: item.targetY, // Устанавливаем финальную позицию Y
               };
             }
