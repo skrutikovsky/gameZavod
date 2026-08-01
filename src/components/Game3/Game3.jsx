@@ -238,9 +238,9 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         
         {/* Предметы на доске */}
         {gameState.items.map((item) => {
-          // Вычисляем финальную позицию с учетом анимации падения и отскоков
-          const displayX = item.isFalling ? item.animX : item.x;
-          const displayY = item.isFalling ? item.animY + item.bounceOffsetY : item.y;
+          // Вычисляем финальную позицию с учетом отскоков
+          const displayX = item.animX + item.bounceOffsetX;
+          const displayY = item.animY + item.bounceOffsetY;
           
           return (
             <div
