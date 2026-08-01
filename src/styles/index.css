@@ -229,3 +229,67 @@ body {
 .hover\:scale-102:hover {
   transform: scale(1.02);
 }
+
+/* Анимация падения с отскоком для предметов Game3 */
+@keyframes dropBounce {
+  0% {
+    transform: translateY(-100vh);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  }
+  60% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  75% {
+    transform: translateY(-20px);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  }
+  85% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  92% {
+    transform: translateY(-8px);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.item-drop-bounce {
+  animation: dropBounce 0.8s ease-out forwards;
+}
+
+/* Скрытие оригинального предмета при перетаскивании */
+.item-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Анимация разлета предметов в разные стороны */
+@keyframes scatterLeft {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+  100% {
+    transform: translateX(-30px) rotate(-10deg);
+  }
+}
+
+@keyframes scatterRight {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+  100% {
+    transform: translateX(30px) rotate(10deg);
+  }
+}
+
+.item-scatter-left {
+  animation: scatterLeft 0.3s ease-out forwards;
+}
+
+.item-scatter-right {
+  animation: scatterRight 0.3s ease-out forwards;
+}
