@@ -110,6 +110,8 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     element.style.height = `${rect.height}px`;
     element.style.margin = '0';
     element.style.transform = 'none'; // Убираем transform чтобы не было искажений
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.top}px`;
     document.body.appendChild(element);
     draggedItemElementRef.current = element;
 
@@ -241,8 +243,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
-              top: item.isFalling ? `${item.y}%` : `${item.targetY}%`,
-              transform: 'translate(-50%, -50%)',
+              top: item.isFalling ? `${item.y}%` : `${item.targetY || item.y}%`,
               transition: item.isFalling ? 'top 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
