@@ -313,6 +313,7 @@ export const useGame3 = () => {
       setGameState(prev => ({
         ...prev,
         items: newItems,
+        isRoundComplete: false, // Сбрасываем флаг чтобы следующий респавн сработал
       }));
 
       // Таймер для сброса флага spawnAnimation после анимации
