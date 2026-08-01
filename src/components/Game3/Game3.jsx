@@ -254,6 +254,10 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           const itemHash = item.id.split('-').reduce((acc, str) => acc + str.charCodeAt(0), 0);
           const randomOffsetX = ((itemHash % 100) / 100 - 0.5) * 40; // -20% to 20%
           const randomRotation = (itemHash % 360) - 180; // -180 to 180 degrees
+          // Генерируем случайные смещения для отскоков в разные стороны
+          const bounce1X = ((itemHash % 7) / 7 - 0.5) * 60; // -30px to 30px
+          const bounce2X = (((itemHash * 3) % 11) / 11 - 0.5) * 40; // -20px to 20px
+          const bounce3X = (((itemHash * 7) % 13) / 13 - 0.5) * 20; // -10px to 10px
           
           return (
             <div
@@ -267,6 +271,9 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
                   : undefined,
                 '--random-offset-x': `${randomOffsetX}%`,
                 '--random-rotation': `${randomRotation}deg`,
+                '--bounce1-x': `${bounce1X}px`,
+                '--bounce2-x': `${bounce2X}px`,
+                '--bounce3-x': `${bounce3X}px`,
               }}
               onMouseDown={(e) => onItemDragStart(item, e)}
               onTouchStart={(e) => onItemDragStart(item, e)}
@@ -289,19 +296,19 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             opacity: 1;
           }
           65% {
-            transform: translateY(-25px) translateX(0) scale(0.95, 1.05) rotate(0deg);
+            transform: translateY(-50px) translateX(var(--bounce1-x)) scale(0.9, 1.1) rotate(0deg);
           }
           75% {
-            transform: translateY(0) translateX(0) scale(1.05, 0.95) rotate(0deg);
+            transform: translateY(0) translateX(0) scale(1.1, 0.9) rotate(0deg);
           }
           85% {
-            transform: translateY(-12px) translateX(0) scale(0.98, 1.02) rotate(0deg);
+            transform: translateY(-24px) translateX(var(--bounce2-x)) scale(0.95, 1.05) rotate(0deg);
           }
           92% {
-            transform: translateY(0) translateX(0) scale(1.02, 0.98) rotate(0deg);
+            transform: translateY(0) translateX(0) scale(1.05, 0.95) rotate(0deg);
           }
           96% {
-            transform: translateY(-6px) translateX(0) scale(0.99, 1.01) rotate(0deg);
+            transform: translateY(-12px) translateX(var(--bounce3-x)) scale(0.98, 1.02) rotate(0deg);
           }
           100% {
             transform: translateY(0) translateX(0) scale(1) rotate(0deg);
