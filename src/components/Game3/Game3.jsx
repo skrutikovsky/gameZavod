@@ -237,21 +237,27 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </div>
         
         {/* Предметы на доске */}
-        {gameState.items.map((item) => (
-          <div
-            key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
-            style={{
-              left: `${item.x}%`,
-              top: `${item.y}%`,
-              opacity: gameState.draggedItem?.id === item.id ? 0 : 1, // Скрываем оригинал при перетаскивании
-            }}
-            onMouseDown={(e) => onItemDragStart(item, e)}
-            onTouchStart={(e) => onItemDragStart(item, e)}
-          >
-            {getItemIcon(item.type)}
-          </div>
-        ))}
+        {gameState.items.map((item) => {
+          // Вычисляем финальную позицию с учетом отскоков
+          const displayX = item.animX + item.bounceOffsetX;
+          const displayY = item.animY + item.bounceOffsetY;
+          
+          return (
+            <div
+              key={item.id}
+              className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
+              style={{
+                left: `${displayX}%`,
+                top: `${displayY}%`,
+                opacity: gameState.draggedItem?.id === item.id ? 0 : 1, // Скрываем оригинал при перетаскивании
+              }}
+              onMouseDown={(e) => onItemDragStart(item, e)}
+              onTouchStart={(e) => onItemDragStart(item, e)}
+            >
+              {getItemIcon(item.type)}
+            </div>
+          );
+        })}
       </div>
 
       {/* Кнопка назад */}
