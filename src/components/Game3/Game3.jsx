@@ -244,7 +244,10 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             style={{
               left: `${item.x}%`,
               top: item.isFalling ? `${item.y}%` : `${item.targetY || item.y}%`,
-              transition: item.isFalling ? 'top 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+              transition: item.isFalling ? 'none' : 'none', // Убираем transition для CSS анимации
+              opacity: gameState.draggedItem?.id === item.id ? 0 : 1, // Скрываем оригинал при перетаскивании
+              animation: item.isFalling ? `dropBounceWithSpread 0.8s ease-out forwards` : 'none',
+              '--spread-x': item.spreadX ? `${item.spreadX}%` : '0', // Переменная для разлета в стороны
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}
