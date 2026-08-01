@@ -243,11 +243,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105`}
             style={{
               left: `${item.x}%`,
-              top: item.spawnAnimation ? `-150%` : `${item.targetY || item.y}%`,
-              transition: 'none',
-              opacity: gameState.draggedItem?.id === item.id ? 0 : 1,
-              animation: item.spawnAnimation ? `dropBounceWithSpread 0.8s ease-out forwards` : 'none',
-              '--spread-x': item.spreadX ? `${item.spreadX}%` : '0',
+              top: `${item.y}%`,
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}
