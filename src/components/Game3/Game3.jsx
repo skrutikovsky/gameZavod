@@ -101,12 +101,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     
     handleDragStart(item, e);
     
-    // Скрываем оригинальный предмет сразу
-    const originalElement = e.target;
-    originalElement.style.opacity = '0';
-    originalElement.style.pointerEvents = 'none';
-    
-    // Создаем визуальный элемент для перетаскивания - клон
+    // Создаем визуальный элемент для перетаскивания - клон без изменений стиля
     const element = e.target.cloneNode(true);
     element.style.position = 'fixed';
     element.style.pointerEvents = 'none';
@@ -114,9 +109,9 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     element.style.width = `${rect.width}px`;
     element.style.height = `${rect.height}px`;
     element.style.margin = '0';
-    element.style.transform = 'none';
-    element.style.left = `${clientX - dragOffsetRef.current.x}px`;
-    element.style.top = `${clientY - dragOffsetRef.current.y}px`;
+    element.style.transform = 'none'; // Убираем transform чтобы не было искажений
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.top}px`;
     document.body.appendChild(element);
     draggedItemElementRef.current = element;
 
@@ -138,11 +133,6 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       if (draggedItemElementRef.current) {
         document.body.removeChild(draggedItemElementRef.current);
         draggedItemElementRef.current = null;
-      }
-      // Возвращаем видимость оригинальному элементу если он еще существует
-      if (originalElement && originalElement.parentNode) {
-        originalElement.style.opacity = '';
-        originalElement.style.pointerEvents = '';
       }
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUpHandler);
@@ -250,7 +240,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform ${gameState.draggedItem?.id === item.id ? 'item-hidden' : ''} ${item.isFalling ? 'item-drop-bounce' : ''}`}
+            className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform ${gameState.draggedItem?.id === item.id ? 'item-hidden' : ''} ${item.isFalling ? 'item-drop-bounce' : ''} ${!item.isFalling && item.scatterDirection === 'left' ? 'item-scatter-left' : ''} ${!item.isFalling && item.scatterDirection === 'right' ? 'item-scatter-right' : ''}`}
             style={{
               left: `${item.x}%`,
               top: item.isFalling ? `${item.y}%` : `${item.targetY || item.y}%`,

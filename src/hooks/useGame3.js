@@ -50,6 +50,8 @@ const generateItems = (startFromTop = false) => {
   for (let typeIdx = 0; typeIdx < counts.length; typeIdx++) {
     for (let i = 0; i < counts[typeIdx]; i++) {
       const targetY = Math.random() * 80 + 10; // Целевая позиция для анимации падения (10-90% высоты)
+      // Определяем направление разлета (left/right) для реалистичного разброса
+      const scatterDir = Math.random() < 0.5 ? 'left' : 'right';
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
@@ -57,6 +59,7 @@ const generateItems = (startFromTop = false) => {
         y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
         targetY: targetY,
         isFalling: startFromTop, // Флаг анимации падения
+        scatterDirection: scatterDir, // Направление разлета
       });
     }
   }
@@ -84,6 +87,7 @@ export const useGame3 = () => {
     dragPosition: { x: 0, y: 0 },
     isRoundComplete: false,
     gameStarted: false, // Флаг что игра началась (для анимации первого респавна)
+    scatterDirection: {}, // Направление разлета для каждого предмета (left/right)
   });
 
   const draggedItemRef = useRef(null);
@@ -91,7 +95,7 @@ export const useGame3 = () => {
   const initialSpawnTimeoutRef = useRef(null);
 
   const startGame = useCallback(() => {
-    // Спавним предметы сразу для анимации падения
+    // Не спавним предметы сразу - они появятся после анимации через 1 секунду
     setGameState(prev => ({
       ...prev,
       items: [], // Пустой массив при старте
@@ -106,18 +110,17 @@ export const useGame3 = () => {
       gameStarted: true,
     }));
 
-    // Запускаем анимацию падения предметов сразу (без задержки)
+    // Запускаем анимацию падения предметов через 1 секунду после старта
     if (initialSpawnTimeoutRef.current) {
       clearTimeout(initialSpawnTimeoutRef.current);
     }
-    // Небольшая задержка в 100мс чтобы DOM успел отрендериться
     initialSpawnTimeoutRef.current = setTimeout(() => {
       const initialItems = generateItems(true); // true = старт сверху для анимации падения
       setGameState(prev => ({
         ...prev,
         items: initialItems,
       }));
-    }, 100);
+    }, 1000);
   }, []);
 
   const handleDragStart = useCallback((item, event) => {
@@ -290,7 +293,7 @@ export const useGame3 = () => {
             y: item.targetY, // Устанавливаем финальную позицию
           })),
         }));
-      }, 1000); // Время анимации должно совпадать с transition в CSS (1s для dropBounce)
+      }, 800); // Время анимации должно совпадать с transition в CSS (0.8s для dropBounce)
       return () => clearTimeout(timeout);
     }
   }, [gameState.items]);
