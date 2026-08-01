@@ -93,29 +93,31 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
     const clientY = e.clientY || e.touches?.[0]?.clientY || 0;
     
-    // Вычисляем смещение относительно центра предмета
+    // Вычисляем смещение относительно точки захвата (где кликнули на предмете)
     dragOffsetRef.current = {
-      x: clientX - rect.left - rect.width / 2,
-      y: clientY - rect.top - rect.height / 2,
+      x: clientX - rect.left,
+      y: clientY - rect.top,
     };
     
     handleDragStart(item, e);
     
-    // Создаем визуальный элемент для перетаскивания
+    // Создаем визуальный элемент для перетаскивания - клон без изменений стиля
     const element = e.target.cloneNode(true);
     element.style.position = 'fixed';
     element.style.pointerEvents = 'none';
     element.style.zIndex = '1000';
-    element.style.opacity = '0.8';
     element.style.width = `${rect.width}px`;
     element.style.height = `${rect.height}px`;
+    element.style.margin = '0';
+    element.style.transform = 'none'; // Убираем transform чтобы не было искажений
     document.body.appendChild(element);
     draggedItemElementRef.current = element;
 
     const updateDragElement = (clientX, clientY) => {
       if (draggedItemElementRef.current) {
-        draggedItemElementRef.current.style.left = `${clientX - dragOffsetRef.current.x - rect.width / 2}px`;
-        draggedItemElementRef.current.style.top = `${clientY - dragOffsetRef.current.y - rect.height / 2}px`;
+        // Позиционируем элемент так, чтобы точка захвата была под курсором
+        draggedItemElementRef.current.style.left = `${clientX - dragOffsetRef.current.x}px`;
+        draggedItemElementRef.current.style.top = `${clientY - dragOffsetRef.current.y}px`;
       }
     };
 
@@ -239,8 +241,9 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             className={`absolute w-12 h-12 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-2xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
-              top: `${item.y}%`,
+              top: item.isFalling ? `${item.y}%` : `${item.targetY}%`,
               transform: 'translate(-50%, -50%)',
+              transition: item.isFalling ? 'top 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}

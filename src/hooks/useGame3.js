@@ -27,7 +27,7 @@ const getRandomItemType = () => {
 };
 
 // Генерация 60 предметов с заданными пропорциями
-const generateItems = () => {
+const generateItems = (startFromTop = false) => {
   const items = [];
   const counts = [
     Math.round(TOTAL_ITEMS_PER_ROUND * 0.03), // тип 1 - 3%
@@ -53,7 +53,9 @@ const generateItems = () => {
         id: `item-${itemId++}`,
         type: typeIdx + 1,
         x: Math.random() * 80 + 10, // 10-90% ширины правой части
-        y: Math.random() * 80 + 10, // 10-90% высоты
+        y: startFromTop ? -20 : Math.random() * 80 + 10, // При старте сверху (-20%), иначе 10-90% высоты
+        targetY: Math.random() * 80 + 10, // Целевая позиция для анимации падения
+        isFalling: startFromTop, // Флаг анимации падения
       });
     }
   }
@@ -80,16 +82,18 @@ export const useGame3 = () => {
     draggedItem: null,
     dragPosition: { x: 0, y: 0 },
     isRoundComplete: false,
+    gameStarted: false, // Флаг что игра началась (для анимации первого респавна)
   });
 
   const draggedItemRef = useRef(null);
   const originalPositionRef = useRef(null);
+  const initialSpawnTimeoutRef = useRef(null);
 
   const startGame = useCallback(() => {
-    const initialItems = generateItems();
+    // Не спавним предметы сразу - они появятся после анимации через 1 секунду
     setGameState(prev => ({
       ...prev,
-      items: initialItems,
+      items: [], // Пустой массив при старте
       score: 0,
       boxes: Array.from({ length: 6 }, (_, i) => ({
         type: i + 1,
@@ -98,7 +102,20 @@ export const useGame3 = () => {
         name: ITEM_TYPES[i].name,
       })),
       isRoundComplete: false,
+      gameStarted: true,
     }));
+
+    // Запускаем анимацию падения предметов через 1 секунду после старта
+    if (initialSpawnTimeoutRef.current) {
+      clearTimeout(initialSpawnTimeoutRef.current);
+    }
+    initialSpawnTimeoutRef.current = setTimeout(() => {
+      const initialItems = generateItems(true); // true = старт сверху для анимации падения
+      setGameState(prev => ({
+        ...prev,
+        items: initialItems,
+      }));
+    }, 1000);
   }, []);
 
   const handleDragStart = useCallback((item, event) => {
@@ -241,18 +258,45 @@ export const useGame3 = () => {
     });
   }, []);
 
-  // Эффект для проверки завершения раунда
+  // Эффект для проверки завершения раунда (респавн после очистки всех предметов)
   useEffect(() => {
-    if (gameState.items.length === 0) {
+    if (gameState.items.length === 0 && gameState.gameStarted) {
       setTimeout(() => {
-        const newItems = generateItems();
+        const newItems = generateItems(true); // true = старт сверху для анимации падения
         setGameState(prev => ({
           ...prev,
           items: newItems,
         }));
       }, 500);
     }
-  }, [gameState.items.length]);
+  }, [gameState.items.length, gameState.gameStarted]);
+
+  // Эффект для завершения анимации падения предметов
+  useEffect(() => {
+    const fallingItems = gameState.items.filter(item => item.isFalling);
+    if (fallingItems.length > 0) {
+      const timeout = setTimeout(() => {
+        setGameState(prev => ({
+          ...prev,
+          items: prev.items.map(item => ({
+            ...item,
+            isFalling: false,
+            y: item.targetY, // Устанавливаем финальную позицию
+          })),
+        }));
+      }, 600); // Время анимации должно совпадать с transition в CSS
+      return () => clearTimeout(timeout);
+    }
+  }, [gameState.items]);
+
+  // Очистка таймера при размонтировании
+  useEffect(() => {
+    return () => {
+      if (initialSpawnTimeoutRef.current) {
+        clearTimeout(initialSpawnTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     gameState,
