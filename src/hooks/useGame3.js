@@ -70,7 +70,7 @@ const generateItems = () => {
   return items;
 };
 
-export const useGame3 = () => {
+export const useGame3 = (onItemSpawned) => {
   const [gameState, setGameState] = useState({
     score: 0,
     boxes: Array.from({ length: 6 }, (_, i) => ({
@@ -90,7 +90,7 @@ export const useGame3 = () => {
   const dragOffsetRef = useRef({ x: 0, y: 0 }); // Смещение точки захвата предмета
 
   const startGame = useCallback(() => {
-    // Генерируем предметы сразу на доске
+    // Генерируем предметы сразу на доске с флагом для анимации
     const initialItems = generateItems();
     
     setGameState(prev => ({
@@ -105,7 +105,12 @@ export const useGame3 = () => {
       })),
       isRoundComplete: false,
     }));
-  }, []);
+    
+    // Сообщаем компоненту о новых предметах для анимации
+    if (onItemSpawned) {
+      setTimeout(() => onItemSpawned(initialItems.map(i => i.id)), 100);
+    }
+  }, [onItemSpawned]);
 
   const handleDragStart = useCallback((item, event) => {
     draggedItemRef.current = item;
@@ -279,8 +284,12 @@ export const useGame3 = () => {
         items: newItems,
         isRoundComplete: false,
       }));
+      // Сообщаем компоненту о новых предметах для анимации
+      if (onItemSpawned) {
+        setTimeout(() => onItemSpawned(newItems.map(i => i.id)), 100);
+      }
     }
-  }, [gameState.items.length, gameState.isRoundComplete]);
+  }, [gameState.items.length, gameState.isRoundComplete, onItemSpawned]);
 
   return {
     gameState,
