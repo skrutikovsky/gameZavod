@@ -50,12 +50,23 @@ const generateItems = (startFromTop = false) => {
   for (let typeIdx = 0; typeIdx < counts.length; typeIdx++) {
     for (let i = 0; i < counts[typeIdx]; i++) {
       const targetY = Math.random() * 80 + 10; // Целевая позиция для анимации падения (10-90% высоты)
+      const targetX = Math.random() * 80 + 10; // 10-90% ширины правой части
+      
+      // Вычисляем смещение для разлета в стороны (реалистичное распределение)
+      // Предметы ближе к центру получают меньшее смещение, края - большее
+      const centerX = 50; // центр доски
+      const distanceFromCenter = targetX - centerX;
+      // Нормализуем и масштабируем смещение (максимум ~15% в каждую сторону)
+      const spreadX = distanceFromCenter * 0.3; // 30% от расстояния до центра
+      
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
-        x: Math.random() * 80 + 10, // 10-90% ширины правой части
+        x: startFromTop ? 50 + (Math.random() * 20 - 10) : targetX, // При старте сверху - небольшая случайность вокруг центра
         y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
         targetY: targetY,
+        targetX: targetX, // Сохраняем целевую X позицию
+        spreadX: spreadX, // Смещение для анимации разлета
         isFalling: startFromTop, // Флаг анимации падения
       });
     }
@@ -88,6 +99,7 @@ export const useGame3 = () => {
 
   const draggedItemRef = useRef(null);
   const originalPositionRef = useRef(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 }); // Смещение точки захвата предмета
   const initialSpawnTimeoutRef = useRef(null);
 
   const startGame = useCallback(() => {
@@ -124,12 +136,21 @@ export const useGame3 = () => {
     originalPositionRef.current = { x: item.x, y: item.y };
     
     const rect = event.target.getBoundingClientRect();
+    const clientX = event.clientX || (event.touches?.[0]?.clientX || 0);
+    const clientY = event.clientY || (event.touches?.[0]?.clientY || 0);
+    
+    // Сохраняем смещение точки захвата относительно левого верхнего угла предмета
+    dragOffsetRef.current = {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+    
     setGameState(prev => ({
       ...prev,
       draggedItem: item,
       dragPosition: {
-        x: event.clientX || (event.touches?.[0]?.clientX || 0),
-        y: event.clientY || (event.touches?.[0]?.clientY || 0),
+        x: clientX,
+        y: clientY,
       },
     }));
   }, []);
@@ -195,12 +216,26 @@ export const useGame3 = () => {
         const rightPanel = document.querySelector('[data-right-panel]');
         if (rightPanel) {
           const rect = rightPanel.getBoundingClientRect();
-          const newX = ((gameState.dragPosition.x - rect.left) / rect.width) * 100;
-          const newY = ((gameState.dragPosition.y - rect.top) / rect.height) * 100;
+          
+          // Учитываем смещение точки захвата предмета относительно его левого верхнего угла
+          // dragOffsetRef хранит смещение где мы схватили предмет (в пикселях относительно элемента)
+          // Нам нужно компенсировать это смещение чтобы предмет появился точно под курсором
+          const itemSizePx = 48; // w-12 h-12 = 48px
+          const offsetFractionX = (dragOffsetRef.current?.x || itemSizePx / 2) / itemSizePx;
+          const offsetFractionY = (dragOffsetRef.current?.y || itemSizePx / 2) / itemSizePx;
+          
+          // Позиция курсора относительно панели с учетом точки захвата
+          // Мы хотим чтобы центр предмета был там где курсор, но с учетом того где мы его взяли
+          const cursorX = gameState.dragPosition.x - rect.left;
+          const cursorY = gameState.dragPosition.y - rect.top;
+          
+          // Вычисляем позицию левого верхнего угла предмета так, чтобы точка захвата была под курсором
+          const newXPercent = ((cursorX - offsetFractionX * itemSizePx) / rect.width) * 100;
+          const newYPercent = ((cursorY - offsetFractionY * itemSizePx) / rect.height) * 100;
           
           // Ограничиваем координаты пределами доски (5-95%)
-          const clampedX = Math.max(5, Math.min(95, newX));
-          const clampedY = Math.max(5, Math.min(95, newY));
+          const clampedX = Math.max(5, Math.min(95, newXPercent));
+          const clampedY = Math.max(5, Math.min(95, newYPercent));
           
           const newItems = prev.items.map(i => {
             if (i.id === item.id) {
@@ -284,10 +319,11 @@ export const useGame3 = () => {
           items: prev.items.map(item => ({
             ...item,
             isFalling: false,
-            y: item.targetY, // Устанавливаем финальную позицию
+            y: item.targetY, // Устанавливаем финальную позицию Y
+            x: item.targetX, // Устанавливаем финальную позицию X (после разлета)
           })),
         }));
-      }, 600); // Время анимации должно совпадать с transition в CSS
+      }, 800); // Время анимации должно совпадать с duration в CSS (0.8s)
       return () => clearTimeout(timeout);
     }
   }, [gameState.items]);

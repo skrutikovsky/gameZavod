@@ -229,3 +229,66 @@ body {
 .hover\:scale-102:hover {
   transform: scale(1.02);
 }
+
+/* Анимация падения предметов с отскоком для Game3 */
+@keyframes dropBounce {
+  0% {
+    transform: translateY(-100vh) scale(1);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19); /* Быстрое падение */
+  }
+  60% {
+    transform: translateY(0) scale(1);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Замедление перед отскоком */
+  }
+  75% {
+    transform: translateY(-30px) scale(1);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19); /* Первый отскок вверх */
+  }
+  85% {
+    transform: translateY(0) scale(1);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Приземление после первого отскока */
+  }
+  92% {
+    transform: translateY(-12px) scale(1);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19); /* Второй отскок вверх (меньше) */
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Анимация падения с разлетом в стороны */
+@keyframes dropBounceWithSpread {
+  0% {
+    transform: translateY(-100vh) translateX(0) scale(1);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  }
+  60% {
+    transform: translateY(0) translateX(var(--spread-x, 0)) scale(1);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  75% {
+    transform: translateY(-30px) translateX(var(--spread-x, 0)) scale(1);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  }
+  85% {
+    transform: translateY(0) translateX(var(--spread-x, 0)) scale(1);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  92% {
+    transform: translateY(-12px) translateX(var(--spread-x, 0)) scale(1);
+    animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  }
+  100% {
+    transform: translateY(0) translateX(var(--spread-x, 0)) scale(1);
+  }
+}
+
+.item-falling {
+  animation: dropBounce 0.8s ease-out forwards;
+}
+
+.item-falling-spread {
+  animation: dropBounceWithSpread 0.8s ease-out forwards;
+}
+
