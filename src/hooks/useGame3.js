@@ -49,12 +49,13 @@ const generateItems = (startFromTop = false) => {
   let itemId = 0;
   for (let typeIdx = 0; typeIdx < counts.length; typeIdx++) {
     for (let i = 0; i < counts[typeIdx]; i++) {
+      const targetY = Math.random() * 80 + 10; // Целевая позиция для анимации падения (10-90% высоты)
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
         x: Math.random() * 80 + 10, // 10-90% ширины правой части
-        y: startFromTop ? -20 : Math.random() * 80 + 10, // При старте сверху (-20%), иначе 10-90% высоты
-        targetY: Math.random() * 80 + 10, // Целевая позиция для анимации падения
+        y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
+        targetY: targetY,
         isFalling: startFromTop, // Флаг анимации падения
       });
     }
@@ -207,6 +208,8 @@ export const useGame3 = () => {
                 ...i,
                 x: clampedX,
                 y: clampedY,
+                targetY: clampedY, // Обновляем targetY для корректного отображения
+                isFalling: false, // Сбрасываем флаг падения
               };
             }
             return i;
