@@ -50,12 +50,17 @@ const generateItems = (startFromTop = false) => {
   for (let typeIdx = 0; typeIdx < counts.length; typeIdx++) {
     for (let i = 0; i < counts[typeIdx]; i++) {
       const targetY = Math.random() * 80 + 10; // Целевая позиция для анимации падения (10-90% высоты)
+      const targetX = Math.random() * 80 + 10; // Целевая позиция X (10-90% ширины)
+      // Добавляем небольшой разброс по X для реалистичности (предметы разлетаются)
+      const spreadX = (Math.random() - 0.5) * 10; // ±5% разброс
+      
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
-        x: Math.random() * 80 + 10, // 10-90% ширины правой части
+        x: startFromTop ? 50 + spreadX : targetX, // При старте сверху - центр с разбросом, иначе целевая позиция
         y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
-        targetY: targetY,
+        targetX: targetX + spreadX, // Финальная позиция X с учетом разброса
+        targetY: targetY, // Финальная позиция Y
         isFalling: startFromTop, // Флаг анимации падения
       });
     }
@@ -84,11 +89,13 @@ export const useGame3 = () => {
     dragPosition: { x: 0, y: 0 },
     isRoundComplete: false,
     gameStarted: false, // Флаг что игра началась (для анимации первого респавна)
+    hiddenItemId: null, // ID предмета который скрыт пока его тащат
   });
 
   const draggedItemRef = useRef(null);
   const originalPositionRef = useRef(null);
   const initialSpawnTimeoutRef = useRef(null);
+  const dropPositionRef = useRef({ x: 0, y: 0 }); // Храним позицию для сброса
 
   const startGame = useCallback(() => {
     // Не спавним предметы сразу - они появятся после анимации через 1 секунду
@@ -124,12 +131,19 @@ export const useGame3 = () => {
     originalPositionRef.current = { x: item.x, y: item.y };
     
     const rect = event.target.getBoundingClientRect();
+    const clientX = event.clientX || (event.touches?.[0]?.clientX || 0);
+    const clientY = event.clientY || (event.touches?.[0]?.clientY || 0);
+    
+    // Сохраняем позицию курсора для использования при drop
+    dropPositionRef.current = { x: clientX, y: clientY };
+    
     setGameState(prev => ({
       ...prev,
       draggedItem: item,
+      hiddenItemId: item.id, // Скрываем оригинальный предмет
       dragPosition: {
-        x: event.clientX || (event.touches?.[0]?.clientX || 0),
-        y: event.clientY || (event.touches?.[0]?.clientY || 0),
+        x: clientX,
+        y: clientY,
       },
     }));
   }, []);
@@ -153,6 +167,13 @@ export const useGame3 = () => {
     const originalPos = originalPositionRef.current;
 
     setGameState(prev => {
+      // Сначала показываем оригинальный предмет (сбрасываем hiddenItemId)
+      const baseState = {
+        ...prev,
+        draggedItem: null,
+        hiddenItemId: null, // Показываем оригинальный предмет
+      };
+
       // Если dropped в соответствующую коробку
       if (typeof dropZone === 'number' && dropZone === item.type) {
         const box = prev.boxes.find(b => b.type === item.type);
@@ -181,11 +202,10 @@ export const useGame3 = () => {
         const newItems = prev.items.filter(i => i.id !== item.id);
 
         return {
-          ...prev,
+          ...baseState,
           score: prev.score + pointsEarned,
           boxes: newBoxes,
           items: newItems,
-          draggedItem: null,
         };
       }
 
@@ -195,8 +215,9 @@ export const useGame3 = () => {
         const rightPanel = document.querySelector('[data-right-panel]');
         if (rightPanel) {
           const rect = rightPanel.getBoundingClientRect();
-          const newX = ((gameState.dragPosition.x - rect.left) / rect.width) * 100;
-          const newY = ((gameState.dragPosition.y - rect.top) / rect.height) * 100;
+          // Используем сохраненную позицию из dropPositionRef для точного позиционирования
+          const newX = ((dropPositionRef.current.x - rect.left) / rect.width) * 100;
+          const newY = ((dropPositionRef.current.y - rect.top) / rect.height) * 100;
           
           // Ограничиваем координаты пределами доски (5-95%)
           const clampedX = Math.max(5, Math.min(95, newX));
@@ -216,23 +237,20 @@ export const useGame3 = () => {
           });
 
           return {
-            ...prev,
+            ...baseState,
             items: newItems,
-            draggedItem: null,
           };
         }
       }
 
       // В любом другом случае - возвращаем предмет обратно
-      return {
-        ...prev,
-        draggedItem: null,
-      };
+      return baseState;
     });
 
     draggedItemRef.current = null;
     originalPositionRef.current = null;
-  }, [gameState.dragPosition]);
+    dropPositionRef.current = { x: 0, y: 0 }; // Сбрасываем позицию drop
+  }, []);
 
   const updateItemPosition = useCallback((itemId, newX, newY) => {
     setGameState(prev => ({
@@ -274,21 +292,31 @@ export const useGame3 = () => {
     }
   }, [gameState.items.length, gameState.gameStarted]);
 
-  // Эффект для завершения анимации падения предметов
+  // Эффект для завершения анимации падения предметов с отскакиванием
   useEffect(() => {
     const fallingItems = gameState.items.filter(item => item.isFalling);
     if (fallingItems.length > 0) {
-      const timeout = setTimeout(() => {
+      // Анимация падения с отскоком:
+      // 1. Падение вниз (600ms)
+      // 2. Первый отскок вверх и вниз (300ms)
+      // 3. Второй отскок (150ms)
+      const timeout1 = setTimeout(() => {
         setGameState(prev => ({
           ...prev,
-          items: prev.items.map(item => ({
-            ...item,
-            isFalling: false,
-            y: item.targetY, // Устанавливаем финальную позицию
-          })),
+          items: prev.items.map(item => {
+            if (item.isFalling) {
+              return {
+                ...item,
+                isFalling: false,
+                x: item.targetX, // Устанавливаем финальную позицию X
+                y: item.targetY, // Устанавливаем финальную позицию Y
+              };
+            }
+            return item;
+          }),
         }));
-      }, 600); // Время анимации должно совпадать с transition в CSS
-      return () => clearTimeout(timeout);
+      }, 600); // Время анимации падения должно совпадать с transition в CSS
+      return () => clearTimeout(timeout1);
     }
   }, [gameState.items]);
 

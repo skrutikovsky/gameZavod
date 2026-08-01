@@ -244,7 +244,12 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             style={{
               left: `${item.x}%`,
               top: item.isFalling ? `${item.y}%` : `${item.targetY || item.y}%`,
-              transition: item.isFalling ? 'top 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+              // Анимация падения с отскоком: используем cubic-bezier для эффекта пружины
+              transition: item.isFalling 
+                ? 'top 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53), left 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53)' 
+                : 'none',
+              opacity: gameState.hiddenItemId === item.id ? 0 : 1, // Скрываем оригинал пока тащим копию
+              pointerEvents: gameState.hiddenItemId === item.id ? 'none' : 'auto', // Отключаем события пока скрыт
             }}
             onMouseDown={(e) => onItemDragStart(item, e)}
             onTouchStart={(e) => onItemDragStart(item, e)}
