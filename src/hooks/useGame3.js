@@ -63,7 +63,7 @@ const generateItems = (startFromTop = false) => {
         id: `item-${itemId++}`,
         type: typeIdx + 1,
         x: startFromTop ? 50 + (Math.random() * 20 - 10) : targetX, // При старте сверху - небольшая случайность вокруг центра
-        y: startFromTop ? -20 : targetY, // При старте сверху (-20%), иначе целевая позиция
+        y: startFromTop ? -100 : targetY, // При старте сверху (-100% для начала за пределами экрана), иначе целевая позиция
         targetY: targetY,
         targetX: targetX, // Сохраняем целевую X позицию
         spreadX: spreadX, // Смещение для анимации разлета
