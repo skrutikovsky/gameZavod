@@ -68,7 +68,6 @@ const generateItems = (startFromTop = false) => {
         targetX: targetX, // Сохраняем целевую X позицию
         spreadX: spreadX, // Смещение для анимации разлета
         isFalling: startFromTop, // Флаг анимации падения
-        spawnAnimation: startFromTop, // Отдельный флаг для CSS анимации
       });
     }
   }
@@ -105,7 +104,7 @@ export const useGame3 = () => {
   const animationTimeoutRef = useRef(null);
 
   const startGame = useCallback(() => {
-    // Генерируем предметы сразу с флагом spawnAnimation для анимации падения
+    // Генерируем предметы сразу с флагом isFalling для анимации падения
     const initialItems = generateItems(true); // true = старт сверху для анимации падения
     
     setGameState(prev => ({
@@ -122,7 +121,7 @@ export const useGame3 = () => {
       gameStarted: true,
     }));
 
-    // Сбрасываем флаг spawnAnimation после завершения анимации (0.8s = длительность CSS анимации)
+    // Сбрасываем флаг isFalling после завершения анимации (0.8s = длительность CSS анимации)
     if (animationTimeoutRef.current) {
       clearTimeout(animationTimeoutRef.current);
     }
@@ -132,9 +131,6 @@ export const useGame3 = () => {
         items: prev.items.map(item => ({
           ...item,
           isFalling: false,
-          spawnAnimation: false,
-          y: item.targetY,
-          x: item.targetX,
         })),
       }));
     }, 850); // Небольшой запас сверх 0.8s
@@ -254,7 +250,6 @@ export const useGame3 = () => {
                 y: clampedY,
                 targetY: clampedY, // Обновляем targetY для корректного отображения
                 isFalling: false, // Сбрасываем флаг падения
-                spawnAnimation: false, // Сбрасываем флаг анимации
               };
             }
             return i;
@@ -309,31 +304,39 @@ export const useGame3 = () => {
   // Эффект для проверки завершения раунда (респавн после очистки всех предметов)
   useEffect(() => {
     if (gameState.items.length === 0 && gameState.gameStarted) {
-      const newItems = generateItems(true); // true = старт сверху для анимации падения
-      setGameState(prev => ({
-        ...prev,
-        items: newItems,
-      }));
+      setTimeout(() => {
+        const newItems = generateItems(true); // true = старт сверху для анимации падения
+        setGameState(prev => ({
+          ...prev,
+          items: newItems,
+        }));
+      }, 500);
+    }
+  }, [gameState.items.length, gameState.gameStarted]);
 
-      // Таймер для сброса флага spawnAnimation после анимации
+  // Эффект для завершения анимации падения предметов (используется только для респавна)
+  useEffect(() => {
+    const fallingItems = gameState.items.filter(item => item.isFalling);
+    if (fallingItems.length > 0 && !gameState.gameStarted) {
+      // Это первый спавн - таймер уже установлен в startGame
+      return;
+    }
+    if (fallingItems.length > 0 && gameState.gameStarted) {
+      // Это респавн после очистки всех предметов
       const timeout = setTimeout(() => {
         setGameState(prev => ({
           ...prev,
           items: prev.items.map(item => ({
             ...item,
             isFalling: false,
-            spawnAnimation: false,
-            y: item.targetY,
-            x: item.targetX,
+            y: item.targetY, // Устанавливаем финальную позицию Y
+            x: item.targetX, // Устанавливаем финальную позицию X (после разлета)
           })),
         }));
-      }, 850);
-
+      }, 850); // Время анимации должно совпадать с duration в CSS (0.8s) + небольшой запас
       return () => clearTimeout(timeout);
     }
-  }, [gameState.items.length, gameState.gameStarted]);
-
-  // Удаляем дублирующий эффект для завершения анимации - теперь всё обрабатывается в эффекте респавна
+  }, [gameState.items, gameState.gameStarted]);
 
   // Очистка таймеров при размонтировании
   useEffect(() => {
