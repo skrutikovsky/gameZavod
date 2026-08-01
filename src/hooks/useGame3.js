@@ -27,7 +27,7 @@ const getRandomItemType = () => {
 };
 
 // Генерация 60 предметов с заданными пропорциями
-const generateItems = () => {
+const generateItems = (startAboveScreen = false) => {
   const items = [];
   const counts = [
     Math.round(TOTAL_ITEMS_PER_ROUND * 0.03), // тип 1 - 3%
@@ -55,8 +55,15 @@ const generateItems = () => {
       items.push({
         id: `item-${itemId++}`,
         type: typeIdx + 1,
-        x: targetX,
-        y: targetY,
+        x: startAboveScreen ? Math.random() * 80 + 10 : targetX, // Если startAboveScreen=true, случайная X позиция сверху
+        y: startAboveScreen ? -Math.random() * 20 - 10 : targetY, // Если startAboveScreen=true, начинаем выше экрана
+        targetY: targetY, // Целевая позиция Y для анимации падения
+        targetX: targetX, // Целевая позиция X для анимации падения
+        isFalling: startAboveScreen, // Флаг что предмет падает
+        bounceCount: 0, // Количество отскоков
+        maxBounces: 0, // Максимальное количество отскоков
+        bounceTargetX: null, // Целевая X для отскока
+        bounceTargetY: null, // Целевая Y для отскока
       });
     }
   }
@@ -88,10 +95,11 @@ export const useGame3 = () => {
   const draggedItemRef = useRef(null);
   const originalPositionRef = useRef(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 }); // Смещение точки захвата предмета
+  const animationFrameRef = useRef(null); // Ref для requestAnimationFrame
 
   const startGame = useCallback(() => {
-    const initialItems = generateItems();
-    
+    const initialItems = generateItems(true); // true = предметы появляются выше экрана
+
     setGameState(prev => ({
       ...prev,
       items: initialItems,
@@ -253,12 +261,103 @@ export const useGame3 = () => {
     }));
   }, []);
 
+  // Анимация падения предметов с отскоками
+  useEffect(() => {
+    const animateItems = () => {
+      setGameState(prev => {
+        let hasFallingItems = false;
+        const newItems = prev.items.map(item => {
+          // Предметы не участвующие в анимации пропускаем
+          if (!item.isFalling && !item.bounceTargetX) {
+            return item;
+          }
+
+          hasFallingItems = true;
+          let newItem = { ...item };
+
+          // Фаза 1: Падение к целевой позиции
+          if (newItem.isFalling) {
+            const dy = newItem.targetY - newItem.y;
+            const dx = newItem.targetX - newItem.x;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 0.5) {
+              // Достигли целевой позиции
+              newItem.y = newItem.targetY;
+              newItem.x = newItem.targetX;
+              newItem.isFalling = false;
+              
+              // Начинаем фазу отскоков (2-3 отскока)
+              newItem.bounceCount = 0;
+              newItem.maxBounces = Math.floor(Math.random() * 2) + 2; // 2 или 3 отскока
+              
+              // Генерируем первую цель для отскока
+              const bounceAngle = Math.random() * Math.PI * 2;
+              const bounceDistance = Math.random() * 15 + 10; // 10-25% экрана
+              newItem.bounceTargetX = newItem.targetX + Math.cos(bounceAngle) * bounceDistance;
+              newItem.bounceTargetY = newItem.targetY + Math.sin(bounceAngle) * bounceDistance;
+            } else {
+              // Движение к целевой позиции (падение)
+              const speed = 0.08; // Скорость падения
+              newItem.x += (dx / distance) * speed;
+              newItem.y += (dy / distance) * speed;
+            }
+          } 
+          // Фаза 2: Отскоки
+          else if (newItem.bounceTargetX !== null) {
+            const dy = newItem.bounceTargetY - newItem.y;
+            const dx = newItem.bounceTargetX - newItem.x;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 0.5) {
+              // Достигли цели отскока
+              newItem.y = newItem.bounceTargetY;
+              newItem.x = newItem.bounceTargetX;
+              newItem.bounceCount++;
+
+              if (newItem.bounceCount >= newItem.maxBounces) {
+                // Завершаем отскоки
+                newItem.bounceTargetX = null;
+                newItem.bounceTargetY = null;
+              } else {
+                // Генерируем следующую цель для отскока
+                const bounceAngle = Math.random() * Math.PI * 2;
+                const bounceDistance = Math.random() * 10 + 5; // 5-15% экрана (меньше с каждым отскоком)
+                newItem.bounceTargetX = newItem.x + Math.cos(bounceAngle) * bounceDistance;
+                newItem.bounceTargetY = newItem.y + Math.sin(bounceAngle) * bounceDistance;
+              }
+            } else {
+              // Движение к цели отскока (плавное перемещение)
+              const speed = 0.05; // Скорость отскока (медленнее падения)
+              newItem.x += (dx / distance) * speed;
+              newItem.y += (dy / distance) * speed;
+            }
+          }
+
+          return newItem;
+        });
+
+        return hasFallingItems ? { ...prev, items: newItems } : prev;
+      });
+
+      animationFrameRef.current = requestAnimationFrame(animateItems);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animateItems);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
   // Проверка завершения раунда
   const checkRoundComplete = useCallback(() => {
     setGameState(prev => {
       if (prev.items.length === 0 && !prev.isRoundComplete) {
         // Все предметы разложены - спавним новые
-        const newItems = generateItems();
+        const newItems = generateItems(true); // true = предметы появляются выше экрана
         return {
           ...prev,
           items: newItems,
@@ -269,22 +368,13 @@ export const useGame3 = () => {
     });
   }, []);
 
-  // Эффект для проверки завершения раунда (респавн после очистки всех предметов)
-  useEffect(() => {
-    if (gameState.items.length === 0) {
-      setTimeout(() => {
-        const newItems = generateItems();
-        setGameState(prev => ({
-          ...prev,
-          items: newItems,
-        }));
-      }, 500);
-    }
-  }, [gameState.items.length]);
-
   // Очистка таймеров при размонтировании
   useEffect(() => {
-    return () => {};
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
 
   return {
