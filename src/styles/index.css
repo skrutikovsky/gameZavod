@@ -233,7 +233,7 @@ body {
 /* Анимация падения предметов с отскоком для Game3 */
 @keyframes dropBounce {
   0% {
-    transform: translateY(-100vh) scale(1);
+    transform: translateY(0) scale(1);
     animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19); /* Быстрое падение */
   }
   60% {
@@ -260,7 +260,7 @@ body {
 /* Анимация падения с разлетом в стороны */
 @keyframes dropBounceWithSpread {
   0% {
-    transform: translateY(-100vh) translateX(0) scale(1);
+    transform: translateY(0) translateX(0) scale(1);
     animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
   }
   60% {
