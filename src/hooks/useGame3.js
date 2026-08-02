@@ -317,11 +317,17 @@ export const useGame3 = () => {
               newItem.x = newItem.targetX;
               newItem.isFalling = false;
               
+              // Убедимся что targetY в пределах доски (5-90%)
+              // Если targetY вышел за пределы, корректируем его
+              if (newItem.targetY < 5) newItem.targetY = 5 + Math.random() * 10;
+              if (newItem.targetY > 90) newItem.targetY = 80 + Math.random() * 10;
+              newItem.y = newItem.targetY;
+              
               // Инициализируем физику отскока
               // Вертикальная скорость вверх (отскок) - уменьшена для менее дугообразной траектории
               newItem.velocityY = -(Math.random() * 0.25 + 0.2); // -0.2 до -0.45
-              // Горизонтальная скорость (случайное направление) - увеличена для менее дугообразной траектории
-              newItem.velocityX = (Math.random() - 0.5) * 1.6; // -0.8 до 0.8
+              // Горизонтальная скорость (случайное направление) - ограничена чтобы не улетать за экран
+              newItem.velocityX = (Math.random() - 0.5) * 0.8; // -0.4 до 0.4 (уменьшено с 1.6)
               newItem.bounceCount = 0;
               newItem.maxBounces = Math.floor(Math.random() * 4) + 2; // 2-5 отскоков
             } else {
@@ -378,11 +384,11 @@ export const useGame3 = () => {
               newItem.y = 5;
               newItem.velocityY = Math.abs(newItem.velocityY) * 0.8; // Отскок вниз
             }
-            
             // Проверка на достижение "поверхности" (targetY) для инициации отскоков
             // Проверяем только если предмет ещё не достиг нижней границы и движется вниз
             // Это предотвращает двойную обработку когда предмет уже у нижней границы
-            if (newItem.y >= newItem.targetY && newItem.y < 92 && newItem.velocityY > 0) {
+            // Также проверяем что targetY в пределах доски (5-90%)
+            else if (newItem.y >= newItem.targetY && newItem.targetY >= 5 && newItem.targetY <= 90 && newItem.velocityY > 0) {
               newItem.y = newItem.targetY;
               
               if (newItem.bounceCount === 0) {
