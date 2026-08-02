@@ -49,21 +49,24 @@ export function generateGapPath(width, height) {
 }
 
 // Проверка находится ли точка в зоне шва
-export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasWidth) {
+export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasWidth, sheetMargin = 0) {
   if (gapPoints.length === 0) return false;
 
+  // Корректируем x с учетом отступа листа
+  const adjustedX = x - sheetMargin;
+  
   // Находим ближайшую точку на центральной линии разрыва
   let minDist = Infinity;
   let closestWidth = 0;
   
   // Оптимизация: проверяем только точки поблизости по X
-  const approximateIndex = Math.floor((x / canvasWidth) * (gapPoints.length - 1));
+  const approximateIndex = Math.floor((adjustedX / canvasWidth) * (gapPoints.length - 1));
   const startIndex = Math.max(0, approximateIndex - 5);
   const endIndex = Math.min(gapPoints.length - 1, approximateIndex + 5);
 
   for (let i = startIndex; i <= endIndex; i++) {
     const p = gapPoints[i];
-    const dist = Math.hypot(x - p.x, y - p.y);
+    const dist = Math.hypot(adjustedX - p.x, y - p.y);
     if (dist < minDist) {
       minDist = dist;
       closestWidth = gapWidths[i];
@@ -189,8 +192,13 @@ export function useGame4() {
     
     const { gapPath, gapWidths, cooledPoints, weldPoints } = gameStateRef.current;
     
+    // Параметры листа (должны совпадать с отрисовкой)
+    const sheetMargin = 40;
+    const sheetWidth = rect.width - sheetMargin * 2;
+    
     // Получаем локальную ширину шва
-    const approximateIndex = Math.floor((mouseX / rect.width) * (gapWidths.length - 1));
+    const adjustedMouseX = mouseX - sheetMargin;
+    const approximateIndex = Math.floor((adjustedMouseX / sheetWidth) * (gapWidths.length - 1));
     const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
     const localGapWidth = gapWidths[idx];
     const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
@@ -208,7 +216,7 @@ export function useGame4() {
       }
       
       // Проверяем что точка в зоне шва или на существующей сварке
-      const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, rect.width);
+      const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
       const onWeld = canWeldOnExisting(mouseX, mouseY, localWeldRadius, cooledPoints, weldPoints);
       
       if (!inGap && !onWeld) {
@@ -238,7 +246,7 @@ export function useGame4() {
       // Первая точка при зажатии ЛКМ
       lastWeldPointRef.current = { x: mouseX, y: mouseY };
       
-      const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, rect.width);
+      const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
       const onWeld = canWeldOnExisting(mouseX, mouseY, localWeldRadius, cooledPoints, weldPoints);
       
       if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
