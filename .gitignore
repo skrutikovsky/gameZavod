@@ -2,14 +2,15 @@
 # Build artifacts
 dist/
 build/
-*.js
 
 # Dependencies
 node_modules/
 
+# Logs and temp files
+*.log
+*.tmp
+
 # Editors
 .vscode/
-
-# Logs
-*.log
+.idea/
 ```
