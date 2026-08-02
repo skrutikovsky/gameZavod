@@ -92,6 +92,7 @@ const generateItems = (startAboveScreen = false) => {
 export const useGame3 = () => {
   const [gameState, setGameState] = useState({
     score: 0,
+    round: 0,
     boxes: Array.from({ length: 6 }, (_, i) => ({
       type: i + 1,
       count: 0,
@@ -120,6 +121,7 @@ export const useGame3 = () => {
       ...prev,
       items: initialItems,
       score: 0,
+      round: 0,
       boxes: Array.from({ length: 6 }, (_, i) => ({
         type: i + 1,
         count: 0,
@@ -214,6 +216,7 @@ export const useGame3 = () => {
           return {
             ...newState,
             items: newItemsGenerated,
+            round: prev.round + 1, // Увеличиваем номер раунда
             isRoundComplete: false, // Сбрасываем флаг для следующего раунда
           };
         }
@@ -435,7 +438,6 @@ export const useGame3 = () => {
     handleDragMove,
     handleDragEnd,
     updateItemPosition,
-    checkRoundComplete,
     ITEM_TYPES,
     MAX_BOX_COUNT,
   };
