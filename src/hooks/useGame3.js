@@ -349,24 +349,6 @@ export const useGame3 = () => {
             newItem.x += newItem.velocityX;
             newItem.y += newItem.velocityY;
             
-            // Проверка на достижение "поверхности" (targetY)
-            if (newItem.y >= newItem.targetY) {
-              newItem.y = newItem.targetY;
-              newItem.bounceCount++;
-              
-              if (newItem.bounceCount >= newItem.maxBounces || Math.abs(newItem.velocityY) < 0.1) {
-                // Завершаем отскоки - предмет останавливается
-                newItem.velocityX = 0;
-                newItem.velocityY = 0;
-              } else {
-                // Отскок от поверхности - высота зависит от номера отскока
-                const bounceHeightMultiplier = newItem.bounceCount === 1 ? 0.5 : 1.0;
-                newItem.velocityY = -Math.abs(newItem.velocityY) * bounceDamping * bounceHeightMultiplier;
-                // Добавляем немного случайности к горизонтальной скорости при отскоке
-                newItem.velocityX = newItem.velocityX * 0.9 + (Math.random() - 0.5) * 0.3;
-              }
-            }
-            
             // Проверка границ по X (левая и правая стены)
             if (newItem.x <= 5) {
               newItem.x = 5;
@@ -376,15 +358,51 @@ export const useGame3 = () => {
               newItem.velocityX = -Math.abs(newItem.velocityX) * 0.8; // Отскок влево
             }
             
-            // Проверка границ по Y (нижняя граница - не даем улететь за экран)
-            if (newItem.y >= 95) {
-              newItem.y = 95;
-              newItem.velocityY = -Math.abs(newItem.velocityY) * 0.5; // Отскок вверх
+            // Проверка границ по Y - жёсткое ограничение чтобы предметы не улетали за экран
+            // Нижняя граница (не даем улететь за экран)
+            if (newItem.y >= 92) {
+              newItem.y = 92;
+              // Если скорость всё ещё направлена вниз - гасим её и делаем небольшой отскок
+              if (newItem.velocityY > 0) {
+                newItem.velocityY = -Math.abs(newItem.velocityY) * 0.4;
+              }
+              newItem.bounceCount++;
+              // Если уже много отскоков или скорость маленькая - останавливаем предмет
+              if (newItem.bounceCount >= newItem.maxBounces || Math.abs(newItem.velocityY) < 0.15) {
+                newItem.velocityX = 0;
+                newItem.velocityY = 0;
+              }
             }
-            // Проверка границ по Y (верхняя стена, если вдруг улетит)
+            // Верхняя граница (если вдруг улетит вверх)
             if (newItem.y <= 5) {
               newItem.y = 5;
               newItem.velocityY = Math.abs(newItem.velocityY) * 0.8; // Отскок вниз
+            }
+            
+            // Проверка на достижение "поверхности" (targetY) для инициации отскоков
+            // Проверяем только если предмет ещё не достиг нижней границы
+            if (newItem.y >= newItem.targetY && newItem.y < 92) {
+              newItem.y = newItem.targetY;
+              
+              if (newItem.bounceCount === 0) {
+                // Первый контакт с поверхностью - начинаем отскоки
+                newItem.bounceCount = 1;
+                // Высота отскока зависит от номера отскока
+                const bounceHeightMultiplier = 0.5;
+                newItem.velocityY = -Math.abs(newItem.velocityY || 0.3) * bounceDamping * bounceHeightMultiplier;
+                // Добавляем немного случайности к горизонтальной скорости при отскоке
+                newItem.velocityX = newItem.velocityX * 0.9 + (Math.random() - 0.5) * 0.3;
+              } else if (newItem.bounceCount < newItem.maxBounces && Math.abs(newItem.velocityY) > 0.15) {
+                // Продолжаем отскоки
+                const bounceHeightMultiplier = 1.0;
+                newItem.velocityY = -Math.abs(newItem.velocityY) * bounceDamping * bounceHeightMultiplier;
+                newItem.velocityX = newItem.velocityX * 0.9 + (Math.random() - 0.5) * 0.3;
+                newItem.bounceCount++;
+              } else {
+                // Завершаем отскоки - предмет останавливается
+                newItem.velocityX = 0;
+                newItem.velocityY = 0;
+              }
             }
           }
 
