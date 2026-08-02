@@ -106,7 +106,9 @@ export function useGame4() {
     weldPoints: [],
     cooledPoints: [],
     gameOver: false,
-    roundComplete: false
+    roundComplete: false,
+    mouseX: 0,
+    mouseY: 0
   });
   
   const gameStateRef = useRef(null);
@@ -170,7 +172,9 @@ export function useGame4() {
       weldPoints: [],
       cooledPoints: [],
       gameOver: false,
-      roundComplete: false
+      roundComplete: false,
+      mouseX: 0,
+      mouseY: 0
     });
   }, []);
   

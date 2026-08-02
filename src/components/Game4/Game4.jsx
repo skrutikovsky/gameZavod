@@ -1,8 +1,55 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame4, WELD_RADIUS, GAP_WIDTH, MAX_WELD_POINTS } from '../../hooks/useGame4';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
+
+// Компонент сварочного аппарата
+const WeldingTorch = ({ x, y }) => {
+  if (x === undefined || y === undefined) return null;
+  
+  return (
+    <div
+      className="pointer-events-none fixed z-50"
+      style={{
+        left: x,
+        top: y,
+        transform: 'translate(-10%, -10%)',
+        width: '60px',
+        height: '60px'
+      }}
+    >
+      {/* Сварочный аппарат - вид сверху */}
+      <svg viewBox="0 0 60 60" className="w-full h-full drop-shadow-lg">
+        {/* Рукоятка */}
+        <rect x="5" y="25" width="25" height="12" fill="#4a5568" stroke="#2d3748" strokeWidth="2" rx="2"/>
+        <rect x="8" y="27" width="20" height="8" fill="#718096" opacity="0.5"/>
+        
+        {/* Корпус горелки */}
+        <path d="M28 28 L45 20 L48 25 L32 35 Z" fill="#e53e3e" stroke="#c53030" strokeWidth="2"/>
+        <path d="M30 30 L44 23 L46 26 L32 34 Z" fill="#fc8181" opacity="0.6"/>
+        
+        {/* Сопло */}
+        <circle cx="48" cy="23" r="5" fill="#fbbf24" stroke="#d97706" strokeWidth="2"/>
+        <circle cx="48" cy="23" r="3" fill="#f59e0b"/>
+        <circle cx="48" cy="23" r="1.5" fill="#78350f"/>
+        
+        {/* Искра/пламя на кончике сопла */}
+        <circle cx="53" cy="23" r="4" fill="#ff6b35" opacity="0.8">
+          <animate attributeName="r" values="3;5;3" dur="0.3s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.6;0.9;0.6" dur="0.3s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="54" cy="23" r="2" fill="#ffd23f">
+          <animate attributeName="r" values="1.5;2.5;1.5" dur="0.2s" repeatCount="indefinite"/>
+        </circle>
+        
+        {/* Кабель */}
+        <path d="M5 31 Q-10 35, -15 50" stroke="#2d3748" strokeWidth="4" fill="none" strokeLinecap="round"/>
+        <path d="M7 31 Q-8 35, -13 50" stroke="#4a5568" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      </svg>
+    </div>
+  );
+};
 
 const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -16,8 +63,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     setCanvasRef,
     initRound,
     MAX_WELD_POINTS,
-    WELD_RADIUS,
-    GAP_WIDTH
+    BASE_GAP_WIDTH,
+    WELD_SIZE_RATIO,
+    FADE_DURATION
   } = useGame4();
   
   const canvasRef = useRef(null);
@@ -72,17 +120,18 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
 
     // Рисуем разрыв (шов)
-    const seamWidth = GAP_WIDTH;
+    const seamWidth = BASE_GAP_WIDTH;
     
     // Область шва
     ctx.fillStyle = 'rgba(50, 50, 50, 0.4)';
     ctx.beginPath();
     
-    // Верхняя граница шва
+    // Верхняя граница шва с неравномерной шириной
     for (let i = 0; i < gapPath.length; i++) {
       const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
-      const y = sheetY + p.y - seamWidth / 2;
+      const y = sheetY + p.y - w / 2;
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -90,11 +139,12 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       }
     }
     
-    // Нижняя граница шва (в обратном направлении)
+    // Нижняя граница шва (в обратном направлении) с неравномерной шириной
     for (let i = gapPath.length - 1; i >= 0; i--) {
       const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
-      const y = sheetY + p.y + seamWidth / 2;
+      const y = sheetY + p.y + w / 2;
       ctx.lineTo(x, y);
     }
     
@@ -105,10 +155,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     cooledPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
+      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       ctx.fillStyle = '#6b7280';
       ctx.beginPath();
-      ctx.arc(x, y, WELD_RADIUS, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       
       // Темная обводка для охлажденных точек
@@ -121,21 +172,28 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     weldPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
+      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
-      // Градиент для точки сварки (эффект нагрева)
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, WELD_RADIUS);
-      gradient.addColorStop(0, '#ff6b35');
-      gradient.addColorStop(0.4, '#f7931e');
-      gradient.addColorStop(1, '#ffd23f');
+      // Вычисляем прозрачность на основе времени остывания
+      const elapsed = Date.now() - dot.timestamp;
+      const fadeProgress = Math.min(1, elapsed / FADE_DURATION);
+      const alpha = 1 - fadeProgress * 0.5; // Плавно переходим к 50% прозрачности
+      
+      // Градиент для точки сварки (эффект нагрева с плавным угасанием)
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      gradient.addColorStop(0, `rgba(255, 107, 53, ${alpha})`);
+      gradient.addColorStop(0.4, `rgba(247, 147, 30, ${alpha})`);
+      gradient.addColorStop(1, `rgba(255, 210, 63, ${alpha * 0.8})`);
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(x, y, WELD_RADIUS, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       
-      // Добавляем свечение
+      // Добавляем свечение которое уменьшается со временем
+      const glowIntensity = Math.max(0, 15 * (1 - fadeProgress));
       ctx.shadowColor = '#ff6b35';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = glowIntensity;
       ctx.fill();
       ctx.shadowBlur = 0;
     });
@@ -145,7 +203,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.lineWidth = 3;
     ctx.strokeRect(sheetX, sheetY, sheetWidth, sheetHeight);
 
-  }, [gameState]);
+  }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION]);
 
   // Игровой цикл для отрисовки
   useEffect(() => {
@@ -170,6 +228,15 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const handleCanvasMouseMove = (e) => {
+    // Обновляем позицию мыши для курсора-сварки
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setGameState(prev => ({
+        ...prev,
+        mouseX: e.clientX,
+        mouseY: e.clientY
+      }));
+    }
     handleMouseMove(e);
   };
 
@@ -206,9 +273,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       onMouseUp={handleCanvasMouseUp}
       onMouseLeave={handleCanvasMouseLeave}
       style={{
-        cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' viewBox=\'0 0 32 32\'><rect x=\'2\' y=\'10\' width=\'20\' height=\'12\' fill=\'%23555\' stroke=\'%23333\' stroke-width=\'2\'/><circle cx=\'24\' cy=\'16\' r=\'6\' fill=\'%23ff6b35\' stroke=\'%23f7931e\' stroke-width=\'2\'/></svg>") 16 16, auto'
+        cursor: 'none'
       }}
     >
+      {/* Сварочный аппарат как курсор */}
+      <WeldingTorch mouseX={gameState.mouseX} mouseY={gameState.mouseY} />
       {/* Статистика игры с кнопкой назад */}
       <GameStats
         score={gameState.score}
