@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame4, WELD_PATTERNS, PATTERN_SCORES, SEAM_WIDTH_PERCENT } from '../../hooks/useGame4';
+import { useGame4, WELD_RADIUS, GAP_WIDTH, MAX_WELD_POINTS } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -8,44 +8,34 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
     gameState,
     startGame,
-    stopGame,
     resetGame,
     handleMouseMove,
     handleMouseDown,
     handleMouseUp,
     nextRound,
     setCanvasRef,
-    METAL_SHEET_WIDTH_PERCENT,
-    METAL_SHEET_HEIGHT_PERCENT
+    initRound,
+    MAX_WELD_POINTS,
+    WELD_RADIUS,
+    GAP_WIDTH
   } = useGame4();
-
+  
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
-  
-  // Паттерны для отображения иконок
-  const patternIcons = {
-    [WELD_PATTERNS.STRAIGHT]: '➖',
-    [WELD_PATTERNS.ZIGZAG]: '〰️',
-    [WELD_PATTERNS.CIRCLES]: '🔵'
-  };
-
-  const patternNames = {
-    [WELD_PATTERNS.STRAIGHT]: 'Прямой шов',
-    [WELD_PATTERNS.ZIGZAG]: 'Змейка',
-    [WELD_PATTERNS.CIRCLES]: 'Кружочки'
-  };
 
   useEffect(() => {
     startGame();
     return () => {
-      stopGame();
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
     };
   }, []);
 
   // Отрисовка на канвасе
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !gameState.seamPoints.length) return;
+    if (!canvas || !gameState.gapPath.length) return;
 
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
@@ -53,16 +43,14 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     // Очищаем канвас
     ctx.clearRect(0, 0, width, height);
 
-    const { 
-      seamPoints, 
-      patternPoints, 
-      weldDots, 
-      sheetX, 
-      sheetY, 
-      sheetWidth, 
-      sheetHeight,
-      currentPattern 
-    } = gameState;
+    const { gapPath, weldPoints, cooledPoints } = gameState;
+    
+    // Параметры листа металла
+    const sheetMargin = 40;
+    const sheetX = sheetMargin;
+    const sheetY = sheetMargin;
+    const sheetWidth = width - sheetMargin * 2;
+    const sheetHeight = height - sheetMargin * 2;
 
     // Рисуем лист металла
     const metalGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY + sheetHeight);
@@ -84,15 +72,15 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
 
     // Рисуем разрыв (шов)
-    const seamWidth = sheetWidth * (SEAM_WIDTH_PERCENT / 100);
+    const seamWidth = GAP_WIDTH;
     
     // Область шва
-    ctx.fillStyle = 'rgba(50, 50, 50, 0.3)';
+    ctx.fillStyle = 'rgba(50, 50, 50, 0.4)';
     ctx.beginPath();
     
     // Верхняя граница шва
-    for (let i = 0; i < seamPoints.length; i++) {
-      const p = seamPoints[i];
+    for (let i = 0; i < gapPath.length; i++) {
+      const p = gapPath[i];
       const x = sheetX + p.x;
       const y = sheetY + p.y - seamWidth / 2;
       if (i === 0) {
@@ -103,8 +91,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     
     // Нижняя граница шва (в обратном направлении)
-    for (let i = seamPoints.length - 1; i >= 0; i--) {
-      const p = seamPoints[i];
+    for (let i = gapPath.length - 1; i >= 0; i--) {
+      const p = gapPath[i];
       const x = sheetX + p.x;
       const y = sheetY + p.y + seamWidth / 2;
       ctx.lineTo(x, y);
@@ -113,47 +101,41 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.closePath();
     ctx.fill();
 
-    // Рисуем пунктирную линию паттерна
-    if (patternPoints && patternPoints.length > 0) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
+    // Рисуем охлажденные точки сварки (серые)
+    cooledPoints.forEach(dot => {
+      const x = sheetX + dot.x;
+      const y = sheetY + dot.y;
+      
+      ctx.fillStyle = '#6b7280';
       ctx.beginPath();
+      ctx.arc(x, y, WELD_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
       
-      for (let i = 0; i < patternPoints.length; i++) {
-        const p = patternPoints[i];
-        const x = sheetX + p.x;
-        const y = sheetY + p.y;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      
+      // Темная обводка для охлажденных точек
+      ctx.strokeStyle = '#4b5563';
+      ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.setLineDash([]);
-    }
+    });
 
-    // Рисуем точки сварки игрока
-    weldDots.forEach(dot => {
+    // Рисуем горячие точки сварки игрока (оранжевые со свечением)
+    weldPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
       
       // Градиент для точки сварки (эффект нагрева)
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, seamWidth / 3);
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, WELD_RADIUS);
       gradient.addColorStop(0, '#ff6b35');
       gradient.addColorStop(0.4, '#f7931e');
       gradient.addColorStop(1, '#ffd23f');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(x, y, seamWidth / 3, 0, Math.PI * 2);
+      ctx.arc(x, y, WELD_RADIUS, 0, Math.PI * 2);
       ctx.fill();
       
       // Добавляем свечение
       ctx.shadowColor = '#ff6b35';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 15;
       ctx.fill();
       ctx.shadowBlur = 0;
     });
@@ -213,14 +195,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const isRoundComplete = gameState.roundComplete;
-
-  // Форматирование времени
-  const formatTime = (ms) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  const isGameOver = gameState.gameOver;
+  const weldPercent = Math.round((gameState.weldUsed / MAX_WELD_POINTS) * 100);
 
   return (
     <div 
@@ -235,50 +211,61 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     >
       {/* Статистика игры с кнопкой назад */}
       <GameStats
-        score={gameState.totalScore}
+        score={gameState.score}
         lives={3}
         boxesFixed={gameState.round}
         multiplier={1}
         comboCount={0}
         gameTime={0}
-        formatTime={formatTime}
+        formatTime={(ms) => '0:00'}
         onBack={onBack}
         isGame3={true}
         round={gameState.round}
-        itemsOnBoard={gameState.seamProgress}
+        itemsOnBoard={gameState.weldCoverage}
       />
       
-      {/* Индикатор текущего паттерна и прогресса */}
+      {/* Индикатор прогресса и лимита сварки */}
       <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-xl px-6 py-4 text-white z-20 border border-white/20">
         <div className="flex items-center gap-6">
           <div className="text-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider block">Тип шва</span>
-            <span className="text-2xl font-bold">{patternIcons[gameState.currentPattern]} {patternNames[gameState.currentPattern]}</span>
-          </div>
-          <div className="text-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider block">Заполнение</span>
-            <span className="text-2xl font-bold text-green-400">{gameState.seamProgress}%</span>
-          </div>
-          <div className="text-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider block">Качество</span>
-            <span className={`text-2xl font-bold ${gameState.qualityPercent >= 80 ? 'text-green-400' : gameState.qualityPercent >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-              {gameState.qualityPercent}%
+            <span className="text-xs opacity-80 uppercase tracking-wider block">Заполнение шва</span>
+            <span className={`text-2xl font-bold ${gameState.weldCoverage >= 95 ? 'text-green-400' : 'text-white'}`}>
+              {gameState.weldCoverage}%
             </span>
           </div>
           <div className="text-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider block">Очки за раунд</span>
-            <span className="text-2xl font-bold text-yellow-400">
-              {isRoundComplete ? `+${gameState.lastRoundScore}` : PATTERN_SCORES[gameState.currentPattern]}
+            <span className="text-xs opacity-80 uppercase tracking-wider block">Сварка</span>
+            <span className={`text-2xl font-bold ${weldPercent >= 90 ? 'text-red-400' : weldPercent >= 70 ? 'text-yellow-400' : 'text-green-400'}`}>
+              {weldPercent}%
             </span>
+            <span className="text-xs opacity-60 ml-1">({gameState.weldUsed}/{MAX_WELD_POINTS})</span>
+          </div>
+          <div className="text-center">
+            <span className="text-xs opacity-80 uppercase tracking-wider block">Очки</span>
+            <span className="text-2xl font-bold text-yellow-400">{gameState.score}</span>
           </div>
         </div>
         
         {/* Прогресс бар заполнения шва */}
-        <div className="mt-3 w-96 h-3 bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-300"
-            style={{ width: `${gameState.seamProgress}%` }}
-          />
+        <div className="mt-3 flex gap-4">
+          <div className="flex-1">
+            <div className="text-xs opacity-60 mb-1">Покрытие шва</div>
+            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${gameState.weldCoverage >= 95 ? 'bg-green-500' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
+                style={{ width: `${gameState.weldCoverage}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="text-xs opacity-60 mb-1">Использовано сварки</div>
+            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${weldPercent >= 90 ? 'bg-red-500' : weldPercent >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                style={{ width: `${weldPercent}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
       
@@ -293,11 +280,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         height={window.innerHeight}
       />
       
-      {/* Модальное окно завершения раунда */}
+      {/* Модальное окно победы в раунде */}
       {isRoundComplete && (
         <Modal
-          title="Раунд завершен!"
-          message={`Качество выполнения: ${gameState.qualityPercent}%\nОчки за раунд: ${gameState.lastRoundScore}\nОбщий счет: ${gameState.totalScore}`}
+          title="Шов заварен!"
+          message={`Качество сварки: ${gameState.weldCoverage}%\nОчки за раунд: ${Math.round(1000 * (gameState.weldCoverage / 100))}\nОбщий счет: ${gameState.score}`}
         >
           <div className="space-y-4">
             <Button onClick={handleNextRound} variant="primary">
@@ -310,13 +297,30 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </Modal>
       )}
       
+      {/* Модальное окно проигрыша */}
+      {isGameOver && (
+        <Modal
+          title="Сварка закончилась!"
+          message={`Не удалось заполнить шов.\nИспользовано: ${gameState.weldUsed} точек\nПокрытие: ${gameState.weldCoverage}%\nОбщий счет: ${gameState.score}`}
+        >
+          <div className="space-y-4">
+            <Button onClick={handleRestart} variant="primary">
+              Попробовать снова
+            </Button>
+            <Button onClick={handleGameOver} variant="secondary">
+              В главное меню
+            </Button>
+          </div>
+        </Modal>
+      )}
+      
       {/* Подсказка внизу экрана */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-xl px-6 py-3 text-white text-center z-20 border border-white/20">
         <p className="text-lg">
-          🔥 Зажми ЛКМ и веди вдоль пунктирной линии чтобы заварить шов
+          🔥 Зажми ЛКМ и веди вдоль разрыва чтобы заварить шов
         </p>
         <p className="text-sm opacity-80 mt-1">
-          Используй паттерн "{patternNames[gameState.currentPattern]}" для максимального качества!
+          Сварка остывает через 2 секунды и становится серой. Можно наваривать на остывшую сварку!
         </p>
       </div>
     </div>
