@@ -1,18 +1,21 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
-export const WELD_RADIUS = 8; // Радиус точки сварки
+export const BASE_GAP_WIDTH = 80; // Базовая ширина разрыва (в 4 раза шире ~20)
+export const WELD_SIZE_RATIO = 0.6; // Размер точки = 60% от ширины шва
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
-export const POINT_STEP = 10; // Расстояние между точками в пикселях
+export const FADE_DURATION = 1500; // Длительность плавного перехода цвета
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
-export const GAP_WIDTH = 25; // Ширина разрыва
 export const WIN_COVERAGE = 95; // Процент покрытия для победы
+export const MAX_SPEED_THRESHOLD = 15; // Максимальная скорость движения (пикселей за кадр)
+export const STEP_DISTANCE_RATIO = 0.66; // Шаг рисования = 2/3 радиуса
 
-// Генерация случайного разрыва (синусоида с шумом и гармониками)
+// Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
   const points = [];
+  const widths = [];
   const centerY = height / 2;
-  const segmentCount = 50;
+  const segmentCount = 100;
   const segmentLength = width / segmentCount;
   
   // Параметры для генерации извилистой линии
@@ -37,41 +40,57 @@ export function generateGapPath(width, height) {
     y = Math.max(height * 0.15, Math.min(height * 0.85, y));
     
     points.push({ x, y });
+    
+    // Неравномерная ширина: база +- 25%
+    const variation = 0.5 + Math.random() * 0.5;
+    const randomFactor = (Math.random() - 0.5) * 0.5; // +- 25%
+    const w = BASE_GAP_WIDTH * (1 + randomFactor * variation);
+    widths.push(Math.max(40, w)); // Минимальная ширина 40
   }
   
-  return points;
+  return { points, widths };
 }
 
-// Проверка находится ли точка на металле (в зоне разрыва или на существующей сварке)
-export function isPointOnMetal(x, y, gapPoints, cooledPoints, canvasWidth, canvasHeight) {
-  const margin = 40;
+// Проверка находится ли точка в зоне шва
+export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasWidth) {
+  if (gapPoints.length === 0) return false;
+
+  // Находим ближайшую точку на центральной линии разрыва
+  let minDist = Infinity;
+  let closestWidth = 0;
   
-  // Проверяем границы листа металла
-  if (x < margin || x > canvasWidth - margin || 
-      y < margin || y > canvasHeight - margin) {
-    return false;
+  // Оптимизация: проверяем только точки поблизости по X
+  const approximateIndex = Math.floor((x / canvasWidth) * (gapPoints.length - 1));
+  const startIndex = Math.max(0, approximateIndex - 5);
+  const endIndex = Math.min(gapPoints.length - 1, approximateIndex + 5);
+
+  for (let i = startIndex; i <= endIndex; i++) {
+    const p = gapPoints[i];
+    const dist = Math.hypot(x - p.x, y - p.y);
+    if (dist < minDist) {
+      minDist = dist;
+      closestWidth = gapWidths[i];
+    }
   }
+
+  // Радиус зоны шва = половина ширины разрыва + допуск
+  const gapRadius = closestWidth / 2;
   
-  // Находим минимальное расстояние до линии разрыва
-  let minGapDistance = Infinity;
-  for (const point of gapPoints) {
-    const dist = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2));
-    minGapDistance = Math.min(minGapDistance, dist);
-  }
+  return minDist <= (gapRadius + weldRadius * 0.5);
+}
+
+// Проверка возможности наваривания на существующую сварку
+export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
+  // Можно варить на любую существующую сварку (остывшую или горячую)
+  const allPoints = [...cooledPoints, ...allWeldPoints];
   
-  // Если точка в зоне разрыва - разрешаем
-  if (minGapDistance <= GAP_WIDTH / 2 + WELD_RADIUS) {
-    return true;
-  }
-  
-  // Проверяем расстояние до охлажденных точек сварки
-  for (const point of cooledPoints) {
-    const dist = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2));
-    if (dist <= WELD_RADIUS * 1.5) {
+  for (let p of allPoints) {
+    const localRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO;
+    const dist = Math.hypot(x - p.x, y - p.y);
+    if (dist < (radius + localRadius)) {
       return true;
     }
   }
-  
   return false;
 }
 
@@ -80,11 +99,12 @@ export function useGame4() {
     isRunning: false,
     score: 0,
     round: 1,
-    weldCoverage: 0, // Процент заполнения шва
-    weldUsed: 0, // Количество использованных точек
-    gapPath: [], // Точки разрыва
-    weldPoints: [], // Горячие точки сварки
-    cooledPoints: [], // Охлажденные точки сварки
+    weldCoverage: 0,
+    weldUsed: 0,
+    gapPath: [],
+    gapWidths: [],
+    weldPoints: [],
+    cooledPoints: [],
     gameOver: false,
     roundComplete: false
   });
@@ -94,6 +114,7 @@ export function useGame4() {
   const isMouseDownRef = useRef(false);
   const lastWeldPointRef = useRef(null);
   const canvasRef = useRef(null);
+  const speedRef = useRef(0);
   
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -105,7 +126,7 @@ export function useGame4() {
     if (!container) return;
     
     const rect = container.getBoundingClientRect();
-    const gapPath = generateGapPath(rect.width, rect.height);
+    const { points, widths } = generateGapPath(rect.width, rect.height);
     
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
@@ -115,7 +136,8 @@ export function useGame4() {
       isRunning: true,
       weldCoverage: 0,
       weldUsed: 0,
-      gapPath,
+      gapPath: points,
+      gapWidths: widths,
       weldPoints: [],
       cooledPoints: [],
       roundComplete: false,
@@ -144,6 +166,7 @@ export function useGame4() {
       weldCoverage: 0,
       weldUsed: 0,
       gapPath: [],
+      gapWidths: [],
       weldPoints: [],
       cooledPoints: [],
       gameOver: false,
@@ -151,7 +174,7 @@ export function useGame4() {
     });
   }, []);
   
-  // Обработка движения мыши
+  // Обработка движения мыши с равномерным шагом
   const handleMouseMove = useCallback((e) => {
     if (!isMouseDownRef.current || !gameStateRef.current?.isRunning) return;
     
@@ -162,45 +185,75 @@ export function useGame4() {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
-    const { gapPath, cooledPoints } = gameStateRef.current;
+    const { gapPath, gapWidths, cooledPoints, weldPoints } = gameStateRef.current;
     
-    // Проверяем можно ли варить в этой точке
-    if (!isPointOnMetal(mouseX, mouseY, gapPath, cooledPoints, rect.width, rect.height)) {
-      lastWeldPointRef.current = { x: mouseX, y: mouseY };
-      return;
-    }
+    // Получаем локальную ширину шва
+    const approximateIndex = Math.floor((mouseX / rect.width) * (gapWidths.length - 1));
+    const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
+    const localGapWidth = gapWidths[idx];
+    const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
+    const stepDist = localWeldRadius * STEP_DISTANCE_RATIO * 2; // 2/3 диаметра
     
-    // Вычисляем расстояние до последней точки
-    const lastPoint = lastWeldPointRef.current;
-    if (lastPoint) {
-      const dx = mouseX - lastPoint.x;
-      const dy = mouseY - lastPoint.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    if (lastWeldPointRef.current) {
+      const dx = mouseX - lastWeldPointRef.current.x;
+      const dy = mouseY - lastWeldPointRef.current.y;
+      const dist = Math.hypot(dx, dy);
       
-      if (distance < POINT_STEP) {
+      speedRef.current = dist;
+      
+      // Если слишком быстро - не варим
+      if (dist > MAX_SPEED_THRESHOLD) {
+        lastWeldPointRef.current = { x: mouseX, y: mouseY };
         return;
       }
       
-      // Добавляем точки вдоль линии движения
-      const steps = Math.floor(distance / POINT_STEP);
-      for (let i = 1; i <= steps; i++) {
-        const ratio = i / steps;
-        const newX = lastPoint.x + (mouseX - lastPoint.x) * ratio;
-        const newY = lastPoint.y + (mouseY - lastPoint.y) * ratio;
-        
-        // Проверяем лимит
-        if (weldCountRef.current >= MAX_WELD_POINTS) break;
-        
-        // Проверяем можно ли варить в этой точке
-        if (!isPointOnMetal(newX, newY, gapPath, cooledPoints, rect.width, rect.height)) {
-          continue;
-        }
-        
+      // Проверяем шаг
+      if (dist < stepDist) {
+        return;
+      }
+      
+      // Нормальная скорость и шаг - пробуем варить
+      const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, rect.width);
+      const onWeld = canWeldOnExisting(mouseX, mouseY, localWeldRadius, cooledPoints, weldPoints);
+      
+      if (!inGap && !onWeld) {
+        lastWeldPointRef.current = { x: mouseX, y: mouseY };
+        return;
+      }
+      
+      if (weldCountRef.current >= MAX_WELD_POINTS) return;
+      
+      const newDot = {
+        x: mouseX,
+        y: mouseY,
+        timestamp: Date.now(),
+        id: weldCountRef.current,
+        width: localGapWidth
+      };
+      
+      setGameState(prev => ({
+        ...prev,
+        weldPoints: [...prev.weldPoints, newDot],
+        weldUsed: weldCountRef.current + 1
+      }));
+      
+      weldCountRef.current += 1;
+      lastWeldPointRef.current = { x: mouseX, y: mouseY };
+      
+    } else {
+      // Первая точка
+      lastWeldPointRef.current = { x: mouseX, y: mouseY };
+      
+      const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, rect.width);
+      const onWeld = canWeldOnExisting(mouseX, mouseY, localWeldRadius, cooledPoints, weldPoints);
+      
+      if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
         const newDot = {
-          x: newX,
-          y: newY,
+          x: mouseX,
+          y: mouseY,
           timestamp: Date.now(),
-          id: weldCountRef.current
+          id: weldCountRef.current,
+          width: localGapWidth
         };
         
         setGameState(prev => ({
@@ -212,8 +265,6 @@ export function useGame4() {
         weldCountRef.current += 1;
       }
     }
-    
-    lastWeldPointRef.current = { x: mouseX, y: mouseY };
   }, []);
   
   const handleMouseDown = useCallback(() => {
@@ -228,47 +279,28 @@ export function useGame4() {
   // Проверка прогресса заполнения
   const checkCoverage = useCallback(() => {
     const state = gameStateRef.current;
-    if (!state || state.gapPath.length === 0 || state.weldPoints.length === 0) return;
+    if (!state || state.gapPath.length === 0) return;
     
-    const { gapPath, weldPoints } = state;
-    let coveredCount = 0;
-    let totalCount = 0;
+    const { gapPath, gapWidths, weldPoints } = state;
+    const totalLength = gapPath.length;
     
-    // Проверяем покрытие вдоль всего разрыва
-    for (let i = 0; i < gapPath.length - 1; i++) {
-      const p1 = gapPath[i];
-      const p2 = gapPath[i + 1];
-      const checksPerSegment = 5;
-      
-      for (let j = 0; j < checksPerSegment; j++) {
-        const ratio = j / checksPerSegment;
-        const checkX = p1.x + (p2.x - p1.x) * ratio;
-        const checkY = p1.y + (p2.y - p1.y) * ratio;
-        
-        // Проверяем по ширине разрыва
-        for (let k = -GAP_WIDTH/2; k <= GAP_WIDTH/2; k += 5) {
-          totalCount++;
-          const testX = checkX;
-          const testY = checkY + k;
-          
-          // Проверяем покрыта ли эта точка сваркой
-          let isCovered = false;
-          for (const point of weldPoints) {
-            const dist = Math.sqrt(Math.pow(testX - point.x, 2) + Math.pow(testY - point.y, 2));
-            if (dist <= WELD_RADIUS) {
-              isCovered = true;
-              break;
-            }
-          }
-          
-          if (isCovered) {
-            coveredCount++;
+    // Создаем битовую маску покрытия
+    const coverageMap = new Array(200).fill(false);
+    
+    weldPoints.forEach(p => {
+      const xIdx = Math.floor((p.x / (canvasRef.current?.width || 1)) * 200);
+      if (xIdx >= 0 && xIdx < 200) {
+        const spread = Math.ceil((p.width * WELD_SIZE_RATIO) / ((canvasRef.current?.width || 1) / 200) / 2);
+        for(let k = -spread; k <= spread; k++) {
+          if (xIdx + k >= 0 && xIdx + k < 200) {
+            coverageMap[xIdx + k] = true;
           }
         }
       }
-    }
+    });
     
-    const coverage = totalCount > 0 ? (coveredCount / totalCount) * 100 : 0;
+    const filledCount = coverageMap.filter(Boolean).length;
+    const coverage = Math.min(100, (filledCount / 200) * 100);
     
     setGameState(prev => {
       const newState = {
@@ -276,7 +308,6 @@ export function useGame4() {
         weldCoverage: Math.round(coverage)
       };
       
-      // Проверяем победу
       if (coverage >= WIN_COVERAGE) {
         const pointsEarned = Math.round(1000 * (coverage / 100));
         newState.score = prev.score + pointsEarned;
@@ -357,7 +388,8 @@ export function useGame4() {
     setCanvasRef,
     initRound,
     MAX_WELD_POINTS,
-    WELD_RADIUS,
-    GAP_WIDTH
+    WELD_SIZE_RATIO,
+    BASE_GAP_WIDTH,
+    FADE_DURATION
   };
 }
