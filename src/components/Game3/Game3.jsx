@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useGame3 } from '../../hooks/useGame3';
+import { GameStats } from '../UI/GameStats';
 
 const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -175,15 +176,28 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  // Для Game3 адаптируем показатели: счет, раунд, предметы на доске
+  const itemsOnBoard = gameState.items.length;
+
   return (
     <div 
       ref={gameContainerRef}
       className="game-container relative w-full h-screen overflow-hidden flex"
     >
+      {/* Статистика игры с кнопкой назад */}
+      <GameStats
+        score={gameState.score}
+        round={gameState.round}
+        itemsOnBoard={itemsOnBoard}
+        gameTime={undefined}
+        formatTime={formatTime}
+        onBack={onBack}
+        isGame3={true}
+      />
       {/* Левая панель - коробки (1/3 ширины) */}
       <div 
         ref={leftPanelRef}
-        className="h-full bg-gradient-to-b from-indigo-900 to-indigo-700 p-4 flex flex-col justify-around"
+        className="h-full bg-gradient-to-b from-indigo-900 to-indigo-700 p-4 flex flex-col justify-around pt-24"
         style={{ width: '33.33%' }}
       >
         <h2 className="text-white text-xl font-bold text-center mb-2">Коробки</h2>
@@ -225,7 +239,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       <div 
         ref={rightPanelRef}
         data-right-panel
-        className="h-full bg-gradient-to-b from-stone-400 to-stone-500 p-4 relative border-l-8 border-stone-600 shadow-inner"
+        className="h-full bg-gradient-to-b from-stone-400 to-stone-500 p-4 relative border-l-8 border-stone-600 shadow-inner pt-24"
         style={{ width: '66.67%' }}
       >
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+')] opacity-30 pointer-events-none"></div>
@@ -254,13 +268,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ))}
       </div>
 
-      {/* Кнопка назад */}
-      <button
-        onClick={onBack}
-        className="absolute top-5 left-5 z-50 w-12 h-12 bg-white/30 hover:bg-white/50 rounded-full flex items-center justify-center text-white text-2xl font-bold transition-all"
-      >
-        ←
-      </button>
+      {/* Кнопка назад убрана - теперь она в GameStats */}
     </div>
   );
 };
