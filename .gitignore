@@ -1,8 +1,8 @@
 ```
 # Build artifacts
 dist/
-build/
-*.js
+*.css
+index.html
 
 # Dependencies
 node_modules/
