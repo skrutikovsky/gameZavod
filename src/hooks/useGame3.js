@@ -52,10 +52,9 @@ const generateItems = (startAboveScreen = false) => {
       const targetY = Math.random() * 80 + 10; // 10-90% высоты
       const targetX = Math.random() * 80 + 10; // 10-90% ширины
       
-      // Рандомизируем начальную высоту для синхронизации падения
-      // Предметы с большей целевой Y начинаем с большей высоты
-      const fallDistance = targetY + 20 + Math.random() * 15; // Все падают примерно одинаковое расстояние
-      const startY = startAboveScreen ? -fallDistance : targetY;
+      // Все предметы начинают падение с одинаковой высоты над экраном
+      // чтобы достигать поверхности примерно одновременно
+      const startY = startAboveScreen ? -20 - Math.random() * 10 : targetY;
       
       items.push({
         id: `item-${itemId++}`,
@@ -208,7 +207,7 @@ export const useGame3 = () => {
           // Учитываем смещение точки захвата предмета относительно его левого верхнего угла
           // dragOffsetRef хранит смещение где мы схватили предмет (в пикселях относительно элемента)
           // Нам нужно компенсировать это смещение чтобы предмет появился точно под курсором
-          const itemSizePx = 48; // w-12 h-12 = 48px
+          const itemSizePx = 72; // w-18 h-18 = 72px (увеличено в 1.5 раза)
           const offsetFractionX = (dragOffsetRef.current?.x || itemSizePx / 2) / itemSizePx;
           const offsetFractionY = (dragOffsetRef.current?.y || itemSizePx / 2) / itemSizePx;
           
@@ -280,7 +279,7 @@ export const useGame3 = () => {
           hasActiveItems = true;
           let newItem = { ...item };
 
-          // Фаза 1: Падение (только вертикальное движение)
+          // Фаза 1: Падение (только вертикальное движение с ускорением)
           if (newItem.isFalling) {
             const dy = newItem.targetY - newItem.y;
             const distance = Math.abs(dy);
@@ -292,23 +291,25 @@ export const useGame3 = () => {
               newItem.isFalling = false;
               
               // Инициализируем физику отскока
-              // Вертикальная скорость вверх (отскок) - уменьшена в 2 раза для первого отскока
-              newItem.velocityY = -(Math.random() * 0.4 + 0.3); // -0.3 до -0.7 (было -0.6 до -1.4)
-              // Горизонтальная скорость (случайное направление)
-              newItem.velocityX = (Math.random() - 0.5) * 1.2; // -0.6 до 0.6
+              // Вертикальная скорость вверх (отскок) - уменьшена для менее дугообразной траектории
+              newItem.velocityY = -(Math.random() * 0.3 + 0.25); // -0.25 до -0.55
+              // Горизонтальная скорость (случайное направление) - увеличена для менее дугообразной траектории
+              newItem.velocityX = (Math.random() - 0.5) * 1.8; // -0.9 до 0.9
               newItem.bounceCount = 0;
               newItem.maxBounces = Math.floor(Math.random() * 4) + 2; // 2-5 отскоков
             } else {
-              // Падение строго вниз с ускорением
-              const speed = 0.24; // Скорость падения (увеличена в 3 раза)
+              // Падение строго вниз с ускорением (физически корректно)
+              const gravity = 0.015; // Ускорение свободного падения
+              newItem.fallSpeed = (newItem.fallSpeed || 0) + gravity;
+              const speed = Math.min(newItem.fallSpeed, 1.2); // Ограничение максимальной скорости
               newItem.y += speed;
             }
           } 
           // Фаза 2: Физические отскоки
           else if (newItem.velocityY !== undefined) {
-            const gravity = 0.04; // Гравитация
-            const friction = 0.98; // Трение воздуха
-            const bounceDamping = 0.7; // Затухание отскока
+            const gravity = 0.03; // Гравитация (уменьшена для менее дугообразной траектории)
+            const friction = 0.96; // Трение воздуха
+            const bounceDamping = 0.65; // Затухание отскока
             
             // Применяем гравитацию
             newItem.velocityY += gravity;
@@ -331,7 +332,6 @@ export const useGame3 = () => {
                 newItem.velocityY = 0;
               } else {
                 // Отскок от поверхности - высота зависит от номера отскока
-                // Первый отскок уже имеет уменьшенную скорость, последующие могут быть выше
                 const bounceHeightMultiplier = newItem.bounceCount === 1 ? 0.5 : 1.0;
                 newItem.velocityY = -Math.abs(newItem.velocityY) * bounceDamping * bounceHeightMultiplier;
                 // Добавляем немного случайности к горизонтальной скорости при отскоке
