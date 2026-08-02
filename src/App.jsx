@@ -4,6 +4,7 @@ import LevelScreen from './components/LevelScreen/LevelScreen';
 import Game from './components/Game/Game';
 import Game2 from './components/Game2/Game2';
 import Game3 from './components/Game3/Game3';
+import Game4 from './components/Game4/Game4';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('menu');
@@ -63,6 +64,13 @@ function App() {
           />
         ) : selectedLevel === 3 ? (
           <Game3 
+            level={selectedLevel} 
+            onGameOver={handleBackToLevels}
+            onBack={handleBackToMenu}
+            onLevelComplete={handleLevelComplete}
+          />
+        ) : selectedLevel === 4 ? (
+          <Game4 
             level={selectedLevel} 
             onGameOver={handleBackToLevels}
             onBack={handleBackToMenu}
