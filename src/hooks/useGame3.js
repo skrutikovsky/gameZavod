@@ -52,9 +52,9 @@ const generateItems = (startAboveScreen = false) => {
       const targetY = Math.random() * 80 + 10; // 10-90% высоты
       const targetX = Math.random() * 80 + 10; // 10-90% ширины
       
-      // Все предметы начинают падение с одинаковой высоты над экраном
+      // Все предметы начинают падение с одинаковой высоты над экраном (-30%)
       // чтобы достигать поверхности примерно одновременно
-      const startY = startAboveScreen ? -20 - Math.random() * 10 : targetY;
+      const startY = startAboveScreen ? -30 : targetY;
       
       items.push({
         id: `item-${itemId++}`,
@@ -292,16 +292,17 @@ export const useGame3 = () => {
               
               // Инициализируем физику отскока
               // Вертикальная скорость вверх (отскок) - уменьшена для менее дугообразной траектории
-              newItem.velocityY = -(Math.random() * 0.3 + 0.25); // -0.25 до -0.55
+              newItem.velocityY = -(Math.random() * 0.25 + 0.2); // -0.2 до -0.45
               // Горизонтальная скорость (случайное направление) - увеличена для менее дугообразной траектории
-              newItem.velocityX = (Math.random() - 0.5) * 1.8; // -0.9 до 0.9
+              newItem.velocityX = (Math.random() - 0.5) * 1.6; // -0.8 до 0.8
               newItem.bounceCount = 0;
               newItem.maxBounces = Math.floor(Math.random() * 4) + 2; // 2-5 отскоков
             } else {
               // Падение строго вниз с ускорением (физически корректно)
-              const gravity = 0.015; // Ускорение свободного падения
+              // Уменьшено на 15% от предыдущей скорости
+              const gravity = 0.01275; // 0.015 * 0.85 = 0.01275 (ускорение свободного падения)
               newItem.fallSpeed = (newItem.fallSpeed || 0) + gravity;
-              const speed = Math.min(newItem.fallSpeed, 1.2); // Ограничение максимальной скорости
+              const speed = Math.min(newItem.fallSpeed, 1.02); // 1.2 * 0.85 = 1.02 (Ограничение максимальной скорости)
               newItem.y += speed;
             }
           } 
@@ -348,6 +349,11 @@ export const useGame3 = () => {
               newItem.velocityX = -Math.abs(newItem.velocityX) * 0.8; // Отскок влево
             }
             
+            // Проверка границ по Y (нижняя граница - не даем улететь за экран)
+            if (newItem.y >= 95) {
+              newItem.y = 95;
+              newItem.velocityY = -Math.abs(newItem.velocityY) * 0.5; // Отскок вверх
+            }
             // Проверка границ по Y (верхняя стена, если вдруг улетит)
             if (newItem.y <= 5) {
               newItem.y = 5;
