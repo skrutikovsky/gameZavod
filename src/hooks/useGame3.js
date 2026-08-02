@@ -200,13 +200,25 @@ export const useGame3 = () => {
         // Удаляем предмет из списка
         const newItems = prev.items.filter(i => i.id !== item.id);
 
-        return {
+        const newState = {
           ...prev,
           score: prev.score + pointsEarned,
           boxes: newBoxes,
           items: newItems,
           draggedItem: null,
         };
+
+        // Проверяем завершение раунда после удаления предмета
+        if (newItems.length === 0 && !prev.isRoundComplete) {
+          const newItemsGenerated = generateItems(true);
+          return {
+            ...newState,
+            items: newItemsGenerated,
+            isRoundComplete: false, // Сбрасываем флаг для следующего раунда
+          };
+        }
+
+        return newState;
       }
 
       // Если dropped на доску-плоскость - предмет остается там где его бросили
