@@ -261,108 +261,97 @@ export const useGame3 = () => {
     }));
   }, []);
 
-  // Анимация падения предметов с отскоками
+  // Анимация падения предметов с физическими отскоками
   useEffect(() => {
     const animateItems = () => {
       setGameState(prev => {
-        let hasFallingItems = false;
+        let hasActiveItems = false;
         const newItems = prev.items.map(item => {
           // Предметы не участвующие в анимации пропускаем
-          if (!item.isFalling && !item.bounceTargetX) {
+          if (!item.isFalling && !item.velocityX) {
             return item;
           }
 
-          hasFallingItems = true;
+          hasActiveItems = true;
           let newItem = { ...item };
 
-          // Фаза 1: Падение к целевой позиции (строго вниз)
+          // Фаза 1: Падение (только вертикальное движение)
           if (newItem.isFalling) {
             const dy = newItem.targetY - newItem.y;
             const distance = Math.abs(dy);
 
             if (distance < 0.5) {
-              // Достигли целевой позиции
+              // Достигли поверхности - начинаем отскок
               newItem.y = newItem.targetY;
               newItem.x = newItem.targetX;
               newItem.isFalling = false;
               
-              // Небольшая пауза перед отскоком - сбрасываем bounceCount чтобы был "отдых"
-              newItem.bounceCount = -1; // -1 означает паузу перед первым отскоком
+              // Инициализируем физику отскока
+              // Вертикальная скорость вверх (отскок)
+              newItem.velocityY = -(Math.random() * 0.8 + 0.6); // -0.6 до -1.4
+              // Горизонтальная скорость (случайное направление)
+              newItem.velocityX = (Math.random() - 0.5) * 1.2; // -0.6 до 0.6
+              newItem.bounceCount = 0;
               newItem.maxBounces = Math.floor(Math.random() * 2) + 2; // 2 или 3 отскока
-              newItem.bounceTargetX = null;
-              newItem.bounceTargetY = null;
             } else {
-              // Движение к целевой позиции (падение строго вниз по Y, X не меняем)
-              const speed = 0.24; // Скорость падения (увеличена в 3 раза, было 0.08)
-              // Двигаем только по вертикали вниз к цели
-              if (dy > 0) {
-                newItem.y += speed;
-              } else if (dy < 0) {
-                newItem.y -= speed;
-              }
-              // X координату не меняем до достижения цели - предмет падает строго вниз
+              // Падение строго вниз с ускорением
+              const speed = 0.24; // Скорость падения (увеличена в 3 раза)
+              newItem.y += speed;
             }
           } 
-          // Фаза 2: Отскоки
-          else if (newItem.bounceCount >= 0) {
-            // Если bounceCount === 0 и нет цели - генерируем первую цель отскока
-            if (newItem.bounceCount === 0 && newItem.bounceTargetX === null) {
-              const bounceAngle = Math.random() * Math.PI * 2;
-              const bounceDistance = Math.random() * 15 + 10; // 10-25% экрана
-              let nextX = newItem.x + Math.cos(bounceAngle) * bounceDistance;
-              let nextY = newItem.y + Math.sin(bounceAngle) * bounceDistance;
+          // Фаза 2: Физические отскоки
+          else if (newItem.velocityY !== undefined) {
+            const gravity = 0.04; // Гравитация
+            const friction = 0.98; // Трение воздуха
+            const bounceDamping = 0.7; // Затухание отскока
+            
+            // Применяем гравитацию
+            newItem.velocityY += gravity;
+            
+            // Применяем трение к горизонтальной скорости
+            newItem.velocityX *= friction;
+            
+            // Обновляем позицию
+            newItem.x += newItem.velocityX;
+            newItem.y += newItem.velocityY;
+            
+            // Проверка на достижение "поверхности" (targetY)
+            if (newItem.y >= newItem.targetY) {
+              newItem.y = newItem.targetY;
+              newItem.bounceCount++;
               
-              // Ограничиваем координаты пределами доски (5-95%)
-              nextX = Math.max(5, Math.min(95, nextX));
-              nextY = Math.max(5, Math.min(95, nextY));
-              
-              newItem.bounceTargetX = nextX;
-              newItem.bounceTargetY = nextY;
+              if (newItem.bounceCount >= newItem.maxBounces || Math.abs(newItem.velocityY) < 0.1) {
+                // Завершаем отскоки - предмет останавливается
+                newItem.velocityX = 0;
+                newItem.velocityY = 0;
+              } else {
+                // Отскок от поверхности
+                newItem.velocityY = -Math.abs(newItem.velocityY) * bounceDamping;
+                // Добавляем немного случайности к горизонтальной скорости при отскоке
+                newItem.velocityX = newItem.velocityX * 0.9 + (Math.random() - 0.5) * 0.3;
+              }
             }
             
-            // Если есть цель отскока - движемся к ней
-            if (newItem.bounceTargetX !== null) {
-              const dy = newItem.bounceTargetY - newItem.y;
-              const dx = newItem.bounceTargetX - newItem.x;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-
-              if (distance < 0.5) {
-                // Достигли цели отскока
-                newItem.y = newItem.bounceTargetY;
-                newItem.x = newItem.bounceTargetX;
-                newItem.bounceCount++;
-
-                if (newItem.bounceCount >= newItem.maxBounces) {
-                  // Завершаем отскоки
-                  newItem.bounceTargetX = null;
-                  newItem.bounceTargetY = null;
-                } else {
-                  // Генерируем следующую цель для отскока с ограничением границ
-                  const bounceAngle = Math.random() * Math.PI * 2;
-                  const bounceDistance = Math.random() * 10 + 5; // 5-15% экрана
-                  let nextX = newItem.x + Math.cos(bounceAngle) * bounceDistance;
-                  let nextY = newItem.y + Math.sin(bounceAngle) * bounceDistance;
-                  
-                  // Ограничиваем координаты пределами доски (5-95%)
-                  nextX = Math.max(5, Math.min(95, nextX));
-                  nextY = Math.max(5, Math.min(95, nextY));
-                  
-                  newItem.bounceTargetX = nextX;
-                  newItem.bounceTargetY = nextY;
-                }
-              } else {
-                // Движение к цели отскока (плавное перемещение)
-                const speed = 0.15; // Скорость отскока (увеличена)
-                newItem.x += (dx / distance) * speed;
-                newItem.y += (dy / distance) * speed;
-              }
+            // Проверка границ по X (левая и правая стены)
+            if (newItem.x <= 5) {
+              newItem.x = 5;
+              newItem.velocityX = Math.abs(newItem.velocityX) * 0.8; // Отскок вправо
+            } else if (newItem.x >= 95) {
+              newItem.x = 95;
+              newItem.velocityX = -Math.abs(newItem.velocityX) * 0.8; // Отскок влево
+            }
+            
+            // Проверка границ по Y (верхняя стена, если вдруг улетит)
+            if (newItem.y <= 5) {
+              newItem.y = 5;
+              newItem.velocityY = Math.abs(newItem.velocityY) * 0.8; // Отскок вниз
             }
           }
 
           return newItem;
         });
 
-        return hasFallingItems ? { ...prev, items: newItems } : prev;
+        return hasActiveItems ? { ...prev, items: newItems } : prev;
       });
 
       animationFrameRef.current = requestAnimationFrame(animateItems);
