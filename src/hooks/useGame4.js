@@ -176,7 +176,7 @@ export function useGame4() {
     });
   }, []);
   
-  // Обработка движения мыши с новой логикой: рисуем точку когда курсор попадает во внутреннюю зону предыдущей точки
+  // Обработка движения мыши с новой логикой: рисуем точку когда курсор прошел 2/3 радиуса от последней точки
   const handleMouseMove = useCallback((e) => {
     if (!isMouseDownRef.current || !gameStateRef.current?.isRunning) return;
     
@@ -194,17 +194,16 @@ export function useGame4() {
     const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
     const localGapWidth = gapWidths[idx];
     const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
-    const innerTriggerRadius = localWeldRadius * INNER_TRIGGER_RATIO; // 1/3 радиуса
+    const triggerDistance = localWeldRadius * (2/3); // 2/3 радиуса для триггера
     
     if (lastWeldPointRef.current) {
-      // Проверяем, попал ли курсор во внутреннюю зону последней точки
+      // Проверяем, прошло ли курсор достаточное расстояние от последней точки
       const dx = mouseX - lastWeldPointRef.current.x;
       const dy = mouseY - lastWeldPointRef.current.y;
       const dist = Math.hypot(dx, dy);
       
-      // Если попали во внутреннюю зону - рисуем новую точку
-      if (dist >= innerTriggerRadius) {
-        lastWeldPointRef.current = { x: mouseX, y: mouseY };
+      // Если не прошли достаточное расстояние - не рисуем
+      if (dist < triggerDistance) {
         return;
       }
       
