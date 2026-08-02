@@ -299,7 +299,7 @@ export const useGame3 = () => {
         let hasActiveItems = false;
         const newItems = prev.items.map(item => {
           // Предметы не участвующие в анимации пропускаем
-          if (!item.isFalling && !item.velocityX) {
+          if (!item.isFalling && !item.velocityY) {
             return item;
           }
 
@@ -318,91 +318,98 @@ export const useGame3 = () => {
               newItem.isFalling = false;
               
               // Инициализируем физику отскока
-              // Вертикальная скорость вверх (отскок) - уменьшена для менее дугообразной траектории
-              newItem.velocityY = -(Math.random() * 0.25 + 0.2); // -0.2 до -0.45
-              // Горизонтальная скорость (случайное направление) - увеличена для менее дугообразной траектории
-              newItem.velocityX = (Math.random() - 0.5) * 1.6; // -0.8 до 0.8
+              // Вертикальная скорость вверх (отскок)
+              newItem.velocityY = -(Math.random() * 0.2 + 0.15); // -0.15 до -0.35
+              // Горизонтальная скорость (случайное направление)
+              newItem.velocityX = (Math.random() - 0.5) * 0.8; // -0.4 до 0.4
               newItem.bounceCount = 0;
-              newItem.maxBounces = Math.floor(Math.random() * 4) + 2; // 2-5 отскоков
+              newItem.maxBounces = Math.floor(Math.random() * 3) + 2; // 2-4 отскока
+              newItem.fallSpeed = 0; // Сбрасываем скорость падения
             } else {
-              // Падение строго вниз с ускорением (физически корректно)
-              // Уменьшено на 15% от предыдущей скорости
-              const gravity = 0.01275; // 0.015 * 0.85 = 0.01275 (ускорение свободного падения)
+              // Падение строго вниз с ускорением
+              const gravity = 0.008; // Уменьшенная гравитация для падения
               newItem.fallSpeed = (newItem.fallSpeed || 0) + gravity;
-              const speed = Math.min(newItem.fallSpeed, 1.02); // 1.2 * 0.85 = 1.02 (Ограничение максимальной скорости)
+              const speed = Math.min(newItem.fallSpeed, 0.8); // Ограничение максимальной скорости падения
               newItem.y += speed;
             }
           } 
           // Фаза 2: Физические отскоки
-          else if (newItem.velocityY !== undefined) {
-            const gravity = 0.03; // Гравитация (уменьшена для менее дугообразной траектории)
-            const friction = 0.96; // Трение воздуха
-            const bounceDamping = 0.65; // Затухание отскока
+          else if (newItem.velocityY !== undefined || newItem.velocityX !== undefined) {
+            const gravity = 0.015; // Гравитация во время отскоков
+            const friction = 0.94; // Трение воздуха
+            const bounceDamping = 0.55; // Затухание отскока
             
-            // Применяем гравитацию
-            newItem.velocityY += gravity;
+            // Применяем гравитацию только если есть вертикальная скорость
+            if (newItem.velocityY !== undefined) {
+              newItem.velocityY += gravity;
+            }
             
             // Применяем трение к горизонтальной скорости
-            newItem.velocityX *= friction;
+            if (newItem.velocityX !== undefined) {
+              newItem.velocityX *= friction;
+              // Останавливаем очень маленькую горизонтальную скорость
+              if (Math.abs(newItem.velocityX) < 0.01) {
+                newItem.velocityX = 0;
+              }
+            }
             
             // Обновляем позицию
-            newItem.x += newItem.velocityX;
-            newItem.y += newItem.velocityY;
+            if (newItem.velocityX !== undefined) {
+              newItem.x += newItem.velocityX;
+            }
+            if (newItem.velocityY !== undefined) {
+              newItem.y += newItem.velocityY;
+            }
             
             // Проверка границ по X (левая и правая стены)
             if (newItem.x <= 5) {
               newItem.x = 5;
-              newItem.velocityX = Math.abs(newItem.velocityX) * 0.8; // Отскок вправо
+              if (newItem.velocityX !== undefined) {
+                newItem.velocityX = Math.abs(newItem.velocityX) * 0.7;
+              }
             } else if (newItem.x >= 95) {
               newItem.x = 95;
-              newItem.velocityX = -Math.abs(newItem.velocityX) * 0.8; // Отскок влево
+              if (newItem.velocityX !== undefined) {
+                newItem.velocityX = -Math.abs(newItem.velocityX) * 0.7;
+              }
             }
             
-            // Проверка границ по Y - жёсткое ограничение чтобы предметы не улетали за экран
-            // Нижняя граница (не даем улететь за экран)
-            if (newItem.y >= 92) {
-              newItem.y = 92;
-              // Если скорость всё ещё направлена вниз - гасим её и делаем небольшой отскок
-              if (newItem.velocityY > 0) {
-                newItem.velocityY = -Math.abs(newItem.velocityY) * 0.4;
+            // Проверка нижней границы - ЖЁСТКОЕ ограничение
+            if (newItem.y >= 88) {
+              newItem.y = 88;
+              // Если скорость направлена вниз - делаем отскок вверх или гасим
+              if (newItem.velocityY !== undefined && newItem.velocityY > 0) {
+                newItem.velocityY = -Math.abs(newItem.velocityY) * 0.3;
+                // Если скорость очень маленькая - останавливаем
+                if (Math.abs(newItem.velocityY) < 0.08) {
+                  newItem.velocityY = 0;
+                }
               }
-              newItem.bounceCount++;
-              // Если уже много отскоков или скорость маленькая - останавливаем предмет
-              if (newItem.bounceCount >= newItem.maxBounces || Math.abs(newItem.velocityY) < 0.15) {
+              newItem.bounceCount = (newItem.bounceCount || 0) + 1;
+              // Если много отскоков - останавливаем предмет
+              if (newItem.bounceCount >= newItem.maxBounces) {
                 newItem.velocityX = 0;
                 newItem.velocityY = 0;
               }
             }
-            // Верхняя граница (если вдруг улетит вверх)
+            // Проверка верхней границы
             if (newItem.y <= 5) {
               newItem.y = 5;
-              newItem.velocityY = Math.abs(newItem.velocityY) * 0.8; // Отскок вниз
+              if (newItem.velocityY !== undefined && newItem.velocityY < 0) {
+                newItem.velocityY = Math.abs(newItem.velocityY) * 0.7;
+              }
             }
             
-            // Проверка на достижение "поверхности" (targetY) для инициации отскоков
-            // Проверяем только если предмет ещё не достиг нижней границы
-            if (newItem.y >= newItem.targetY && newItem.y < 92) {
+            // Проверяем нужно ли остановить предмет (маленькие скорости)
+            if (newItem.velocityY !== undefined && Math.abs(newItem.velocityY) < 0.05 && newItem.y > newItem.targetY - 1) {
+              newItem.velocityY = 0;
               newItem.y = newItem.targetY;
-              
-              if (newItem.bounceCount === 0) {
-                // Первый контакт с поверхностью - начинаем отскоки
-                newItem.bounceCount = 1;
-                // Высота отскока зависит от номера отскока
-                const bounceHeightMultiplier = 0.5;
-                newItem.velocityY = -Math.abs(newItem.velocityY || 0.3) * bounceDamping * bounceHeightMultiplier;
-                // Добавляем немного случайности к горизонтальной скорости при отскоке
-                newItem.velocityX = newItem.velocityX * 0.9 + (Math.random() - 0.5) * 0.3;
-              } else if (newItem.bounceCount < newItem.maxBounces && Math.abs(newItem.velocityY) > 0.15) {
-                // Продолжаем отскоки
-                const bounceHeightMultiplier = 1.0;
-                newItem.velocityY = -Math.abs(newItem.velocityY) * bounceDamping * bounceHeightMultiplier;
-                newItem.velocityX = newItem.velocityX * 0.9 + (Math.random() - 0.5) * 0.3;
-                newItem.bounceCount++;
-              } else {
-                // Завершаем отскоки - предмет останавливается
-                newItem.velocityX = 0;
-                newItem.velocityY = 0;
-              }
+            }
+            
+            // Если обе скорости нулевые - убираем их из предмета
+            if (newItem.velocityX === 0 && newItem.velocityY === 0) {
+              delete newItem.velocityX;
+              delete newItem.velocityY;
             }
           }
 
