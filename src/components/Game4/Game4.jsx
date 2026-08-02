@@ -302,13 +302,13 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const handleCanvasMouseMove = (e) => {
-    // Обновляем позицию мыши для курсора-сварки
+    // Обновляем позицию мыши для курсора-сварки (используем координаты канваса)
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       setGameState(prev => ({
         ...prev,
-        mouseX: e.clientX,
-        mouseY: e.clientY
+        mouseX: e.clientX - rect.left,
+        mouseY: e.clientY - rect.top
       }));
     }
     handleMouseMove(e);
