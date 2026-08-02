@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
-export const BASE_GAP_WIDTH = 80; // Базовая ширина разрыва (в 4 раза шире ~20)
+export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва (увеличено в 2 раза)
 export const WELD_SIZE_RATIO = 0.6; // Размер точки = 60% от ширины шва
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 1500; // Длительность плавного перехода цвета
@@ -24,6 +24,10 @@ export function generateGapPath(width, height) {
   const noiseAmplitude = height * 0.03;
   const phaseShift = Math.random() * Math.PI * 2;
   
+  // Параметры для вариации ширины шва (горы и низины)
+  const widthBaseVariation = BASE_GAP_WIDTH * 0.5; // Базовое изменение ширины
+  const widthNoiseAmplitude = BASE_GAP_WIDTH * 0.35; // Шум для ширины
+  
   for (let i = 0; i <= segmentCount; i++) {
     const x = i * segmentLength;
     const t = i / segmentCount;
@@ -41,11 +45,19 @@ export function generateGapPath(width, height) {
     
     points.push({ x, y });
     
-    // Неравномерная ширина: база +- 25%
-    const variation = 0.5 + Math.random() * 0.5;
-    const randomFactor = (Math.random() - 0.5) * 0.5; // +- 25%
-    const w = BASE_GAP_WIDTH * (1 + randomFactor * variation);
-    widths.push(Math.max(40, w)); // Минимальная ширина 40
+    // Создаем эффект "гор и низин" для ширины шва
+    // Используем комбинацию синусоид разной частоты для плавных переходов
+    const mountainEffect = Math.sin(t * Math.PI * 3 + phaseShift) * 0.5 + 0.5; // 0..1
+    const valleyEffect = Math.cos(t * Math.PI * 5 + phaseShift * 1.3) * 0.3 + 0.7; // 0.4..1
+    
+    // Добавляем шум для большей естественности
+    const noise = (Math.random() - 0.5) * 0.4; // -0.2..0.2
+    
+    // Комбинируем все эффекты для итоговой ширины
+    const widthMultiplier = mountainEffect * 0.6 + valleyEffect * 0.4 + noise;
+    const w = BASE_GAP_WIDTH * (0.6 + widthMultiplier * 0.8); // Диапазон примерно 0.6x..1.4x от базы
+    
+    widths.push(Math.max(60, Math.min(BASE_GAP_WIDTH * 2.2, w))); // Ограничения: 60..352
   }
   
   return { points, widths };
@@ -383,6 +395,7 @@ export function useGame4() {
   
   return {
     gameState,
+    setGameState,
     startGame,
     resetGame,
     handleMouseMove,

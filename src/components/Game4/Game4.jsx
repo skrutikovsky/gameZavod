@@ -54,6 +54,7 @@ const WeldingTorch = ({ x, y }) => {
 const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
     gameState,
+    setGameState,
     startGame,
     resetGame,
     handleMouseMove,
