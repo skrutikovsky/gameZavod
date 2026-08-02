@@ -57,8 +57,10 @@ const generateItems = (startAboveScreen = false) => {
   let itemId = 0;
   for (let typeIdx = 0; typeIdx < counts.length; typeIdx++) {
     for (let i = 0; i < counts[typeIdx]; i++) {
-      const targetY = Math.random() * 80 + 10; // 10-90% высоты
-      const targetX = Math.random() * 80 + 10; // 10-90% ширины
+      // Ограничиваем targetY пределами 15-75% чтобы предметы падали в центральной области доски
+      // Это предотвращает улетание предметов за края при отскоках
+      const targetY = Math.random() * 60 + 15; // 15-75% высоты
+      const targetX = Math.random() * 70 + 15; // 15-85% ширины
       
       // Все предметы начинают падение с одинаковой высоты над экраном (-30%)
       // чтобы достигать поверхности примерно одновременно
@@ -366,8 +368,8 @@ export const useGame3 = () => {
             
             // Проверка границ по Y - жёсткое ограничение чтобы предметы не улетали за экран
             // Нижняя граница (не даем улететь за экран) - проверяем ПЕРЕД обработкой отскоков от поверхности
-            if (newItem.y >= 92) {
-              newItem.y = 92;
+            if (newItem.y >= 85) {
+              newItem.y = 85;
               // Если скорость всё ещё направлена вниз - гасим её и делаем небольшой отскок
               if (newItem.velocityY > 0) {
                 newItem.velocityY = -Math.abs(newItem.velocityY) * 0.4;
@@ -388,7 +390,7 @@ export const useGame3 = () => {
             // Проверяем только если предмет ещё не достиг нижней границы и движется вниз
             // Это предотвращает двойную обработку когда предмет уже у нижней границы
             // Также проверяем что targetY в пределах доски (5-90%)
-            else if (newItem.y >= newItem.targetY && newItem.targetY >= 5 && newItem.targetY <= 90 && newItem.velocityY > 0) {
+            else if (newItem.y >= newItem.targetY && newItem.velocityY > 0) {
               newItem.y = newItem.targetY;
               
               if (newItem.bounceCount === 0) {
