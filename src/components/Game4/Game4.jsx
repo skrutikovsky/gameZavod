@@ -219,7 +219,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         gameTime={0}
         formatTime={(ms) => '0:00'}
         onBack={onBack}
-        isGame3={true}
+        isGame4={true}
         round={gameState.round}
         itemsOnBoard={gameState.weldCoverage}
       />
