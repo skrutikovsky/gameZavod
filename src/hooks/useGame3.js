@@ -313,7 +313,8 @@ export const useGame3 = () => {
             const dy = newItem.targetY - newItem.y;
             const distance = Math.abs(dy);
 
-            if (distance < 0.5) {
+            // Проверяем достигли ли поверхности или пролетели ниже неё
+            if (distance < 0.5 || newItem.y >= newItem.targetY) {
               // Достигли поверхности - начинаем отскок
               newItem.y = newItem.targetY;
               newItem.x = newItem.targetX;
@@ -334,10 +335,12 @@ export const useGame3 = () => {
               newItem.maxBounces = Math.floor(Math.random() * 4) + 2; // 2-5 отскоков
             } else {
               // Падение строго вниз с ускорением (физически корректно)
-              // Уменьшено на 15% от предыдущей скорости
+              // Ограничиваем максимальную скорость чтобы предмет не "перепрыгнул" поверхность
               const gravity = 0.01275; // 0.015 * 0.85 = 0.01275 (ускорение свободного падения)
               newItem.fallSpeed = (newItem.fallSpeed || 0) + gravity;
-              const speed = Math.min(newItem.fallSpeed, 1.02); // 1.2 * 0.85 = 1.02 (Ограничение максимальной скорости)
+              // Ограничиваем скорость чтобы не перепрыгнуть targetY
+              const maxSpeed = Math.max(0.5, Math.abs(newItem.targetY - newItem.y) * 0.3);
+              const speed = Math.min(newItem.fallSpeed, maxSpeed, 1.02);
               newItem.y += speed;
             }
           } 
