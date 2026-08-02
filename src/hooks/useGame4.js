@@ -1,14 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
-export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва (увеличено в 2 раза)
+export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва
 export const WELD_SIZE_RATIO = 0.6; // Размер точки = 60% от ширины шва
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
-export const FADE_DURATION = 1500; // Длительность плавного перехода цвета
+export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
 export const WIN_COVERAGE = 95; // Процент покрытия для победы
-export const MAX_SPEED_THRESHOLD = 15; // Максимальная скорость движения (пикселей за кадр)
-export const STEP_DISTANCE_RATIO = 0.66; // Шаг рисования = 2/3 радиуса
+export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -23,10 +22,6 @@ export function generateGapPath(width, height) {
   const amplitude = height * 0.1 + Math.random() * height * 0.08;
   const noiseAmplitude = height * 0.03;
   const phaseShift = Math.random() * Math.PI * 2;
-  
-  // Параметры для вариации ширины шва (горы и низины)
-  const widthBaseVariation = BASE_GAP_WIDTH * 0.5; // Базовое изменение ширины
-  const widthNoiseAmplitude = BASE_GAP_WIDTH * 0.35; // Шум для ширины
   
   for (let i = 0; i <= segmentCount; i++) {
     const x = i * segmentLength;
@@ -45,19 +40,9 @@ export function generateGapPath(width, height) {
     
     points.push({ x, y });
     
-    // Создаем эффект "гор и низин" для ширины шва
-    // Используем комбинацию синусоид разной частоты для плавных переходов
-    const mountainEffect = Math.sin(t * Math.PI * 3 + phaseShift) * 0.5 + 0.5; // 0..1
-    const valleyEffect = Math.cos(t * Math.PI * 5 + phaseShift * 1.3) * 0.3 + 0.7; // 0.4..1
-    
-    // Добавляем шум для большей естественности
-    const noise = (Math.random() - 0.5) * 0.4; // -0.2..0.2
-    
-    // Комбинируем все эффекты для итоговой ширины
-    const widthMultiplier = mountainEffect * 0.6 + valleyEffect * 0.4 + noise;
-    const w = BASE_GAP_WIDTH * (0.6 + widthMultiplier * 0.8); // Диапазон примерно 0.6x..1.4x от базы
-    
-    widths.push(Math.max(60, Math.min(BASE_GAP_WIDTH * 2.2, w))); // Ограничения: 60..352
+    // Ширина шва всегда фиксирована = 60% от базовой ширины разрыва
+    const w = BASE_GAP_WIDTH * 0.6;
+    widths.push(w);
   }
   
   return { points, widths };
@@ -97,9 +82,10 @@ export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
   const allPoints = [...cooledPoints, ...allWeldPoints];
   
   for (let p of allPoints) {
-    const localRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO;
+    const localRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
     const dist = Math.hypot(x - p.x, y - p.y);
-    if (dist < (radius + localRadius)) {
+    // Проверяем попадание во внутреннюю зону (1/3 радиуса предыдущей точки)
+    if (dist < (localRadius * INNER_TRIGGER_RATIO)) {
       return true;
     }
   }
@@ -190,7 +176,7 @@ export function useGame4() {
     });
   }, []);
   
-  // Обработка движения мыши с равномерным шагом
+  // Обработка движения мыши с новой логикой: рисуем точку когда курсор попадает во внутреннюю зону предыдущей точки
   const handleMouseMove = useCallback((e) => {
     if (!isMouseDownRef.current || !gameStateRef.current?.isRunning) return;
     
@@ -208,32 +194,25 @@ export function useGame4() {
     const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
     const localGapWidth = gapWidths[idx];
     const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
-    const stepDist = localWeldRadius * STEP_DISTANCE_RATIO * 2; // 2/3 диаметра
+    const innerTriggerRadius = localWeldRadius * INNER_TRIGGER_RATIO; // 1/3 радиуса
     
     if (lastWeldPointRef.current) {
+      // Проверяем, попал ли курсор во внутреннюю зону последней точки
       const dx = mouseX - lastWeldPointRef.current.x;
       const dy = mouseY - lastWeldPointRef.current.y;
       const dist = Math.hypot(dx, dy);
       
-      speedRef.current = dist;
-      
-      // Если слишком быстро - не варим
-      if (dist > MAX_SPEED_THRESHOLD) {
+      // Если попали во внутреннюю зону - рисуем новую точку
+      if (dist >= innerTriggerRadius) {
         lastWeldPointRef.current = { x: mouseX, y: mouseY };
         return;
       }
       
-      // Проверяем шаг
-      if (dist < stepDist) {
-        return;
-      }
-      
-      // Нормальная скорость и шаг - пробуем варить
+      // Проверяем что точка в зоне шва или на существующей сварке
       const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, rect.width);
       const onWeld = canWeldOnExisting(mouseX, mouseY, localWeldRadius, cooledPoints, weldPoints);
       
       if (!inGap && !onWeld) {
-        lastWeldPointRef.current = { x: mouseX, y: mouseY };
         return;
       }
       
@@ -257,7 +236,7 @@ export function useGame4() {
       lastWeldPointRef.current = { x: mouseX, y: mouseY };
       
     } else {
-      // Первая точка
+      // Первая точка при зажатии ЛКМ
       lastWeldPointRef.current = { x: mouseX, y: mouseY };
       
       const inGap = isPointInGapZone(mouseX, mouseY, gapPath, gapWidths, localWeldRadius, rect.width);
