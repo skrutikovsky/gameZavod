@@ -1,1 +1,15 @@
-(src/hooks/useGame3.js)
+```
+# Build artifacts
+dist/
+build/
+*.js
+
+# Dependencies
+node_modules/
+
+# Editors
+.vscode/
+
+# Logs
+*.log
+```
