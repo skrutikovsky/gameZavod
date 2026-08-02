@@ -21,7 +21,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   } = useGame4();
 
   const gameContainerRef = useRef(null);
-  const canvasInnerRef = useRef(null);
 
   useEffect(() => {
     startGame();
@@ -31,26 +30,26 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const handleMouseDown = useCallback((e) => {
     if (gameState.isRoundComplete) return;
     
-    const rect = canvasInnerRef.current?.getBoundingClientRect();
+    const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
     startWelding(x, y);
-  }, [gameState.isRoundComplete, startWelding]);
+  }, [gameState.isRoundComplete, startWelding, canvasRef]);
 
   const handleMouseMove = useCallback((e) => {
     if (!gameState.isWelding || gameState.isRoundComplete) return;
     
-    const rect = canvasInnerRef.current?.getBoundingClientRect();
+    const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
     weldMove(x, y);
-  }, [gameState.isWelding, gameState.isRoundComplete, weldMove]);
+  }, [gameState.isWelding, gameState.isRoundComplete, weldMove, canvasRef]);
 
   const handleMouseUp = useCallback(() => {
     stopWelding();
@@ -60,7 +59,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const handleTouchStart = useCallback((e) => {
     if (gameState.isRoundComplete) return;
     
-    const rect = canvasInnerRef.current?.getBoundingClientRect();
+    const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const touch = e.touches[0];
@@ -68,12 +67,12 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const y = touch.clientY - rect.top;
     
     startWelding(x, y);
-  }, [gameState.isRoundComplete, startWelding]);
+  }, [gameState.isRoundComplete, startWelding, canvasRef]);
 
   const handleTouchMove = useCallback((e) => {
     if (!gameState.isWelding || gameState.isRoundComplete) return;
     
-    const rect = canvasInnerRef.current?.getBoundingClientRect();
+    const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const touch = e.touches[0];
@@ -81,7 +80,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const y = touch.clientY - rect.top;
     
     weldMove(x, y);
-  }, [gameState.isWelding, gameState.isRoundComplete, weldMove]);
+  }, [gameState.isWelding, gameState.isRoundComplete, weldMove, canvasRef]);
 
   const handleTouchEnd = useCallback(() => {
     stopWelding();
@@ -89,7 +88,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
   // Отрисовка на канвасе
   useEffect(() => {
-    const canvas = canvasInnerRef.current;
+    const canvas = canvasRef.current;
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
@@ -239,7 +238,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {/* Игровое поле с металлом */}
       <div className="absolute inset-0 flex items-center justify-center pt-32">
         <div 
-          ref={canvasInnerRef}
+          ref={canvasRef}
           className="relative shadow-2xl rounded-lg overflow-hidden cursor-none"
           style={{
             width: METAL_SHEET_WIDTH,
@@ -255,7 +254,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           onTouchEnd={handleTouchEnd}
         >
           <canvas
-            ref={canvasRef}
             width={METAL_SHEET_WIDTH}
             height={METAL_SHEET_HEIGHT}
             className="block"
