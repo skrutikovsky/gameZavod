@@ -11,7 +11,8 @@ const ITEM_TYPES = [
 ];
 
 const MAX_BOX_COUNT = 25;
-const TOTAL_ITEMS_PER_ROUND = 60;
+let currentRoundItemCount = 12; // Начальное количество предметов
+let roundNumber = 0; // Номер раунда для увеличения количества предметов
 
 // Функция для выбора случайного типа предмета с учетом вероятностей
 const getRandomItemType = () => {
@@ -26,24 +27,31 @@ const getRandomItemType = () => {
   return ITEM_TYPES[ITEM_TYPES.length - 1].id;
 };
 
-// Генерация 60 предметов с заданными пропорциями
+// Генерация предметов с заданными пропорциями
 const generateItems = (startAboveScreen = false) => {
   const items = [];
+  
+  // Увеличиваем количество предметов на 2 каждый раунд
+  roundNumber++;
+  if (roundNumber > 1) {
+    currentRoundItemCount = Math.min(60, 12 + (roundNumber - 1) * 2);
+  }
+  
   const counts = [
-    Math.round(TOTAL_ITEMS_PER_ROUND * 0.03), // тип 1 - 3%
-    Math.round(TOTAL_ITEMS_PER_ROUND * 0.07), // тип 2 - 7%
-    Math.round(TOTAL_ITEMS_PER_ROUND * 0.15), // тип 3 - 15%
-    Math.round(TOTAL_ITEMS_PER_ROUND * 0.20), // тип 4 - 20%
-    Math.round(TOTAL_ITEMS_PER_ROUND * 0.25), // тип 5 - 25%
-    Math.round(TOTAL_ITEMS_PER_ROUND * 0.30), // тип 6 - 30%
+    Math.round(currentRoundItemCount * 0.03), // тип 1 - 3%
+    Math.round(currentRoundItemCount * 0.07), // тип 2 - 7%
+    Math.round(currentRoundItemCount * 0.15), // тип 3 - 15%
+    Math.round(currentRoundItemCount * 0.20), // тип 4 - 20%
+    Math.round(currentRoundItemCount * 0.25), // тип 5 - 25%
+    Math.round(currentRoundItemCount * 0.30), // тип 6 - 30%
   ];
 
-  // Корректировка чтобы сумма была ровно 60
+  // Корректировка чтобы сумма была ровно currentRoundItemCount
   let total = counts.reduce((a, b) => a + b, 0);
-  if (total < TOTAL_ITEMS_PER_ROUND) {
-    counts[5] += TOTAL_ITEMS_PER_ROUND - total;
-  } else if (total > TOTAL_ITEMS_PER_ROUND) {
-    counts[5] -= total - TOTAL_ITEMS_PER_ROUND;
+  if (total < currentRoundItemCount) {
+    counts[5] += currentRoundItemCount - total;
+  } else if (total > currentRoundItemCount) {
+    counts[5] -= total - currentRoundItemCount;
   }
 
   let itemId = 0;
@@ -102,6 +110,10 @@ export const useGame3 = () => {
   const animationFrameRef = useRef(null); // Ref для requestAnimationFrame
 
   const startGame = useCallback(() => {
+    // Сбрасываем счетчик раундов и количество предметов при старте новой игры
+    roundNumber = 0;
+    currentRoundItemCount = 12;
+    
     const initialItems = generateItems(true); // true = предметы появляются выше экрана
 
     setGameState(prev => ({
@@ -207,7 +219,7 @@ export const useGame3 = () => {
           // Учитываем смещение точки захвата предмета относительно его левого верхнего угла
           // dragOffsetRef хранит смещение где мы схватили предмет (в пикселях относительно элемента)
           // Нам нужно компенсировать это смещение чтобы предмет появился точно под курсором
-          const itemSizePx = 72; // w-18 h-18 = 72px (увеличено в 1.5 раза)
+          const itemSizePx = 96; // w-24 h-24 = 96px (увеличено в 1.5 раза)
           const offsetFractionX = (dragOffsetRef.current?.x || itemSizePx / 2) / itemSizePx;
           const offsetFractionY = (dragOffsetRef.current?.y || itemSizePx / 2) / itemSizePx;
           

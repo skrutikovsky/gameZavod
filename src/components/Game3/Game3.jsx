@@ -240,7 +240,7 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         {gameState.items.map((item) => (
           <div
             key={item.id}
-            className={`absolute w-18 h-18 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-3xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
+            className={`absolute w-24 h-24 ${getItemColor(item.type)} rounded-lg shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center text-4xl select-none border-2 border-white/70 hover:scale-105 transition-transform`}
             style={{
               left: `${item.x}%`,
               top: `${item.y}%`,
