@@ -146,30 +146,75 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const sheetWidth = width - sheetMargin * 2;
     const sheetHeight = height - sheetMargin * 2;
 
-    // Рисуем лист металла
+    // Рисуем фон (темный цех)
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, '#1a1a2e');
+    bgGradient.addColorStop(1, '#16213e');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // Рисуем лист металла с более реалистичной текстурой
     const metalGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY + sheetHeight);
-    metalGradient.addColorStop(0, '#7f8c8d');
-    metalGradient.addColorStop(0.5, '#95a5a6');
-    metalGradient.addColorStop(1, '#7f8c8d');
+    metalGradient.addColorStop(0, '#5a6b7c');
+    metalGradient.addColorStop(0.2, '#6d8299');
+    metalGradient.addColorStop(0.5, '#7f94ab');
+    metalGradient.addColorStop(0.8, '#6d8299');
+    metalGradient.addColorStop(1, '#5a6b7c');
     
     ctx.fillStyle = metalGradient;
     ctx.fillRect(sheetX, sheetY, sheetWidth, sheetHeight);
     
-    // Добавляем текстуру металла
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    // Добавляем текстуру металла (шлифованные линии)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
-    for (let i = 0; i < sheetHeight; i += 3) {
+    for (let i = 0; i < sheetHeight; i += 4) {
       ctx.beginPath();
       ctx.moveTo(sheetX, sheetY + i);
       ctx.lineTo(sheetX + sheetWidth, sheetY + i);
       ctx.stroke();
     }
+    
+    // Добавляем случайные царапины для реализма
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 20; i++) {
+      const scratchX = sheetX + Math.random() * sheetWidth;
+      const scratchY = sheetY + Math.random() * sheetHeight;
+      const scratchLen = 20 + Math.random() * 40;
+      const scratchAngle = Math.random() * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(scratchX, scratchY);
+      ctx.lineTo(scratchX + Math.cos(scratchAngle) * scratchLen, scratchY + Math.sin(scratchAngle) * scratchLen);
+      ctx.stroke();
+    }
+    ctx.restore();
 
-    // Рисуем разрыв (шов)
+    // Рисуем края листа с разрезом (более темные и объемные)
+    const edgeGradient = ctx.createLinearGradient(sheetX - 10, sheetY, sheetX + 10, sheetY);
+    edgeGradient.addColorStop(0, '#2d3e50');
+    edgeGradient.addColorStop(0.5, '#4a5d70');
+    edgeGradient.addColorStop(1, '#2d3e50');
+    
+    ctx.fillStyle = edgeGradient;
+    ctx.fillRect(sheetX - 10, sheetY, 10, sheetHeight);
+    ctx.fillRect(sheetX + sheetWidth, sheetY, 10, sheetHeight);
+    
+    // Верхний и нижний край
+    const topEdgeGradient = ctx.createLinearGradient(sheetX, sheetY - 10, sheetX, sheetY + 10);
+    topEdgeGradient.addColorStop(0, '#2d3e50');
+    topEdgeGradient.addColorStop(0.5, '#4a5d70');
+    topEdgeGradient.addColorStop(1, '#2d3e50');
+    
+    ctx.fillStyle = topEdgeGradient;
+    ctx.fillRect(sheetX - 10, sheetY - 10, sheetWidth + 20, 10);
+    ctx.fillRect(sheetX - 10, sheetY + sheetHeight, sheetWidth + 20, 10);
+
+    // Рисуем разрыв (шов) с более контрастным видом
     const seamWidth = BASE_GAP_WIDTH;
     
-    // Область шва
-    ctx.fillStyle = 'rgba(50, 50, 50, 0.4)';
+    // Тень внутри шва для объема
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.beginPath();
     
     // Верхняя граница шва с неравномерной шириной
@@ -177,7 +222,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
-      const y = sheetY + p.y - w / 2;
+      const y = sheetY + p.y - w / 2 - 3;
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -190,31 +235,106 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
+      const y = sheetY + p.y + w / 2 + 3;
+      ctx.lineTo(x, y);
+    }
+    
+    ctx.closePath();
+    ctx.fill();
+    
+    // Основная область шва (темная с красноватым оттенком раскаленного металла)
+    const seamGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY);
+    seamGradient.addColorStop(0, '#2a2a2a');
+    seamGradient.addColorStop(0.5, '#3a3a3a');
+    seamGradient.addColorStop(1, '#2a2a2a');
+    
+    ctx.fillStyle = seamGradient;
+    ctx.beginPath();
+    
+    // Верхняя граница шва
+    for (let i = 0; i < gapPath.length; i++) {
+      const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
+      const x = sheetX + p.x;
+      const y = sheetY + p.y - w / 2;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    
+    // Нижняя граница шва
+    for (let i = gapPath.length - 1; i >= 0; i--) {
+      const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
+      const x = sheetX + p.x;
       const y = sheetY + p.y + w / 2;
       ctx.lineTo(x, y);
     }
     
     ctx.closePath();
     ctx.fill();
+    
+    // Края разреза (светлые, как свежий металл)
+    ctx.strokeStyle = '#8a9aab';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < gapPath.length; i++) {
+      const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
+      const x = sheetX + p.x;
+      const y = sheetY + p.y - w / 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    
+    ctx.beginPath();
+    for (let i = 0; i < gapPath.length; i++) {
+      const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
+      const x = sheetX + p.x;
+      const y = sheetY + p.y + w / 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
 
-    // Рисуем охлажденные точки сварки (серые)
+    // Рисуем охлажденные точки сварки (серые с металлическим блеском)
     cooledPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
       const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
-      ctx.fillStyle = '#6b7280';
+      // Градиент для охлажденной сварки
+      const cooledGradient = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
+      cooledGradient.addColorStop(0, '#9ca3af');
+      cooledGradient.addColorStop(0.4, '#6b7280');
+      cooledGradient.addColorStop(0.7, '#4b5563');
+      cooledGradient.addColorStop(1, '#374151');
+      
+      ctx.fillStyle = cooledGradient;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       
-      // Темная обводка для охлажденных точек
-      ctx.strokeStyle = '#4b5563';
+      // Блик на охлажденной сварке
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x - radius/3, y - radius/3, radius/4, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Темная обводка для контраста
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
     });
 
-    // Рисуем горячие точки сварки игрока (оранжевые со свечением и эффектом остывания через grayscale)
+    // Рисуем горячие точки сварки игрока (оранжевые со свечением и эффектом остывания)
     weldPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
@@ -228,27 +348,31 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.save();
       
       // Применяем grayscale фильтр который усиливается со временем
-      // В начале (coolProgress=0) фильтр не применяется, в конце (coolProgress=1) полный ЧБ
       const grayscaleValue = coolProgress;
       ctx.filter = `grayscale(${grayscaleValue})`;
       
+      // Внешнее свечение (только для горячих точек)
+      if (coolProgress < 0.5) {
+        const glowIntensity = 20 * (1 - coolProgress * 2);
+        ctx.shadowColor = '#ff6600';
+        ctx.shadowBlur = glowIntensity;
+      }
+      
       // Градиент для точки сварки (горячий оранжевый цвет)
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      const gradient = ctx.createRadialGradient(x - radius/4, y - radius/4, 0, x, y, radius);
       if (coolProgress < 0.3) {
         // Горячее состояние - яркие цвета
         gradient.addColorStop(0, '#ffffff');
-        gradient.addColorStop(0.3, '#ffaa00');
+        gradient.addColorStop(0.2, '#fff5e6');
+        gradient.addColorStop(0.4, '#ffcc00');
         gradient.addColorStop(0.7, '#ff6600');
         gradient.addColorStop(1, '#cc3300');
       } else if (coolProgress < 0.7) {
         // Среднее состояние - постепенно тускнеет
         const t = (coolProgress - 0.3) / 0.4;
-        const r1 = 255 - t * 55;
-        const g1 = 170 - t * 100;
-        const b1 = 0;
-        gradient.addColorStop(0, `rgb(255, ${Math.floor(g1)}, 0)`);
-        gradient.addColorStop(0.5, `rgb(${Math.floor(r1)}, ${Math.floor(g1 * 0.6)}, 0)`);
-        gradient.addColorStop(1, `rgb(${Math.floor(r1 * 0.6)}, 50, 0)`);
+        gradient.addColorStop(0, `rgb(${255 - t * 100}, ${200 - t * 120}, ${100 - t * 50})`);
+        gradient.addColorStop(0.5, `rgb(${255 - t * 150}, ${150 - t * 100}, ${50 - t * 30})`);
+        gradient.addColorStop(1, `rgb(${150 - t * 80}, ${80 - t * 50}, ${30 - t * 20})`);
       } else {
         // Почти остывшее - темные цвета
         gradient.addColorStop(0, '#888888');
@@ -261,20 +385,37 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       
-      // Добавляем свечение которое уменьшается со временем
-      const glowIntensity = Math.max(0, 20 * (1 - coolProgress));
-      ctx.shadowColor = coolProgress < 0.5 ? '#ff6600' : 'transparent';
-      ctx.shadowBlur = glowIntensity;
-      ctx.fill();
+      // Блик на горячей сварке
+      if (coolProgress < 0.5) {
+        const highlightGradient = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x - radius/3, y - radius/3, radius/3);
+        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = highlightGradient;
+        ctx.beginPath();
+        ctx.arc(x - radius/3, y - radius/3, radius/3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Обводка для контраста с фоном
       ctx.shadowBlur = 0;
+      ctx.strokeStyle = coolProgress < 0.5 ? '#ff4500' : '#374151';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
       
       // Восстанавливаем контекст без фильтра
       ctx.restore();
     });
 
-    // Рисуем границы листа
-    ctx.strokeStyle = '#5d6d7e';
-    ctx.lineWidth = 3;
+    // Рисуем границы листа (объемные)
+    ctx.strokeStyle = '#3d4c5e';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(sheetX - 10, sheetY - 10, sheetWidth + 20, sheetHeight + 20);
+    
+    // Внутренняя рамка
+    ctx.strokeStyle = '#6b7d91';
+    ctx.lineWidth = 2;
     ctx.strokeRect(sheetX, sheetY, sheetWidth, sheetHeight);
 
   }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION]);
