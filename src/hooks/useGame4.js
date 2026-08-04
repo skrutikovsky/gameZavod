@@ -201,21 +201,10 @@ export function useGame4() {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
-    // Сохраняем текущую позицию для замера скорости
-    lastPositionRef.current = { x: mouseX, y: mouseY };
-    
-    // Если скорость превышает максимальную - не варим и не обновляем скорость в стейте
+    // Если скорость превышает максимальную - не варим
     if (speedRef.current > MAX_SPEED) {
       return;
     }
-    
-    // Обновляем скорость в стейте только если она в допустимых пределах
-    const speedPercent = Math.min(100, Math.round((speedRef.current / MAX_SPEED) * 100));
-    setGameState(prev => ({
-      ...prev,
-      currentSpeed: speedRef.current,
-      speedPercent: speedPercent
-    }));
     
     if (!isMouseDownRef.current) return;
     
@@ -342,6 +331,13 @@ export function useGame4() {
       
       // Обновляем последнюю позицию для следующего замера
       lastPositionRef.current = { x: mouseX, y: mouseY };
+      
+      // Обновляем скорость в стейте
+      setGameState(prev => ({
+        ...prev,
+        currentSpeed: speedRef.current,
+        speedPercent: Math.min(100, Math.round(speedPercent))
+      }));
     };
     
     speedSampleTimerRef.current = setInterval(measureSpeed, SPEED_SAMPLE_INTERVAL);
