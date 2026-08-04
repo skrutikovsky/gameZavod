@@ -13,82 +13,6 @@ export const WELDING_GUN_SPEED = 200; // Скорость движения со�
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
-export const PIXEL_SIZE = 4; // Размер пикселя для пиксельной графики
-export const DROP_SIZE_VARIATION = 0.1; // Вариация размера капли ±10%
-
-// Генерация неровной формы капли (имитация поверхностного натяжения)
-export function generateDropShape(baseRadius, pixelSize = PIXEL_SIZE) {
-  // Создаем массив точек для полигональной формы капли
-  const points = [];
-  const numPoints = 16; // Количество точек для описания формы
-  
-  for (let i = 0; i < numPoints; i++) {
-    const angle = (i / numPoints) * Math.PI * 2;
-    // Добавляем случайные неровности (до ±15% от радиуса)
-    const irregularity = 0.85 + Math.random() * 0.3; // 0.85 to 1.15
-    const radius = baseRadius * irregularity;
-    points.push({
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius
-    });
-  }
-  
-  return points;
-}
-
-// Проверка попадания точки в полигон (алгоритм луча)
-export function isPointInPolygon(px, py, polygon, centerX, centerY) {
-  let inside = false;
-  const n = polygon.length;
-  
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = polygon[i].x + centerX;
-    const yi = polygon[i].y + centerY;
-    const xj = polygon[j].x + centerX;
-    const yj = polygon[j].y + centerY;
-    
-    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
-      inside = !inside;
-    }
-  }
-  
-  return inside;
-}
-
-// Физическое взаимодействие капель - слияние и растекание
-export function calculateDropInteraction(newDrop, existingDrops, gapWidth) {
-  const baseRadius = (gapWidth * WELD_SIZE_RATIO) / 2;
-  const sizeVariation = 1 + (Math.random() - 0.5) * 2 * DROP_SIZE_VARIATION;
-  const actualRadius = baseRadius * sizeVariation;
-  
-  // Проверяем близость к существующим каплям
-  let mergedWithNeighbor = false;
-  let attractionOffset = { x: 0, y: 0 };
-  
-  for (const drop of existingDrops) {
-    const dx = newDrop.x - drop.x;
-    const dy = newDrop.y - drop.y;
-    const dist = Math.hypot(dx, dy);
-    const combinedRadius = actualRadius + (drop.radius || baseRadius);
-    
-    // Если капли близко - происходит притяжение (имитация поверхностного натяжения)
-    if (dist < combinedRadius * 0.8 && dist > 0) {
-      mergedWithNeighbor = true;
-      const attractionStrength = 0.3; // Сила притяжения
-      attractionOffset.x += (dx / dist) * attractionStrength * (combinedRadius - dist);
-      attractionOffset.y += (dy / dist) * attractionStrength * (combinedRadius - dist);
-    }
-  }
-  
-  return {
-    ...newDrop,
-    radius: actualRadius,
-    shape: generateDropShape(actualRadius),
-    offsetX: attractionOffset.x,
-    offsetY: attractionOffset.y,
-    merged: mergedWithNeighbor
-  };
-}
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -417,18 +341,13 @@ export function useGame4({ onLevelComplete }) {
       
       if (weldCountRef.current >= MAX_WELD_POINTS) return;
       
-      // Создаем новую каплю с физической симуляцией
-      const allExistingDrops = [...cooledPoints, ...weldPoints];
-      const newDotBase = {
+      const newDot = {
         x: weldX,
         y: weldY,
         timestamp: Date.now(),
         id: weldCountRef.current,
         width: localGapWidth
       };
-      
-      // Применяем физику взаимодействия капель
-      const newDot = calculateDropInteraction(newDotBase, allExistingDrops, localGapWidth);
       
       setGameState(prev => ({
         ...prev,
@@ -447,17 +366,13 @@ export function useGame4({ onLevelComplete }) {
       const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
       
       if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
-        const allExistingDrops = [...cooledPoints, ...weldPoints];
-        const newDotBase = {
+        const newDot = {
           x: weldX,
           y: weldY,
           timestamp: Date.now(),
           id: weldCountRef.current,
           width: localGapWidth
         };
-        
-        // Применяем физику взаимодействия капель
-        const newDot = calculateDropInteraction(newDotBase, allExistingDrops, localGapWidth);
         
         setGameState(prev => ({
           ...prev,
@@ -479,7 +394,7 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
   }, []);
   
-  // Проверка прогресса заполнения - подсчет площади покрытия с пиксельной сеткой
+  // Проверка прогресса заполнения - подсчет площади покрытия
   const checkCoverage = useCallback(() => {
     const state = gameStateRef.current;
     if (!state || state.gapPath.length === 0) return;
@@ -487,11 +402,11 @@ export function useGame4({ onLevelComplete }) {
     const { gapPath, gapWidths, weldPoints, cooledPoints } = state;
     const allWeldPoints = [...weldPoints, ...cooledPoints];
     
-    // Площадь покрытая сваркой - используем пиксельную сетку для учета перекрытий
+    // Площадь покрытая сваркой - используем сетку для учета перекрытий
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const gridSize = PIXEL_SIZE; // Используем размер пикселя для сетки
+    const gridSize = 4; // Размер ячейки сетки в пикселях (чем меньше, тем точнее)
     const sheetMargin = 40;
     const sheetWidth = canvas.width - sheetMargin * 2;
     const sheetHeight = canvas.height - sheetMargin * 2;
@@ -518,10 +433,10 @@ export function useGame4({ onLevelComplete }) {
       }
     }
     
-    // Теперь проверяем какие ячейки покрыты сваркой (с учетом формы капель)
+    // Теперь проверяем какие ячейки покрыты сваркой
     const weldedCells = new Set();
     allWeldPoints.forEach(p => {
-      const weldRadius = p.radius || (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      const weldRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Определяем диапазон ячеек которые может покрывать эта точка сварки
       const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
@@ -534,7 +449,7 @@ export function useGame4({ onLevelComplete }) {
           const cellX = sheetMargin + col * gridSize + gridSize / 2;
           const cellY = sheetMargin + row * gridSize + gridSize / 2;
           
-          // Проверяем попадает ли центр ячейки в радиус сварки (или в полигон формы капли)
+          // Проверяем попадает ли центр ячейки в радиус сварки
           const dist = Math.hypot(cellX - p.x, cellY - p.y);
           if (dist <= weldRadius) {
             // Проверяем что ячейка находится в зоне шва
@@ -640,18 +555,13 @@ export function useGame4({ onLevelComplete }) {
             const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
             
             if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
-              // Создаем новую каплю с физической симуляцией
-              const allExistingDrops = [...cooledPoints, ...weldPoints];
-              const newDotBase = {
+              const newDot = {
                 x: weldX,
                 y: weldY,
                 timestamp: Date.now(),
                 id: weldCountRef.current,
                 width: localGapWidth
               };
-              
-              // Применяем физику взаимодействия капель
-              const newDot = calculateDropInteraction(newDotBase, allExistingDrops, localGapWidth);
               
               setGameState(prev => ({
                 ...prev,
@@ -670,18 +580,13 @@ export function useGame4({ onLevelComplete }) {
           const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
           
           if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
-            // Создаем новую каплю с физической симуляцией
-            const allExistingDrops = [...cooledPoints, ...weldPoints];
-            const newDotBase = {
+            const newDot = {
               x: weldX,
               y: weldY,
               timestamp: Date.now(),
               id: weldCountRef.current,
               width: localGapWidth
             };
-            
-            // Применяем физику взаимодействия капель
-            const newDot = calculateDropInteraction(newDotBase, allExistingDrops, localGapWidth);
             
             setGameState(prev => ({
               ...prev,
@@ -797,8 +702,6 @@ export function useGame4({ onLevelComplete }) {
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
     NOZZLE_OFFSET_Y,
-    MAX_ROUNDS,
-    PIXEL_SIZE,
-    generateDropShape
+    MAX_ROUNDS
   };
 }
