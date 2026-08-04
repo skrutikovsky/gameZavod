@@ -380,7 +380,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           </div>
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Скорость</span>
-            <span className={`text-2xl font-bold ${gameState.speedPercent >= 100 ? 'text-red-400' : gameState.speedPercent >= 80 ? 'text-yellow-400' : 'text-green-400'}`}>
+            <span className={`text-2xl font-bold ${gameState.speedPercent >= 50 ? 'text-red-400' : gameState.speedPercent >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
               {Math.min(100, Math.round(gameState.speedPercent))}%
             </span>
           </div>
@@ -410,7 +410,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             <div className="text-xs opacity-60 mb-1">Скорость</div>
             <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
               <div 
-                className={`h-full transition-all duration-100 ${gameState.speedPercent >= 100 ? 'bg-red-500' : gameState.speedPercent >= 80 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                className={`h-full transition-all duration-100 ${gameState.speedPercent >= 50 ? 'bg-red-500' : gameState.speedPercent >= 40 ? 'bg-yellow-500' : 'bg-green-500'}`}
                 style={{ width: `${Math.min(100, gameState.speedPercent)}%` }}
               />
             </div>
