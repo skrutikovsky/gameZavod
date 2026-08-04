@@ -271,9 +271,7 @@ export function useGame4() {
     const sheetWidth = rect.width - sheetMargin * 2;
     const sheetHeight = rect.height - sheetMargin * 2;
     
-    // Проверяем, двигается ли курсор
-    const lastMousePos = lastMousePosRef.current;
-    const isCursorMoving = Math.abs(mouseX - lastMousePos.x) > 0.1 || Math.abs(mouseY - lastMousePos.y) > 0.1;
+    // Обновляем последнюю позицию курсора
     lastMousePosRef.current = { x: mouseX, y: mouseY };
     
     // Получаем текущее время для расчета delta time
@@ -444,6 +442,130 @@ export function useGame4() {
       return newState;
     });
   }, []);
+  
+  // Игровой цикл для постоянного движения сопла к курсору
+  useEffect(() => {
+    if (!gameState.isRunning) return;
+    
+    let animationFrameId;
+    
+    const updateLoop = () => {
+      const state = gameStateRef.current;
+      if (!state || !canvasRef.current) {
+        animationFrameId = requestAnimationFrame(updateLoop);
+        return;
+      }
+      
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const sheetMargin = 40;
+      const sheetWidth = rect.width - sheetMargin * 2;
+      const sheetHeight = rect.height - sheetMargin * 2;
+      
+      // Получаем текущее время для расчета delta time
+      const currentTime = performance.now();
+      let deltaTime = 0;
+      if (lastTimeRef.current !== null) {
+        deltaTime = (currentTime - lastTimeRef.current) / 1000;
+      }
+      lastTimeRef.current = currentTime;
+      
+      // Целевая позиция - последняя известная позиция мыши
+      const targetX = state.targetX;
+      const targetY = state.targetY;
+      
+      // Обновляем позицию сопла
+      const nozzlePos = updateWeldingGunPosition(targetX, targetY, deltaTime);
+      
+      // Обновляем состояние с новой позицией сопла
+      setGameState(prev => ({
+        ...prev,
+        weldingGunX: nozzlePos.x,
+        weldingGunY: nozzlePos.y,
+        mouseX: nozzlePos.x,
+        mouseY: nozzlePos.y
+      }));
+      
+      // Если ЛКМ зажата - продолжаем сварку
+      if (isMouseDownRef.current) {
+        const weldX = nozzlePos.x;
+        const weldY = nozzlePos.y;
+        
+        const { gapPath, gapWidths, cooledPoints, weldPoints } = state;
+        
+        // Получаем локальную ширину шва
+        const adjustedWeldX = weldX - sheetMargin;
+        const approximateIndex = Math.floor((adjustedWeldX / sheetWidth) * (gapWidths.length - 1));
+        const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
+        const localGapWidth = gapWidths[idx];
+        const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
+        const triggerDistance = localWeldRadius * (2/3);
+        
+        if (lastWeldPointRef.current) {
+          const dx = weldX - lastWeldPointRef.current.x;
+          const dy = weldY - lastWeldPointRef.current.y;
+          const dist = Math.hypot(dx, dy);
+          
+          if (dist >= triggerDistance) {
+            const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
+            const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
+            
+            if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+              const newDot = {
+                x: weldX,
+                y: weldY,
+                timestamp: Date.now(),
+                id: weldCountRef.current,
+                width: localGapWidth
+              };
+              
+              setGameState(prev => ({
+                ...prev,
+                weldPoints: [...prev.weldPoints, newDot],
+                weldUsed: weldCountRef.current + 1
+              }));
+              
+              weldCountRef.current += 1;
+              lastWeldPointRef.current = { x: weldX, y: weldY };
+            }
+          }
+        } else {
+          lastWeldPointRef.current = { x: weldX, y: weldY };
+          
+          const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
+          const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
+          
+          if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+            const newDot = {
+              x: weldX,
+              y: weldY,
+              timestamp: Date.now(),
+              id: weldCountRef.current,
+              width: localGapWidth
+            };
+            
+            setGameState(prev => ({
+              ...prev,
+              weldPoints: [...prev.weldPoints, newDot],
+              weldUsed: weldCountRef.current + 1
+            }));
+            
+            weldCountRef.current += 1;
+          }
+        }
+      }
+      
+      animationFrameId = requestAnimationFrame(updateLoop);
+    };
+    
+    animationFrameId = requestAnimationFrame(updateLoop);
+    
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [gameState.isRunning, updateWeldingGunPosition]);
   
   // Эффект остывания сварки
   useEffect(() => {
