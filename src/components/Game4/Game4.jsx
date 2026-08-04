@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -19,7 +19,10 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     MAX_WELD_POINTS,
     BASE_GAP_WIDTH,
     WELD_SIZE_RATIO,
-    FADE_DURATION
+    FADE_DURATION,
+    WELDING_GUN_WIDTH,
+    WELDING_GUN_HEIGHT,
+    NOZZLE_OFFSET_Y
   } = useGame4();
   
   const canvasRef = useRef(null);
@@ -273,7 +276,65 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.lineWidth = 2;
     ctx.strokeRect(sheetX, sheetY, sheetWidth, sheetHeight);
 
-  }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION]);
+    // Рисуем сварочный аппарат
+    const gunX = gameState.weldingGunX - WELDING_GUN_WIDTH / 2;
+    const gunY = gameState.weldingGunY - WELDING_GUN_HEIGHT + NOZZLE_OFFSET_Y;
+    
+    // Создаем градиент для корпуса аппарата
+    const gunGradient = ctx.createLinearGradient(gunX, gunY, gunX + WELDING_GUN_WIDTH, gunY + WELDING_GUN_HEIGHT);
+    gunGradient.addColorStop(0, '#4a5d70');
+    gunGradient.addColorStop(0.3, '#6d8299');
+    gunGradient.addColorStop(0.7, '#5a6b7c');
+    gunGradient.addColorStop(1, '#3d4c5e');
+    
+    ctx.fillStyle = gunGradient;
+    ctx.fillRect(gunX, gunY, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT);
+    
+    // Добавляем детали корпуса (ребра жесткости)
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const y = gunY + (i * WELDING_GUN_HEIGHT / 4);
+      ctx.beginPath();
+      ctx.moveTo(gunX + 20, y);
+      ctx.lineTo(gunX + WELDING_GUN_WIDTH - 20, y);
+      ctx.stroke();
+    }
+    
+    // Рисуем боковые панели
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(gunX + 10, gunY + 20, 30, WELDING_GUN_HEIGHT - 40);
+    ctx.fillRect(gunX + WELDING_GUN_WIDTH - 40, gunY + 20, 30, WELDING_GUN_HEIGHT - 40);
+    
+    // Рисуем сопло в нижней части по центру
+    const nozzleX = gunX + WELDING_GUN_WIDTH / 2;
+    const nozzleY = gunY + WELDING_GUN_HEIGHT - NOZZLE_OFFSET_Y;
+    const nozzleRadius = 15;
+    
+    // Градиент для сопла (металлический блеск)
+    const nozzleGradient = ctx.createRadialGradient(nozzleX, nozzleY, 0, nozzleX, nozzleY, nozzleRadius);
+    nozzleGradient.addColorStop(0, '#8a9aab');
+    nozzleGradient.addColorStop(0.5, '#6d8299');
+    nozzleGradient.addColorStop(1, '#4a5d70');
+    
+    ctx.fillStyle = nozzleGradient;
+    ctx.beginPath();
+    ctx.arc(nozzleX, nozzleY, nozzleRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Отверстие сопла (точка откуда появляется шов)
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath();
+    ctx.arc(nozzleX, nozzleY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Блик на сопле
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath();
+    ctx.arc(nozzleX - 3, nozzleY - 3, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+  }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y]);
 
   // Игровой цикл для отрисовки
   useEffect(() => {
@@ -298,15 +359,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const handleCanvasMouseMove = (e) => {
-    // Обновляем позицию мыши для курсора-сварки (используем координаты канваса)
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      setGameState(prev => ({
-        ...prev,
-        mouseX: e.clientX - rect.left,
-        mouseY: e.clientY - rect.top
-      }));
-    }
+    // Позиция мыши теперь используется только как целевая точка для сопла
+    // Само сопло двигается внутри handleMouseMove с ограничением скорости
     handleMouseMove(e);
   };
 
@@ -451,10 +505,10 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {/* Подсказка внизу экрана */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-xl px-6 py-3 text-white text-center z-20 border border-white/20">
         <p className="text-lg">
-          🔥 Зажми ЛКМ и веди вдоль разрыва чтобы заварить шов
+          🔥 Наведи курсор на лист и зажми ЛКМ чтобы начать сварку
         </p>
         <p className="text-sm opacity-80 mt-1">
-          Сварка остывает через 2 секунды и становится серой. Можно наваривать на остывшую сварку!
+          Сварочный аппарат следует за курсором. Сопло не может выйти за пределы листа металла!
         </p>
       </div>
     </div>
