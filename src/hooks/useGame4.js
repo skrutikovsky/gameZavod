@@ -6,7 +6,7 @@ export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ши�
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
-export const WIN_COVERAGE = 100; // Процент покрытия для победы
+export const WIN_COVERAGE = 98; // Процент покрытия для победы (фактический)
 export const MAX_ROUNDS = 3; // Максимальное количество раундов для завершения уровня
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
@@ -463,10 +463,14 @@ export function useGame4({ onLevelComplete }) {
     // Процент покрытия = (количество покрытых ячеек шва / общее количество ячеек шва) * 100
     const coverage = totalCellsInGap > 0 ? (weldedCells.size / totalCellsInGap) * 100 : 0;
     
+    // Для отображения игроку показываем завышенные проценты (чтобы 98% выглядело как 100%)
+    // Но не показываем больше 100% и не показываем скачок с 0% сразу на 2%
+    const displayedCoverage = coverage >= WIN_COVERAGE ? 100 : Math.min(97, Math.round(coverage));
+    
     setGameState(prev => {
       const newState = {
         ...prev,
-        weldCoverage: Math.round(coverage)
+        weldCoverage: displayedCoverage
       };
       
       if (coverage >= WIN_COVERAGE) {
