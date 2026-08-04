@@ -8,9 +8,6 @@ export const FADE_DURATION = 2000; // Длительность остывани�
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
 export const WIN_COVERAGE = 95; // Процент покрытия для победы
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
-export const MAX_SPEED = 80; // Максимальная скорость курсора (400px / 5sec = 80px/sec) - уменьшено в 2 раза
-export const SPEED_THRESHOLD_PERCENT = 50; // Порог скорости в % (уменьшено в 2 раза с 100%)
-export const SPEED_SMOOTHING_FACTOR = 0.3; // Коэффициент сглаживания скорости (0.3 = 30% новой скорости + 70% предыдущей)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -119,9 +116,7 @@ export function useGame4() {
     gameOver: false,
     roundComplete: false,
     mouseX: 0,
-    mouseY: 0,
-    currentSpeed: 0,
-    speedPercent: 0
+    mouseY: 0
   });
   
   const gameStateRef = useRef(null);
@@ -129,11 +124,6 @@ export function useGame4() {
   const isMouseDownRef = useRef(false);
   const lastWeldPointRef = useRef(null);
   const canvasRef = useRef(null);
-  const speedRef = useRef(0);
-  const lastPositionRef = useRef(null);
-  const lastTimeRef = useRef(null);
-  const smoothedSpeedRef = useRef(0); // Для сглаживания скорости
-  const animationFrameRef = useRef(null); // Для отслеживания requestAnimationFrame
   
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -205,11 +195,6 @@ export function useGame4() {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    
-    // Если скорость превышает порог (50% вместо 100%) - не варим
-    if (speedRef.current >= SPEED_THRESHOLD_PERCENT) {
-      return;
-    }
     
     if (!isMouseDownRef.current) return;
     
@@ -299,86 +284,7 @@ export function useGame4() {
   const handleMouseUp = useCallback(() => {
     isMouseDownRef.current = false;
     lastWeldPointRef.current = null;
-    // Сбрасываем скорость при отпускании кнопки
-    speedRef.current = 0;
-    smoothedSpeedRef.current = 0;
-    lastPositionRef.current = null;
   }, []);
-  
-  // Оптимизированный замер скорости с использованием requestAnimationFrame и сглаживанием
-  useEffect(() => {
-    if (!gameState.isRunning) return;
-    
-    let lastFrameTime = performance.now();
-    
-    const measureSpeed = (currentTime) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      
-      const currentState = gameStateRef.current;
-      if (!currentState) return;
-      
-      const mouseX = currentState.mouseX;
-      const mouseY = currentState.mouseY;
-      
-      // Инициализируем lastPositionRef если она еще не установлена
-      if (!lastPositionRef.current) {
-        lastPositionRef.current = { x: mouseX, y: mouseY };
-        lastFrameTime = currentTime;
-        animationFrameRef.current = requestAnimationFrame(measureSpeed);
-        return;
-      }
-      
-      // Вычисляем дельту времени в секундах
-      const deltaTime = (currentTime - lastFrameTime) / 1000;
-      lastFrameTime = currentTime;
-      
-      // Пропускаем слишком большие дельты (например, когда вкладка была неактивна)
-      if (deltaTime > 0.5 || deltaTime < 0.001) {
-        lastPositionRef.current = { x: mouseX, y: mouseY };
-        animationFrameRef.current = requestAnimationFrame(measureSpeed);
-        return;
-      }
-      
-      // Вычисляем расстояние от последней позиции
-      const dx = mouseX - lastPositionRef.current.x;
-      const dy = mouseY - lastPositionRef.current.y;
-      const distance = Math.hypot(dx, dy);
-      
-      // Мгновенная скорость в пикселях в секунду
-      const instantSpeed = distance / deltaTime;
-      
-      // Нормализуем скорость относительно базовой ширины шва (160px)
-      // Базовая скорость 80px/sec = 50% (новый порог)
-      const speedPercent = (instantSpeed / BASE_GAP_WIDTH) * 100;
-      
-      // Применяем экспоненциальное сглаживание для устранения дерганий
-      smoothedSpeedRef.current = smoothedSpeedRef.current * (1 - SPEED_SMOOTHING_FACTOR) + speedPercent * SPEED_SMOOTHING_FACTOR;
-      
-      // Обновляем основную скорость для проверки порога
-      speedRef.current = smoothedSpeedRef.current;
-      
-      // Обновляем последнюю позицию
-      lastPositionRef.current = { x: mouseX, y: mouseY };
-      
-      // Обновляем скорость в стейте с ограничением до 100%
-      setGameState(prev => ({
-        ...prev,
-        currentSpeed: speedRef.current,
-        speedPercent: Math.min(100, Math.round(speedRef.current))
-      }));
-      
-      animationFrameRef.current = requestAnimationFrame(measureSpeed);
-    };
-    
-    animationFrameRef.current = requestAnimationFrame(measureSpeed);
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [gameState.isRunning]);
   
   // Проверка прогресса заполнения
   const checkCoverage = useCallback(() => {
@@ -502,7 +408,6 @@ export function useGame4() {
     MAX_WELD_POINTS,
     WELD_SIZE_RATIO,
     BASE_GAP_WIDTH,
-    FADE_DURATION,
-    MAX_SPEED
+    FADE_DURATION
   };
 }
