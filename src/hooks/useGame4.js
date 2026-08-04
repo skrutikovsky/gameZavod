@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
 export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва
-export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ширины шва
+export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ширины шва (увеличено в 1.7 раза с 0.6)
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
@@ -12,15 +12,7 @@ export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона три�
 export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
-export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата
-export const PIXEL_SIZE = 4; // Размер пикселя 4x4
-export const WELD_SIZE_VARIATION = 0.1; // Вариация размера капель ±10%
-
-// Параметры физической модели сварки
-export const SURFACE_TENSION = 0.3; // Поверхностное натяжение
-export const VISCOSITY = 0.7; // Вязкость расплавленного металла
-export const GRAVITY_EFFECT = 0.1; // Эффект гравитации на капли
-export const MERGE_THRESHOLD = 0.6; // Порог слияния капель (доля радиуса)
+export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -61,27 +53,6 @@ export function generateGapPath(width, height) {
   }
   
   return { points, widths };
-}
-
-// Генерация неровной формы капли (имитация поверхностного натяжения)
-export function generateDropShape(baseRadius, variation = WELD_SIZE_VARIATION) {
-  const points = [];
-  const numPoints = 16; // Количество точек для описания формы капли
-  const actualRadius = baseRadius * (1 + (Math.random() * variation * 2 - variation));
-  
-  for (let i = 0; i < numPoints; i++) {
-    const angle = (i / numPoints) * Math.PI * 2;
-    // Добавляем случайные неровности по краю капли
-    const noise = (Math.random() - 0.5) * baseRadius * 0.15;
-    const r = actualRadius + noise;
-    points.push({
-      x: Math.cos(angle) * r,
-      y: Math.sin(angle) * r,
-      angle: angle
-    });
-  }
-  
-  return { points, baseRadius: actualRadius };
 }
 
 // Проверка находится ли точка в зоне шва
@@ -134,47 +105,6 @@ export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
     }
   }
   return false;
-}
-
-// Физическое взаимодействие капель - слияние и растекание
-export function mergeWeldDrops(newDrop, existingDrops, gapPath, gapWidths, sheetMargin) {
-  const mergedDrop = { ...newDrop };
-  let totalMass = 1; // Масса капли для усреднения позиции
-  
-  // Проверяем близлежащие капли для слияния (только последние 50 для производительности)
-  const recentDrops = existingDrops.slice(-50);
-  
-  for (let drop of recentDrops) {
-    const dx = mergedDrop.x - drop.x;
-    const dy = mergedDrop.y - drop.y;
-    const dist = Math.hypot(dx, dy);
-    const avgRadius = ((mergedDrop.width || BASE_GAP_WIDTH) + (drop.width || BASE_GAP_WIDTH)) / 4;
-    
-    // Если капли достаточно близко - они сливаются
-    if (dist < avgRadius * MERGE_THRESHOLD) {
-      // Вычисляем новую позицию как взвешенное среднее
-      const dropMass = 1;
-      const newX = (mergedDrop.x * totalMass + drop.x * dropMass) / (totalMass + dropMass);
-      const newY = (mergedDrop.y * totalMass + drop.y * dropMass) / (totalMass + dropMass);
-      
-      // Применяем эффект поверхностного натяжения - капля стремится к центру шва
-      const adjustedX = newX - sheetMargin;
-      const approximateIndex = Math.floor((adjustedX / (gapPath.length > 0 ? gapPath[gapPath.length - 1].x : 1)) * (gapPath.length - 1));
-      const idx = Math.max(0, Math.min(gapPath.length - 1, approximateIndex));
-      
-      if (gapPath[idx]) {
-        // Притягиваем к центральной линии шва с силой поверхностного натяжения
-        const centerY = gapPath[idx].y + sheetMargin;
-        newY = newY + (centerY - newY) * SURFACE_TENSION;
-      }
-      
-      mergedDrop.x = newX;
-      mergedDrop.y = newY;
-      totalMass += dropMass;
-    }
-  }
-  
-  return mergedDrop;
 }
 
 export function useGame4({ onLevelComplete }) {
