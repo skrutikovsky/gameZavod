@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
 export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва
-export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ширины шва
+export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ширины шва (увеличено в 1.7 раза с 0.6)
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
@@ -13,17 +13,6 @@ export const WELDING_GUN_SPEED = 200; // Скорость движения со�
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
-
-// Пиксельный размер (4x4)
-export const PIXEL_SIZE = 4;
-
-// Параметры для физической симуляции сварки
-export const WELD_DROP_SIZE_VARIATION = 0.1; // ±10% вариация размера капли
-export const WELD_SURFACE_TENSION = 0.3; // Поверхностное натяжение
-export const WELD_VISCOSITY = 0.7; // Вязкость расплавленного металла
-export const WELD_COALESCENCE_RADIUS = 1.5; // Радиус слияния капель (в радиусах капли)
-export const WELD_SPREAD_FACTOR = 0.4; // Фактор растекания капли
-export const WELD_PENETRATION_DEPTH = 0.6; // Глубина проникновения в зазор
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -118,160 +107,6 @@ export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
   return false;
 }
 
-// Генерация пиксельной формы капли с неровностями
-function generateDropShape(cx, cy, baseRadius, pixelSize) {
-  const pixels = [];
-  const variation = WELD_DROP_SIZE_VARIATION;
-  
-  // Создаем неровную форму капли используя шум Перлина-подобный подход
-  const angleSteps = 16; // Количество угловых шагов для формы капли
-  const radii = [];
-  
-  for (let i = 0; i < angleSteps; i++) {
-    const angle = (i / angleSteps) * Math.PI * 2;
-    // Вариация радиуса ±10% + дополнительный шум
-    const radiusVar = baseRadius * (1 + (Math.random() - 0.5) * 2 * variation);
-    radii.push(radiusVar);
-  }
-  
-  // Интерполяция между угловыми точками для создания плавной но неровной формы
-  const interpolateRadius = (angle) => {
-    const index = (angle / (Math.PI * 2)) * angleSteps;
-    const lowerIndex = Math.floor(index) % angleSteps;
-    const upperIndex = (lowerIndex + 1) % angleSteps;
-    const t = index - Math.floor(index);
-    return radii[lowerIndex] * (1 - t) + radii[upperIndex] * t;
-  };
-  
-  // Заполняем пиксели внутри формы капли
-  const gridRadius = Math.ceil(baseRadius * (1 + variation) / pixelSize);
-  
-  for (let dy = -gridRadius; dy <= gridRadius; dy++) {
-    for (let dx = -gridRadius; dx <= gridRadius; dx++) {
-      const px = dx * pixelSize;
-      const py = dy * pixelSize;
-      const angle = Math.atan2(py, px);
-      const normalizedAngle = angle < 0 ? angle + Math.PI * 2 : angle;
-      const maxRadiusAtAngle = interpolateRadius(normalizedAngle);
-      
-      const dist = Math.hypot(px, py);
-      
-      // Добавляем поверхностное натяжение - края более гладкие
-      const edgeFactor = 1 - (dist / maxRadiusAtAngle);
-      const tensionThreshold = edgeFactor > WELD_SURFACE_TENSION ? 1 : 0.7;
-      
-      if (dist <= maxRadiusAtAngle * tensionThreshold) {
-        pixels.push({
-          x: Math.round(cx / pixelSize) * pixelSize + px,
-          y: Math.round(cy / pixelSize) * pixelSize + py,
-          depth: 1 // Базовая глубина проникновения
-        });
-      }
-    }
-  }
-  
-  return pixels;
-}
-
-// Слияние близких капель (коалесценция)
-function coalesceDrops(pixels, existingPixels, pixelSize) {
-  const mergedPixels = new Map();
-  
-  // Добавляем существующие пиксели
-  existingPixels.forEach(p => {
-    const key = `${p.x},${p.y}`;
-    mergedPixels.set(key, { x: p.x, y: p.y, depth: p.depth || 1 });
-  });
-  
-  // Добавляем новые пиксели с учетом слияния
-  pixels.forEach(p => {
-    const key = `${p.x},${p.y}`;
-    if (mergedPixels.has(key)) {
-      // Увеличиваем глубину при наложении
-      const existing = mergedPixels.get(key);
-      existing.depth = Math.min(3, existing.depth + WELD_VISCOSITY);
-    } else {
-      mergedPixels.set(key, { x: p.x, y: p.y, depth: WELD_PENETRATION_DEPTH });
-    }
-  });
-  
-  // Распространение металла по соседним пикселям (растекание)
-  const spreadPixels = new Map(mergedPixels);
-  mergedPixels.forEach((pixel, key) => {
-    if (pixel.depth > 1) {
-      // Избыток металла растекается к соседям
-      const excessDepth = pixel.depth - 1;
-      const spreadAmount = excessDepth * WELD_SPREAD_FACTOR;
-      
-      // Соседние пиксели
-      const neighbors = [
-        { x: pixel.x - pixelSize, y: pixel.y },
-        { x: pixel.x + pixelSize, y: pixel.y },
-        { x: pixel.x, y: pixel.y - pixelSize },
-        { x: pixel.x, y: pixel.y + pixelSize }
-      ];
-      
-      neighbors.forEach(n => {
-        const nKey = `${n.x},${n.y}`;
-        if (!spreadPixels.has(nKey)) {
-          spreadPixels.set(nKey, { x: n.x, y: n.y, depth: spreadAmount * 0.5 });
-        } else {
-          const existing = spreadPixels.get(nKey);
-          existing.depth = Math.min(3, existing.depth + spreadAmount * 0.3);
-        }
-      });
-    }
-  });
-  
-  return Array.from(spreadPixels.values());
-}
-
-// Создание физического шва сварки
-export function createWeldDrop(x, y, baseWidth, existingPixels, pixelSize = PIXEL_SIZE) {
-  // Базовый радиус капли с вариацией ±10%
-  const sizeVariation = 1 + (Math.random() - 0.5) * 2 * WELD_DROP_SIZE_VARIATION;
-  const baseRadius = (baseWidth * WELD_SIZE_RATIO / 2) * sizeVariation;
-  
-  // Генерируем пиксельную форму капли
-  const dropPixels = generateDropShape(x, y, baseRadius, pixelSize);
-  
-  // Сливаем с существующими пикселями
-  const mergedPixels = coalesceDrops(dropPixels, existingPixels, pixelSize);
-  
-  return {
-    pixels: mergedPixels,
-    center: { x, y },
-    radius: baseRadius,
-    actualSize: baseRadius * sizeVariation
-  };
-}
-
-// Отрисовка пиксельного шва
-export function renderPixelatedWeld(ctx, pixels, pixelSize = PIXEL_SIZE, isHot = true, coolProgress = 0) {
-  pixels.forEach(pixel => {
-    const intensity = Math.min(1, pixel.depth || 1);
-    
-    // Цвет зависит от температуры (остывания)
-    let r, g, b;
-    if (isHot) {
-      // Горячий металл - оранжево-красный с вариациями
-      const heatVar = 0.8 + Math.random() * 0.4; // Вариация яркости
-      r = Math.round(255 * heatVar * intensity);
-      g = Math.round(80 * heatVar * intensity * (1 - coolProgress * 0.5));
-      b = Math.round(50 * heatVar * intensity * (1 - coolProgress));
-    } else {
-      // Остывший металл - серый с оттенком
-      const grayBase = 100 + intensity * 100;
-      r = Math.round(grayBase * (1 - coolProgress) + 80 * coolProgress);
-      g = Math.round(grayBase * (1 - coolProgress) + 90 * coolProgress);
-      b = Math.round(grayBase * (1 - coolProgress) + 100 * coolProgress);
-    }
-    
-    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    ctx.fillRect(pixel.x, pixel.y, pixelSize, pixelSize);
-  });
-}
-
 export function useGame4({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
     isRunning: false,
@@ -281,8 +116,8 @@ export function useGame4({ onLevelComplete }) {
     weldUsed: 0,
     gapPath: [],
     gapWidths: [],
-    weldPoints: [], // Горячие точки (пиксели)
-    cooledPoints: [], // Остывшие точки (пиксели)
+    weldPoints: [],
+    cooledPoints: [],
     gameOver: false,
     roundComplete: false,
     levelComplete: false,
@@ -301,7 +136,6 @@ export function useGame4({ onLevelComplete }) {
   const canvasRef = useRef(null);
   const lastTimeRef = useRef(null);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
-  const weldPixelsRef = useRef([]); // Все пиксели шва для физической симуляции
   
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -321,7 +155,6 @@ export function useGame4({ onLevelComplete }) {
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
-    weldPixelsRef.current = []; // Сброс пикселей шва
     
     // Инициализируем позицию сварочного аппарата по середине сверху листа металла
     const initialGunX = rect.width / 2;
@@ -508,21 +341,12 @@ export function useGame4({ onLevelComplete }) {
       
       if (weldCountRef.current >= MAX_WELD_POINTS) return;
       
-      // Создаем физическую каплю сварки с пиксельной структурой
-      const newDrop = createWeldDrop(weldX, weldY, localGapWidth, weldPixelsRef.current, PIXEL_SIZE);
-      
-      // Добавляем пиксели капли в общий массив
-      weldPixelsRef.current = newDrop.pixels;
-      
-      // Сохраняем информацию о капле для отрисовки и остывания
       const newDot = {
         x: weldX,
         y: weldY,
         timestamp: Date.now(),
         id: weldCountRef.current,
-        width: localGapWidth,
-        pixels: newDrop.pixels,
-        radius: newDrop.radius
+        width: localGapWidth
       };
       
       setGameState(prev => ({
@@ -542,20 +366,12 @@ export function useGame4({ onLevelComplete }) {
       const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
       
       if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
-        // Создаем физическую каплю сварки с пиксельной структурой
-        const newDrop = createWeldDrop(weldX, weldY, localGapWidth, weldPixelsRef.current, PIXEL_SIZE);
-        
-        // Добавляем пиксели капли в общий массив
-        weldPixelsRef.current = newDrop.pixels;
-        
         const newDot = {
           x: weldX,
           y: weldY,
           timestamp: Date.now(),
           id: weldCountRef.current,
-          width: localGapWidth,
-          pixels: newDrop.pixels,
-          radius: newDrop.radius
+          width: localGapWidth
         };
         
         setGameState(prev => ({
@@ -576,6 +392,101 @@ export function useGame4({ onLevelComplete }) {
   const handleMouseUp = useCallback(() => {
     isMouseDownRef.current = false;
     lastWeldPointRef.current = null;
+  }, []);
+  
+  // Проверка прогресса заполнения - подсчет площади покрытия
+  const checkCoverage = useCallback(() => {
+    const state = gameStateRef.current;
+    if (!state || state.gapPath.length === 0) return;
+    
+    const { gapPath, gapWidths, weldPoints, cooledPoints } = state;
+    const allWeldPoints = [...weldPoints, ...cooledPoints];
+    
+    // Площадь покрытая сваркой - используем сетку для учета перекрытий
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const gridSize = 4; // Размер ячейки сетки в пикселях (чем меньше, тем точнее)
+    const sheetMargin = 40;
+    const sheetWidth = canvas.width - sheetMargin * 2;
+    const sheetHeight = canvas.height - sheetMargin * 2;
+    
+    const cols = Math.ceil(sheetWidth / gridSize);
+    const rows = Math.ceil(sheetHeight / gridSize);
+    
+    // Создаем массив для отслеживания покрытых ячеек в зоне шва
+    const coveredCells = new Set();
+    let totalCellsInGap = 0;
+    
+    // Сначала определяем все ячейки которые находятся в зоне шва
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const cellX = sheetMargin + col * gridSize + gridSize / 2;
+        const cellY = sheetMargin + row * gridSize + gridSize / 2;
+        
+        // Проверяем находится ли ячейка в зоне шва
+        const inGap = isPointInGapZone(cellX, cellY, gapPath, gapWidths, BASE_GAP_WIDTH / 2, sheetWidth, sheetMargin);
+        if (inGap) {
+          totalCellsInGap++;
+          coveredCells.add(`${col},${row}`);
+        }
+      }
+    }
+    
+    // Теперь проверяем какие ячейки покрыты сваркой
+    const weldedCells = new Set();
+    allWeldPoints.forEach(p => {
+      const weldRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      
+      // Определяем диапазон ячеек которые может покрывать эта точка сварки
+      const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
+      const maxCol = Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize));
+      const minRow = Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize));
+      const maxRow = Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize));
+      
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          const cellX = sheetMargin + col * gridSize + gridSize / 2;
+          const cellY = sheetMargin + row * gridSize + gridSize / 2;
+          
+          // Проверяем попадает ли центр ячейки в радиус сварки
+          const dist = Math.hypot(cellX - p.x, cellY - p.y);
+          if (dist <= weldRadius) {
+            // Проверяем что ячейка находится в зоне шва
+            const key = `${col},${row}`;
+            if (coveredCells.has(key)) {
+              weldedCells.add(key);
+            }
+          }
+        }
+      }
+    });
+    
+    // Процент покрытия = (количество покрытых ячеек шва / общее количество ячеек шва) * 100
+    const coverage = totalCellsInGap > 0 ? (weldedCells.size / totalCellsInGap) * 100 : 0;
+    
+    // Для отображения игроку показываем завышенные проценты (чтобы 98% выглядело как 100%)
+    // Но не показываем больше 100% и не показываем скачок с 0% сразу на 2%
+    const displayedCoverage = coverage >= WIN_COVERAGE ? 100 : Math.min(97, Math.round(coverage));
+    
+    setGameState(prev => {
+      const newState = {
+        ...prev,
+        weldCoverage: displayedCoverage
+      };
+      
+      if (coverage >= WIN_COVERAGE) {
+        const pointsEarned = Math.round(1000 * (coverage / 100));
+        newState.score = prev.score + pointsEarned;
+        newState.roundComplete = true;
+        newState.isRunning = false;
+      } else if (weldCountRef.current >= MAX_WELD_POINTS && coverage < WIN_COVERAGE) {
+        newState.gameOver = true;
+        newState.isRunning = false;
+      }
+      
+      return newState;
+    });
   }, []);
   
   // Игровой цикл для постоянного движения сопла к курсору
@@ -733,94 +644,13 @@ export function useGame4({ onLevelComplete }) {
     return () => clearInterval(coolInterval);
   }, [gameState.isRunning]);
   
-  // Периодическая проверка покрытия с использованием пиксельной сетки
-  const checkCoverage = useCallback(() => {
-    const state = gameStateRef.current;
-    if (!state || state.gapPath.length === 0) return;
+  // Периодическая проверка покрытия
+  useEffect(() => {
+    if (!gameState.isRunning) return;
     
-    const { gapPath, gapWidths, weldPoints, cooledPoints } = state;
-    const allWeldPoints = [...weldPoints, ...cooledPoints];
-    
-    // Площадь покрытая сваркой - используем пиксельную сетку
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const pixelSize = PIXEL_SIZE;
-    const sheetMargin = 40;
-    const sheetWidth = canvas.width - sheetMargin * 2;
-    const sheetHeight = canvas.height - sheetMargin * 2;
-    
-    const cols = Math.ceil(sheetWidth / pixelSize);
-    const rows = Math.ceil(sheetHeight / pixelSize);
-    
-    // Создаем массив для отслеживания покрытых пикселей в зоне шва
-    const coveredPixels = new Set();
-    let totalPixelsInGap = 0;
-    
-    // Сначала определяем все пиксели которые находятся в зоне шва
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const pixelX = sheetMargin + col * pixelSize + pixelSize / 2;
-        const pixelY = sheetMargin + row * pixelSize + pixelSize / 2;
-        
-        // Проверяем находится ли пиксель в зоне шва
-        const inGap = isPointInGapZone(pixelX, pixelY, gapPath, gapWidths, BASE_GAP_WIDTH / 2, sheetWidth, sheetMargin);
-        if (inGap) {
-          totalPixelsInGap++;
-          coveredPixels.add(`${col},${row}`);
-        }
-      }
-    }
-    
-    // Теперь проверяем какие пиксели покрыты сваркой (используем пиксели из физической модели)
-    const weldedPixels = new Set();
-    
-    // Собираем все пиксели из всех капель
-    allWeldPoints.forEach(p => {
-      if (p.pixels) {
-        p.pixels.forEach(pixel => {
-          const col = Math.floor((pixel.x - sheetMargin) / pixelSize);
-          const row = Math.floor((pixel.y - sheetMargin) / pixelSize);
-          const key = `${col},${row}`;
-          
-          // Проверяем что пиксель находится в зоне шва
-          const pixelCenterX = sheetMargin + col * pixelSize + pixelSize / 2;
-          const pixelCenterY = sheetMargin + row * pixelSize + pixelSize / 2;
-          const inGap = isPointInGapZone(pixelCenterX, pixelCenterY, gapPath, gapWidths, BASE_GAP_WIDTH / 2, sheetWidth, sheetMargin);
-          
-          if (inGap && coveredPixels.has(key)) {
-            weldedPixels.add(key);
-          }
-        });
-      }
-    });
-    
-    // Процент покрытия = (количество покрытых пикселей шва / общее количество пикселей шва) * 100
-    const coverage = totalPixelsInGap > 0 ? (weldedPixels.size / totalPixelsInGap) * 100 : 0;
-    
-    // Для отображения игроку показываем завышенные проценты (чтобы 98% выглядело как 100%)
-    // Но не показываем больше 100% и не показываем скачок с 0% сразу на 2%
-    const displayedCoverage = coverage >= WIN_COVERAGE ? 100 : Math.min(97, Math.round(coverage));
-    
-    setGameState(prev => {
-      const newState = {
-        ...prev,
-        weldCoverage: displayedCoverage
-      };
-      
-      if (coverage >= WIN_COVERAGE) {
-        const pointsEarned = Math.round(1000 * (coverage / 100));
-        newState.score = prev.score + pointsEarned;
-        newState.roundComplete = true;
-        newState.isRunning = false;
-      } else if (weldCountRef.current >= MAX_WELD_POINTS && coverage < WIN_COVERAGE) {
-        newState.gameOver = true;
-        newState.isRunning = false;
-      }
-      
-      return newState;
-    });
-  }, []);
+    const checkInterval = setInterval(checkCoverage, 100);
+    return () => clearInterval(checkInterval);
+  }, [gameState.isRunning, checkCoverage]);
   
   // Переход к следующему раунду
   const nextRound = useCallback(() => {
@@ -872,7 +702,6 @@ export function useGame4({ onLevelComplete }) {
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
     NOZZLE_OFFSET_Y,
-    MAX_ROUNDS,
-    PIXEL_SIZE
+    MAX_ROUNDS
   };
 }

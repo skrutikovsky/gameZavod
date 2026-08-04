@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, PIXEL_SIZE, renderPixelatedWeld } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -199,50 +199,58 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     ctx.stroke();
 
-    // Рисуем пиксельный шов сварки с физической симуляцией
-    // Сначала рисуем остывшие точки (серые)
+    // Рисуем охлажденные точки сварки
     cooledPoints.forEach(dot => {
-      if (dot.pixels && dot.pixels.length > 0) {
-        renderPixelatedWeld(ctx, dot.pixels, PIXEL_SIZE, false, 1);
-      } else {
-        // Fallback для старых точек без пикселей
-        const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
-        ctx.save();
-        ctx.filter = 'grayscale(1)';
-        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
-        gradient.addColorStop(0, 'rgb(255, 100, 0)');
-        gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
-        gradient.addColorStop(1, 'rgb(200, 50, 0)');
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
+      
+      // Применяем полный grayscale фильтр
+      ctx.filter = 'grayscale(1)';
+      
+      // Градиент для точки сварки (оранжевый цвет как у горячей) - без прозрачности
+      const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
-    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием)
+    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
+      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      
+      // Вычисляем прогресс остывания (0..1 за 2 секунды)
       const elapsed = Date.now() - dot.timestamp;
       const coolProgress = Math.min(1, elapsed / FADE_DURATION);
       
-      if (dot.pixels && dot.pixels.length > 0) {
-        renderPixelatedWeld(ctx, dot.pixels, PIXEL_SIZE, true, coolProgress);
-      } else {
-        // Fallback для старых точек без пикселей
-        const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
-        ctx.save();
-        ctx.filter = `grayscale(${coolProgress})`;
-        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
-        gradient.addColorStop(0, 'rgb(255, 100, 0)');
-        gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
-        gradient.addColorStop(1, 'rgb(200, 50, 0)');
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
+      
+      // Применяем grayscale фильтр который усиливается со временем (от 0 до 1)
+      ctx.filter = `grayscale(${coolProgress})`;
+      
+      // Градиент для точки сварки (горячий оранжевый цвет, без прозрачности)
+      const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
     // Рисуем границы листа (объемные)
