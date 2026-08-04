@@ -6,7 +6,7 @@ export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ши�
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
-export const WIN_COVERAGE = 95; // Процент покрытия для победы
+export const WIN_COVERAGE = 100; // Процент покрытия для победы
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
@@ -26,6 +26,9 @@ export function generateGapPath(width, height) {
   const amplitude = height * 0.1 + Math.random() * height * 0.08;
   const noiseAmplitude = height * 0.03;
   const phaseShift = Math.random() * Math.PI * 2;
+  
+  // Добавляем отступы по краям чтобы разрыв не выходил за границы листа
+  const edgeMargin = BASE_GAP_WIDTH * 0.5;
   
   for (let i = 0; i <= segmentCount; i++) {
     const x = i * segmentLength;
@@ -47,7 +50,16 @@ export function generateGapPath(width, height) {
     points.push({ x, y });
     
     // Ширина шва всегда фиксирована = 60% от базовой ширины разрыва
-    const w = BASE_GAP_WIDTH * 0.6;
+    // Уменьшаем ширину шва по краям чтобы он плавно сходился
+    let w = BASE_GAP_WIDTH * 0.6;
+    const distFromLeft = x;
+    const distFromRight = width - x;
+    if (distFromLeft < edgeMargin) {
+      w *= distFromLeft / edgeMargin;
+    }
+    if (distFromRight < edgeMargin) {
+      w *= distFromRight / edgeMargin;
+    }
     widths.push(w);
   }
   
@@ -92,10 +104,8 @@ export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasW
 
 // Проверка возможности наваривания на существующую сварку
 export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
-  // Можно варить на любую существующую сварку (остывшую или горячую)
-  const allPoints = [...cooledPoints, ...allWeldPoints];
-  
-  for (let p of allPoints) {
+  // Можно варить только на остывшую сварку (cooledPoints)
+  for (let p of cooledPoints) {
     const localRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
     const dist = Math.hypot(x - p.x, y - p.y);
     // Проверяем попадание во внутреннюю зону (1/3 радиуса предыдущей точки)
