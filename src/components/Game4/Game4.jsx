@@ -85,20 +85,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.lineTo(sheetX + sheetWidth, sheetY + i);
       ctx.stroke();
     }
-    
-    // Добавляем случайные царапины для реализма
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 20; i++) {
-      const scratchX = sheetX + Math.random() * sheetWidth;
-      const scratchY = sheetY + Math.random() * sheetHeight;
-      const scratchLen = 20 + Math.random() * 40;
-      const scratchAngle = Math.random() * Math.PI;
-      ctx.beginPath();
-      ctx.moveTo(scratchX, scratchY);
-      ctx.lineTo(scratchX + Math.cos(scratchAngle) * scratchLen, scratchY + Math.sin(scratchAngle) * scratchLen);
-      ctx.stroke();
-    }
     ctx.restore();
 
     // Рисуем края листа с разрезом (более темные и объемные)
@@ -124,17 +110,22 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     // Рисуем разрыв (шов) с более контрастным видом
     const seamWidth = BASE_GAP_WIDTH;
     
+    // Ограничиваем отрисовку шва пределами листа металла
+    // Находим точки которые находятся внутри листа (с учетом sheetMargin)
+    const startIndex = 0;
+    const endIndex = gapPath.length - 1;
+    
     // Тень внутри шва для объема - смещаем на половину ширины шва вверх/вниз
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.beginPath();
     
     // Верхняя граница шва с неравномерной шириной
-    for (let i = 0; i < gapPath.length; i++) {
+    for (let i = startIndex; i <= endIndex; i++) {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y - w / 2;
-      if (i === 0) {
+      if (i === startIndex) {
         ctx.moveTo(x, y);
       } else {
         ctx.lineTo(x, y);
@@ -142,7 +133,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     
     // Нижняя граница шва (в обратном направлении) с неравномерной шириной
-    for (let i = gapPath.length - 1; i >= 0; i--) {
+    for (let i = endIndex; i >= startIndex; i--) {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
@@ -163,12 +154,12 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.beginPath();
     
     // Верхняя граница шва
-    for (let i = 0; i < gapPath.length; i++) {
+    for (let i = startIndex; i <= endIndex; i++) {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y - w / 2;
-      if (i === 0) {
+      if (i === startIndex) {
         ctx.moveTo(x, y);
       } else {
         ctx.lineTo(x, y);
@@ -176,7 +167,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     
     // Нижняя граница шва
-    for (let i = gapPath.length - 1; i >= 0; i--) {
+    for (let i = endIndex; i >= startIndex; i--) {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
@@ -191,23 +182,23 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.strokeStyle = '#8a9aab';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let i = 0; i < gapPath.length; i++) {
+    for (let i = startIndex; i <= endIndex; i++) {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y - w / 2;
-      if (i === 0) ctx.moveTo(x, y);
+      if (i === startIndex) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
     
     ctx.beginPath();
-    for (let i = 0; i < gapPath.length; i++) {
+    for (let i = startIndex; i <= endIndex; i++) {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y + w / 2;
-      if (i === 0) ctx.moveTo(x, y);
+      if (i === startIndex) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();

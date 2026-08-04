@@ -6,7 +6,7 @@ export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ши�
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
-export const WIN_COVERAGE = 95; // Процент покрытия для победы
+export const WIN_COVERAGE = 100; // Процент покрытия для победы
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
@@ -19,25 +19,26 @@ export function generateGapPath(width, height) {
   const widths = [];
   const centerY = height / 2;
   const segmentCount = 100;
-  const segmentLength = width / segmentCount;
+  // Учитываем отступы листа (40px с каждой стороны) - разрыв должен быть внутри
+  const sheetMargin = 40;
+  const gapStartX = sheetMargin;
+  const gapEndX = width - sheetMargin;
+  const gapLength = gapEndX - gapStartX;
+  const segmentLength = gapLength / segmentCount;
   
   // Параметры для генерации извилистой линии
   const baseFrequency = 0.3 + Math.random() * 0.4;
   const amplitude = height * 0.1 + Math.random() * height * 0.08;
-  const noiseAmplitude = height * 0.03;
   const phaseShift = Math.random() * Math.PI * 2;
   
   for (let i = 0; i <= segmentCount; i++) {
-    const x = i * segmentLength;
+    const x = gapStartX + i * segmentLength;
     const t = i / segmentCount;
     
     // Комбинируем несколько синусоид для естественного вида
     let y = centerY + Math.sin(t * Math.PI * baseFrequency * 2 + phaseShift) * amplitude;
     y += Math.sin(t * Math.PI * baseFrequency * 4 + phaseShift * 1.5) * (amplitude * 0.4);
     y += Math.sin(t * Math.PI * 6 + phaseShift * 0.7) * (amplitude * 0.2);
-    
-    // Добавляем шум для неровности
-    y += (Math.random() - 0.5) * noiseAmplitude;
     
     // Ограничиваем y в пределах листа (с запасом чтобы шов не выходил за край)
     const maxGapWidth = BASE_GAP_WIDTH * 0.6;
@@ -83,10 +84,11 @@ export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasW
     }
   }
 
-  // Радиус зоны шва = половина ширины разрыва + допуск для сварки
+  // Радиус зоны шва = половина ширины разрыва
   const gapRadius = closestWidth / 2;
   
-  // Разрешаем сварку если центр курсора попадает в зону шва (половина ширины шва)
+  // Разрешаем сварку ТОЛЬКО если центр курсора попадает точно в зону шва (разрыва)
+  // Сварка на существующий шов проверяется отдельно через canWeldOnExisting
   return minDist <= gapRadius;
 }
 
@@ -327,11 +329,18 @@ export function useGame4() {
         return;
       }
       
-      // Проверяем что точка в зоне шва или на существующей сварке
+      // Проверяем что точка в зоне шва ИЛИ на существующей сварке
       const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
       const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
       
-      if (!inGap && !onWeld) {
+      // Сварка работает ТОЛЬКО если сопло на листе металла (не в разрыве)
+      // Если сопло внутри разрыва - сварка не работает
+      if (inGap) {
+        return;
+      }
+      
+      // Можно варить только если находимся на существующей сварке
+      if (!onWeld) {
         return;
       }
       
@@ -361,7 +370,28 @@ export function useGame4() {
       const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
       const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
       
-      if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+      // Сварка работает ТОЛЬКО если сопло на листе металла (не в разрыве)
+      // Если сопло внутри разрыва - сварка не работает
+      // Первую точку можно поставить только на листе (вне разрыва)
+      if (!inGap && !onWeld) {
+        // Можно начать сварку на чистом листе металла
+        const newDot = {
+          x: weldX,
+          y: weldY,
+          timestamp: Date.now(),
+          id: weldCountRef.current,
+          width: localGapWidth
+        };
+        
+        setGameState(prev => ({
+          ...prev,
+          weldPoints: [...prev.weldPoints, newDot],
+          weldUsed: weldCountRef.current + 1
+        }));
+        
+        weldCountRef.current += 1;
+      } else if (!inGap && onWeld) {
+        // Или на существующей сварке
         const newDot = {
           x: weldX,
           y: weldY,
@@ -546,7 +576,18 @@ export function useGame4() {
             const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
             const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
             
-            if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+            // Сварка работает ТОЛЬКО если сопло на листе металла (не в разрыве)
+            // Если сопло внутри разрыва - сварка не работает
+            if (inGap) {
+              return;
+            }
+            
+            // Можно варить только если находимся на существующей сварке
+            if (!onWeld) {
+              return;
+            }
+            
+            if (weldCountRef.current < MAX_WELD_POINTS) {
               const newDot = {
                 x: weldX,
                 y: weldY,
@@ -571,22 +612,47 @@ export function useGame4() {
           const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
           const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
           
-          if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
-            const newDot = {
-              x: weldX,
-              y: weldY,
-              timestamp: Date.now(),
-              id: weldCountRef.current,
-              width: localGapWidth
-            };
-            
-            setGameState(prev => ({
-              ...prev,
-              weldPoints: [...prev.weldPoints, newDot],
-              weldUsed: weldCountRef.current + 1
-            }));
-            
-            weldCountRef.current += 1;
+          // Сварка работает ТОЛЬКО если сопло на листе металла (не в разрыве)
+          // Если сопло внутри разрыва - сварка не работает
+          // Первую точку можно поставить только на листе (вне разрыва)
+          if (!inGap && !onWeld) {
+            // Можно начать сварку на чистом листе металла
+            if (weldCountRef.current < MAX_WELD_POINTS) {
+              const newDot = {
+                x: weldX,
+                y: weldY,
+                timestamp: Date.now(),
+                id: weldCountRef.current,
+                width: localGapWidth
+              };
+              
+              setGameState(prev => ({
+                ...prev,
+                weldPoints: [...prev.weldPoints, newDot],
+                weldUsed: weldCountRef.current + 1
+              }));
+              
+              weldCountRef.current += 1;
+            }
+          } else if (!inGap && onWeld) {
+            // Или на существующей сварке
+            if (weldCountRef.current < MAX_WELD_POINTS) {
+              const newDot = {
+                x: weldX,
+                y: weldY,
+                timestamp: Date.now(),
+                id: weldCountRef.current,
+                width: localGapWidth
+              };
+              
+              setGameState(prev => ({
+                ...prev,
+                weldPoints: [...prev.weldPoints, newDot],
+                weldUsed: weldCountRef.current + 1
+              }));
+              
+              weldCountRef.current += 1;
+            }
           }
         }
       }
