@@ -9,7 +9,7 @@ export const MAX_WELD_POINTS = 2000; // Максимальное количес�
 export const WIN_COVERAGE = 95; // Процент покрытия для победы
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const MAX_SPEED = 160; // Максимальная скорость курсора (800px / 5sec = 160px/sec)
-export const SPEED_SAMPLE_INTERVAL = 200; // Замер скорости каждые 200мс (5 раз в секунду)
+export const SPEED_SAMPLE_INTERVAL = 100; // Замер скорости каждые 100мс (10 раз в секунду)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -37,8 +37,9 @@ export function generateGapPath(width, height) {
     // Добавляем шум для неровности
     y += (Math.random() - 0.5) * noiseAmplitude;
     
-    // Ограничиваем y в пределах листа
-    y = Math.max(height * 0.15, Math.min(height * 0.85, y));
+    // Ограничиваем y в пределах листа (с запасом чтобы шов не выходил за край)
+    const maxGapWidth = BASE_GAP_WIDTH * 0.6;
+    y = Math.max(height * 0.15 + maxGapWidth/2, Math.min(height * 0.85 - maxGapWidth/2, y));
     
     points.push({ x, y });
     
