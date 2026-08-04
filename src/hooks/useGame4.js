@@ -122,7 +122,9 @@ export function useGame4() {
     mouseX: 0,
     mouseY: 0,
     weldingGunX: 0,
-    weldingGunY: 0
+    weldingGunY: 0,
+    targetX: 0,
+    targetY: 0
   });
   
   const gameStateRef = useRef(null);
@@ -131,6 +133,7 @@ export function useGame4() {
   const lastWeldPointRef = useRef(null);
   const canvasRef = useRef(null);
   const lastTimeRef = useRef(null);
+  const lastMousePosRef = useRef({ x: 0, y: 0 });
   
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -268,6 +271,11 @@ export function useGame4() {
     const sheetWidth = rect.width - sheetMargin * 2;
     const sheetHeight = rect.height - sheetMargin * 2;
     
+    // Проверяем, двигается ли курсор
+    const lastMousePos = lastMousePosRef.current;
+    const isCursorMoving = Math.abs(mouseX - lastMousePos.x) > 0.1 || Math.abs(mouseY - lastMousePos.y) > 0.1;
+    lastMousePosRef.current = { x: mouseX, y: mouseY };
+    
     // Получаем текущее время для расчета delta time
     const currentTime = performance.now();
     let deltaTime = 0;
@@ -276,8 +284,21 @@ export function useGame4() {
     }
     lastTimeRef.current = currentTime;
     
-    // Обновляем позицию сварочного аппарата (сопла)
-    const nozzlePos = updateWeldingGunPosition(mouseX, mouseY, deltaTime);
+    // Обновляем целевую позицию (курсор)
+    setGameState(prev => ({
+      ...prev,
+      targetX: mouseX,
+      targetY: mouseY
+    }));
+    
+    // Сопло движется к курсору только если курсор двигается
+    let nozzlePos;
+    if (isCursorMoving) {
+      nozzlePos = updateWeldingGunPosition(mouseX, mouseY, deltaTime);
+    } else {
+      // Если курсор не двигается, сопло остается на месте
+      nozzlePos = { x: state.weldingGunX, y: state.weldingGunY };
+    }
     
     // Обновляем состояние с новой позицией сопла
     setGameState(prev => ({
