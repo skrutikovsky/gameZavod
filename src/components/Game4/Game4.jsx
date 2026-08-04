@@ -280,109 +280,124 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const gunX = gameState.weldingGunX - WELDING_GUN_WIDTH / 2;
     const gunY = gameState.weldingGunY - WELDING_GUN_HEIGHT + NOZZLE_OFFSET_Y;
     
-    // Основной корпус (градиент)
-    const gunGradient = ctx.createLinearGradient(gunX, gunY, gunX + WELDING_GUN_WIDTH, gunY + WELDING_GUN_HEIGHT);
-    gunGradient.addColorStop(0, '#4a5568');
-    gunGradient.addColorStop(1, '#2d3748');
-    ctx.fillStyle = gunGradient;
-    ctx.fillRect(gunX, gunY, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT);
+    // Фон прозрачный (не рисуем)
     
-    // Верхняя половина - механизмы и провода (0-250px от верха аппарата)
-    ctx.fillStyle = '#1a202c';
-    ctx.fillRect(gunX + 20, gunY + 20, WELDING_GUN_WIDTH - 40, 230);
+    // --- ВЕРХНЯЯ ПОЛОВИНА (0-250px от верха аппарата): Механизмы и провода ---
+    const topSectionX = gunX + 50;
+    const topSectionY = gunY;
+    const topSectionWidth = 300;
+    const topSectionHeight = 250;
     
-    // Детали механизмов - вертикальные линии
-    ctx.strokeStyle = '#718096';
+    // Градиент верхней части
+    const gradientTop = ctx.createLinearGradient(topSectionX, topSectionY, topSectionX + topSectionWidth, topSectionY + topSectionHeight);
+    gradientTop.addColorStop(0, '#555');
+    gradientTop.addColorStop(0.2, '#888');
+    gradientTop.addColorStop(0.5, '#aaa');
+    gradientTop.addColorStop(0.8, '#888');
+    gradientTop.addColorStop(1, '#555');
+    ctx.fillStyle = gradientTop;
+    ctx.fillRect(topSectionX, topSectionY, topSectionWidth, topSectionHeight);
+    
+    // Ребра жесткости
+    ctx.strokeStyle = '#444';
     ctx.lineWidth = 2;
-    for (let i = 0; i < 8; i++) {
-      const mechX = gunX + 40 + i * 40;
+    for (let i = 0; i < 5; i++) {
+      const ribX = topSectionX + i * 60;
       ctx.beginPath();
-      ctx.moveTo(mechX, gunY + 40);
-      ctx.lineTo(mechX, gunY + 230);
+      ctx.moveTo(ribX, topSectionY);
+      ctx.lineTo(ribX, topSectionY + topSectionHeight);
       ctx.stroke();
     }
     
-    // Провода - красные
-    ctx.strokeStyle = '#e53e3e';
+    // Провода и детали
+    ctx.strokeStyle = '#d35400'; // Оранжевые провода
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(gunX + 50, gunY + 60);
-    ctx.bezierCurveTo(gunX + 100, gunY + 100, gunX + 150, gunY + 80, gunX + 200, gunY + 120);
+    ctx.moveTo(gunX + 100, gunY + 50);
+    ctx.bezierCurveTo(gunX + 150, gunY + 100, gunX + 250, gunY + 100, gunX + 300, gunY + 50);
     ctx.stroke();
     
-    // Провода - синие
-    ctx.strokeStyle = '#3182ce';
+    ctx.strokeStyle = '#2980b9'; // Синие провода
     ctx.beginPath();
-    ctx.moveTo(gunX + 250, gunY + 80);
-    ctx.bezierCurveTo(gunX + 300, gunY + 120, gunX + 280, gunY + 160, gunX + 350, gunY + 200);
+    ctx.moveTo(gunX + 120, gunY + 80);
+    ctx.bezierCurveTo(gunX + 180, gunY + 150, gunX + 220, gunY + 150, gunX + 280, gunY + 80);
     ctx.stroke();
     
-    // Болты/крепления
-    ctx.fillStyle = '#a0aec0';
-    for (let i = 0; i < 4; i++) {
+    // Болты/заклепки
+    ctx.fillStyle = '#333';
+    for (let y = gunY + 40; y < gunY + 250; y += 50) {
       ctx.beginPath();
-      ctx.arc(gunX + 60 + i * 90, gunY + 50, 8, 0, Math.PI * 2);
+      ctx.arc(gunX + 80, y, 4, 0, Math.PI * 2);
+      ctx.arc(gunX + 320, y, 4, 0, Math.PI * 2);
       ctx.fill();
     }
     
-    // Переходной механизм (250-375px от верха) - ширина 200px
-    ctx.fillStyle = '#4a5568';
-    ctx.fillRect(gunX + 100, gunY + 250, 200, 125);
+    // --- ПЕРЕХОДНОЙ МЕХАНИЗМ (250-375px от верха): Ширина 200px ---
+    const transitionYStart = gunY + 250;
+    const transitionYEnd = gunY + 375;
+    const transitionWidth = 200;
+    const transitionLeft = gunX + 100;
     
-    // Ребра жесткости переходника
-    ctx.strokeStyle = '#2d3748';
-    ctx.lineWidth = 4;
-    for (let i = 0; i < 5; i++) {
-      const ribX = gunX + 120 + i * 40;
-      ctx.beginPath();
-      ctx.moveTo(ribX, gunY + 250);
-      ctx.lineTo(ribX, gunY + 375);
-      ctx.stroke();
-    }
+    // Градиент переходной части
+    const gradientMid = ctx.createLinearGradient(transitionLeft, transitionYStart, transitionLeft + transitionWidth, transitionYEnd);
+    gradientMid.addColorStop(0, '#7f8c8d');
+    gradientMid.addColorStop(0.5, '#bdc3c7');
+    gradientMid.addColorStop(1, '#7f8c8d');
     
-    // Декоративные элементы переходника
-    ctx.fillStyle = '#718096';
-    ctx.fillRect(gunX + 110, gunY + 280, 180, 10);
-    ctx.fillRect(gunX + 110, gunY + 320, 180, 10);
+    ctx.fillStyle = gradientMid;
+    ctx.fillRect(transitionLeft, transitionYStart, transitionWidth, transitionYEnd - transitionYStart);
     
-    // Нижняя четверть - тонкое сопло (375-500px от верха) - ширина 50px, как игла/конус
-    const nozzleBaseX = gunX + 175;
-    const nozzleBaseY = gunY + 375;
-    const nozzleWidth = 50;
-    const nozzleHeight = 125;
+    // Детали переходника (болты по бокам)
+    ctx.fillStyle = '#555';
+    ctx.fillRect(transitionLeft - 10, transitionYStart + 20, 10, 40);
+    ctx.fillRect(transitionLeft + transitionWidth, transitionYStart + 20, 10, 40);
+    ctx.fillRect(transitionLeft - 10, transitionYEnd - 60, 10, 40);
+    ctx.fillRect(transitionLeft + transitionWidth, transitionYEnd - 60, 10, 40);
     
-    // Конус сопла
-    ctx.fillStyle = '#2d3748';
+    // --- НИЖНЯЯ ЧЕТВЕРТЬ (375-500px от верха): Тонкое сопло (игла/конус) ---
+    const nozzleYStart = gunY + 375;
+    const nozzleYEnd = gunY + 500;
+    const nozzleTipWidth = 10; // Очень узкий кончик
+    const nozzleBaseWidth = 50; // Основание сопла
+    const centerX = gunX + WELDING_GUN_WIDTH / 2;
+    
+    // Рисуем конус сопла
+    ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
-    ctx.moveTo(nozzleBaseX, nozzleBaseY);
-    ctx.lineTo(nozzleBaseX + nozzleWidth / 2, nozzleBaseY + nozzleHeight);
-    ctx.lineTo(nozzleBaseX + nozzleWidth, nozzleBaseY);
+    // Левый край основания
+    ctx.moveTo(centerX - nozzleBaseWidth / 2, nozzleYStart);
+    // Правый край основания
+    ctx.lineTo(centerX + nozzleBaseWidth / 2, nozzleYStart);
+    // Правый край кончика
+    ctx.lineTo(centerX + nozzleTipWidth / 2, nozzleYEnd);
+    // Левый край кончика
+    ctx.lineTo(centerX - nozzleTipWidth / 2, nozzleYEnd);
     ctx.closePath();
     ctx.fill();
     
     // Блик на сопле
-    ctx.fillStyle = '#a0aec0';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(nozzleBaseX + 20, nozzleBaseY + 10);
-    ctx.lineTo(nozzleBaseX + 25, nozzleBaseY + 80);
-    ctx.lineTo(nozzleBaseX + 30, nozzleBaseY + 10);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(centerX - nozzleBaseWidth / 4, nozzleYStart + 5);
+    ctx.lineTo(centerX - nozzleTipWidth / 4, nozzleYEnd - 5);
+    ctx.stroke();
     
-    // Отверстие сопла (точка выхода шва) - находится в gameState.weldingGunX, gameState.weldingGunY
+    // Точка выхода сварки (на самом кончике сопла)
     const tipX = gameState.weldingGunX;
     const tipY = gameState.weldingGunY;
     
+    // Визуальное отверстие сопла
     ctx.fillStyle = '#1a202c';
     ctx.beginPath();
-    ctx.arc(tipX, tipY, 8, 0, Math.PI * 2);
+    ctx.arc(tipX, tipY, 5, 0, Math.PI * 2);
     ctx.fill();
     
-    // Кольцо вокруг отверстия
+    // Кольцо вокруг отверстия (красное - горячее)
     ctx.strokeStyle = '#e53e3e';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(tipX, tipY, 12, 0, Math.PI * 2);
+    ctx.arc(tipX, tipY, 8, 0, Math.PI * 2);
     ctx.stroke();
 
   }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y]);

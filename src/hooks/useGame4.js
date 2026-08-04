@@ -11,7 +11,7 @@ export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона три�
 export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
-export const NOZZLE_OFFSET_Y = 50; // Смещение сопла от низа аппарата (пиксели)
+export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -291,14 +291,8 @@ export function useGame4() {
       targetY: mouseY
     }));
     
-    // Сопло движется к курсору только если курсор двигается
-    let nozzlePos;
-    if (isCursorMoving) {
-      nozzlePos = updateWeldingGunPosition(mouseX, mouseY, deltaTime);
-    } else {
-      // Если курсор не двигается, сопло остается на месте
-      nozzlePos = { x: state.weldingGunX, y: state.weldingGunY };
-    }
+    // Сопло всегда движется к курсору вне зависимости двигается курсор или нет
+    const nozzlePos = updateWeldingGunPosition(mouseX, mouseY, deltaTime);
     
     // Обновляем состояние с новой позицией сопла
     setGameState(prev => ({
