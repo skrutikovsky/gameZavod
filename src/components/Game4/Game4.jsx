@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, PIXEL_SIZE, generateDropShape } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -199,9 +199,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     ctx.stroke();
 
-    // Рисуем охлажденные точки сварки
+    // Рисуем охлажденные точки сварки с пиксельной формой и неровностями
     cooledPoints.forEach(dot => {
-      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      const radius = dot.radius || (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Сохраняем контекст для применения фильтра
       ctx.save();
@@ -209,24 +209,59 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Применяем полный grayscale фильтр
       ctx.filter = 'grayscale(1)';
       
-      // Градиент для точки сварки (оранжевый цвет как у горячей) - без прозрачности
-      const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
-      gradient.addColorStop(0, 'rgb(255, 100, 0)');
-      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
-      gradient.addColorStop(1, 'rgb(200, 50, 0)');
-      
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Рисуем пиксельную форму капли с неровностями
+      if (dot.shape && dot.shape.length > 0) {
+        ctx.fillStyle = 'rgb(200, 50, 0)';
+        ctx.beginPath();
+        
+        // Рисуем полигон формы капли
+        const shape = dot.shape;
+        for (let i = 0; i < shape.length; i++) {
+          const px = dot.x + shape[i].x;
+          const py = dot.y + shape[i].y;
+          if (i === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        // Добавляем пиксельный эффект - рисуем квадратики внутри формы
+        const pixelSize = PIXEL_SIZE;
+        const boundingBoxSize = radius * 2;
+        for (let py = -radius; py <= radius; py += pixelSize) {
+          for (let px = -radius; px <= radius; px += pixelSize) {
+            const testX = dot.x + px;
+            const testY = dot.y + py;
+            // Проверяем попадает ли пиксель в радиус капли
+            if (Math.hypot(px, py) <= radius) {
+              ctx.fillStyle = Math.random() > 0.1 ? 'rgb(180, 45, 0)' : 'rgb(220, 60, 0)';
+              ctx.fillRect(Math.floor(testX / pixelSize) * pixelSize, Math.floor(testY / pixelSize) * pixelSize, pixelSize, pixelSize);
+            }
+          }
+        }
+      } else {
+        // Фолбэк на круглую форму если shape не определен
+        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
+        gradient.addColorStop(0, 'rgb(255, 100, 0)');
+        gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+        gradient.addColorStop(1, 'rgb(200, 50, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
       
       // Восстанавливаем контекст
       ctx.restore();
     });
 
-    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
+    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale) с пиксельной формой
     weldPoints.forEach(dot => {
-      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      const radius = dot.radius || (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Вычисляем прогресс остывания (0..1 за 2 секунды)
       const elapsed = Date.now() - dot.timestamp;
@@ -238,16 +273,56 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Применяем grayscale фильтр который усиливается со временем (от 0 до 1)
       ctx.filter = `grayscale(${coolProgress})`;
       
-      // Градиент для точки сварки (горячий оранжевый цвет, без прозрачности)
-      const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
-      gradient.addColorStop(0, 'rgb(255, 100, 0)');
-      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
-      gradient.addColorStop(1, 'rgb(200, 50, 0)');
-      
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Рисуем пиксельную форму капли с неровностями
+      if (dot.shape && dot.shape.length > 0) {
+        // Горячий оранжевый цвет с вариациями
+        ctx.fillStyle = 'rgb(255, 100, 0)';
+        ctx.beginPath();
+        
+        // Рисуем полигон формы капли
+        const shape = dot.shape;
+        for (let i = 0; i < shape.length; i++) {
+          const px = dot.x + shape[i].x;
+          const py = dot.y + shape[i].y;
+          if (i === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        // Добавляем пиксельный эффект с яркими искрами
+        const pixelSize = PIXEL_SIZE;
+        for (let py = -radius; py <= radius; py += pixelSize) {
+          for (let px = -radius; px <= radius; px += pixelSize) {
+            const testX = dot.x + px;
+            const testY = dot.y + py;
+            if (Math.hypot(px, py) <= radius) {
+              // Случайные яркие пиксели для эффекта раскаленности
+              const brightness = Math.random();
+              if (brightness > 0.7) {
+                ctx.fillStyle = `rgb(255, ${Math.floor(150 + brightness * 105)}, 0)`;
+              } else {
+                ctx.fillStyle = `rgb(255, ${Math.floor(80 + brightness * 20)}, 0)`;
+              }
+              ctx.fillRect(Math.floor(testX / pixelSize) * pixelSize, Math.floor(testY / pixelSize) * pixelSize, pixelSize, pixelSize);
+            }
+          }
+        }
+      } else {
+        // Фолбэк на круглую форму если shape не определен
+        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
+        gradient.addColorStop(0, 'rgb(255, 100, 0)');
+        gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+        gradient.addColorStop(1, 'rgb(200, 50, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
       
       // Восстанавливаем контекст
       ctx.restore();
