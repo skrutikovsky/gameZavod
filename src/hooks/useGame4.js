@@ -54,8 +54,9 @@ export function generateGapPath(width, height) {
 export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasWidth, sheetMargin = 0) {
   if (gapPoints.length === 0) return false;
 
-  // Корректируем x с учетом отступа листа
+  // Корректируем x и y с учетом отступа листа
   const adjustedX = x - sheetMargin;
+  const adjustedY = y - sheetMargin;
   
   // Проверяем что x находится в пределах металла
   if (adjustedX < 0 || adjustedX > canvasWidth) return false;
@@ -71,7 +72,7 @@ export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasW
 
   for (let i = startIndex; i <= endIndex; i++) {
     const p = gapPoints[i];
-    const dist = Math.hypot(adjustedX - p.x, y - p.y);
+    const dist = Math.hypot(adjustedX - p.x, adjustedY - p.y);
     if (dist < minDist) {
       minDist = dist;
       closestWidth = gapWidths[i];

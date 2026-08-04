@@ -211,8 +211,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем охлажденные точки сварки (те же стили что и у горячих, но с grayscale(1))
     cooledPoints.forEach(dot => {
-      const x = sheetX + dot.x;
-      const y = sheetY + dot.y;
+      const x = dot.x;
+      const y = dot.y;
       const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Сохраняем контекст для применения фильтра
@@ -238,8 +238,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
-      const x = sheetX + dot.x;
-      const y = sheetY + dot.y;
+      const x = dot.x;
+      const y = dot.y;
       const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Вычисляем прогресс остывания (0..1 за 2 секунды)
