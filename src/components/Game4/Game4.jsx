@@ -85,20 +85,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.lineTo(sheetX + sheetWidth, sheetY + i);
       ctx.stroke();
     }
-    
-    // Добавляем случайные царапины для реализма
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 20; i++) {
-      const scratchX = sheetX + Math.random() * sheetWidth;
-      const scratchY = sheetY + Math.random() * sheetHeight;
-      const scratchLen = 20 + Math.random() * 40;
-      const scratchAngle = Math.random() * Math.PI;
-      ctx.beginPath();
-      ctx.moveTo(scratchX, scratchY);
-      ctx.lineTo(scratchX + Math.cos(scratchAngle) * scratchLen, scratchY + Math.sin(scratchAngle) * scratchLen);
-      ctx.stroke();
-    }
     ctx.restore();
 
     // Рисуем края листа с разрезом (более темные и объемные)
