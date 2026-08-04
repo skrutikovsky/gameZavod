@@ -483,7 +483,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         <div className="flex items-center gap-6">
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Заполнение шва</span>
-            <span className={`text-2xl font-bold ${gameState.weldCoverage >= 100 ? 'text-green-400' : 'text-white'}`}>
+            <span className={`text-2xl font-bold ${gameState.weldCoverage >= 95 ? 'text-green-400' : 'text-white'}`}>
               {gameState.weldCoverage}%
             </span>
           </div>
@@ -506,7 +506,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             <div className="text-xs opacity-60 mb-1">Покрытие шва</div>
             <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
               <div 
-                className={`h-full transition-all duration-300 ${gameState.weldCoverage >= 100 ? 'bg-green-500' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
+                className={`h-full transition-all duration-300 ${gameState.weldCoverage >= 95 ? 'bg-green-500' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
                 style={{ width: `${gameState.weldCoverage}%` }}
               />
             </div>
