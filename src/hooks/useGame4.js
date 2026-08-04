@@ -7,6 +7,7 @@ export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
 export const WIN_COVERAGE = 100; // Процент покрытия для победы
+export const MAX_ROUNDS = 3; // Максимальное количество раундов для завершения уровня
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
@@ -646,11 +647,22 @@ export function useGame4() {
   
   // Переход к следующему раунду
   const nextRound = useCallback(() => {
-    setGameState(prev => ({
-      ...prev,
-      round: prev.round + 1,
-      roundComplete: false
-    }));
+    setGameState(prev => {
+      const newRound = prev.round + 1;
+      
+      // Проверка: если достигнут максимальный номер раунда, уровень завершен
+      if (newRound > MAX_ROUNDS) {
+        // Вызываем onLevelComplete через событие или пропс
+        // Для этого нужно передать callback в хук
+        return prev; // Возвращаем без изменений, обработка будет в компоненте
+      }
+      
+      return {
+        ...prev,
+        round: newRound,
+        roundComplete: false
+      };
+    });
     initRound();
   }, [initRound]);
   
