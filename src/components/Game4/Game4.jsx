@@ -211,8 +211,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем охлажденные точки сварки (те же стили что и у горячих, но с grayscale(1))
     cooledPoints.forEach(dot => {
-      const x = dot.x;
-      const y = dot.y;
+      // Смещаем координаты на половину диаметра (радиус) вверх и влево
+      const x = dot.x - ((dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2);
+      const y = dot.y - ((dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2);
       const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Сохраняем контекст для применения фильтра
@@ -222,14 +223,14 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.filter = 'grayscale(1)';
       
       // Градиент для точки сварки (оранжевый цвет как у горячей) - без прозрачности
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      const gradient = ctx.createRadialGradient(x + radius, y + radius, 0, x + radius, y + radius, radius);
       gradient.addColorStop(0, 'rgb(255, 100, 0)');
       gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
       gradient.addColorStop(1, 'rgb(200, 50, 0)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
       ctx.fill();
       
       // Восстанавливаем контекст
@@ -238,8 +239,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
-      const x = dot.x;
-      const y = dot.y;
+      // Смещаем координаты на половину диаметра (радиус) вверх и влево
+      const x = dot.x - ((dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2);
+      const y = dot.y - ((dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2);
       const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
       // Вычисляем прогресс остывания (0..1 за 2 секунды)
@@ -253,14 +255,14 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.filter = `grayscale(${coolProgress})`;
       
       // Градиент для точки сварки (горячий оранжевый цвет, без прозрачности)
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      const gradient = ctx.createRadialGradient(x + radius, y + radius, 0, x + radius, y + radius, radius);
       gradient.addColorStop(0, 'rgb(255, 100, 0)');
       gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
       gradient.addColorStop(1, 'rgb(200, 50, 0)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
       ctx.fill();
       
       // Восстанавливаем контекст
