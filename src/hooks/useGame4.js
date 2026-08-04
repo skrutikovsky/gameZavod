@@ -194,10 +194,10 @@ export function useGame4() {
   const handleMouseMove = useCallback((e) => {
     if (!gameStateRef.current?.isRunning) return;
     
-    const container = canvasRef.current?.parentElement;
-    if (!container) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     
-    const rect = container.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
@@ -315,12 +315,9 @@ export function useGame4() {
     if (!gameState.isRunning) return;
     
     const measureSpeed = () => {
-      if (!canvasRef.current) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
       
-      const container = canvasRef.current?.parentElement;
-      if (!container) return;
-      
-      const rect = container.getBoundingClientRect();
       // Получаем текущую позицию мыши из gameState
       const currentState = gameStateRef.current;
       if (!currentState) return;
