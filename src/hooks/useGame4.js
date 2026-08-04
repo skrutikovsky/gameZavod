@@ -225,6 +225,15 @@ export function useGame4() {
     let currentNozzleX = state.weldingGunX;
     let currentNozzleY = state.weldingGunY;
     
+    // Проверяем, находится ли курсор за пределами листа металла
+    const isCursorOutsideSheet = targetX < sheetMargin || targetX > sheetMargin + sheetWidth || 
+                                  targetY < sheetMargin || targetY > sheetMargin + sheetHeight;
+    
+    // Если курсор за пределами листа - сопло останавливается
+    if (isCursorOutsideSheet) {
+      return { x: currentNozzleX, y: currentNozzleY };
+    }
+    
     // Вычисляем направление к целевой точке (курсор)
     const dx = targetX - currentNozzleX;
     const dy = targetY - currentNozzleY;
@@ -282,31 +291,22 @@ export function useGame4() {
     }
     lastTimeRef.current = currentTime;
     
-    // Обновляем целевую позицию (курсор)
+    // Обновляем целевую позицию (курсор) - сопло будет двигаться к ней в игровом цикле
     setGameState(prev => ({
       ...prev,
       targetX: mouseX,
       targetY: mouseY
     }));
     
-    // Сопло всегда движется к курсору вне зависимости двигается курсор или нет
-    const nozzlePos = updateWeldingGunPosition(mouseX, mouseY, deltaTime);
-    
-    // Обновляем состояние с новой позицией сопла
-    setGameState(prev => ({
-      ...prev,
-      weldingGunX: nozzlePos.x,
-      weldingGunY: nozzlePos.y,
-      mouseX: nozzlePos.x,
-      mouseY: nozzlePos.y
-    }));
-    
-    // Если ЛКМ не зажата - просто обновляем позицию и выходим
+    // Если ЛКМ не зажата - просто обновляем позицию курсора и выходим
+    // Движение сопла происходит в игровом цикле updateLoop
     if (!isMouseDownRef.current) return;
     
-    // Позиция сопла теперь используется для сварки
-    const weldX = nozzlePos.x;
-    const weldY = nozzlePos.y;
+    // Позиция сопла для сварки берется из текущего состояния (обновляется в updateLoop)
+    const currentNozzleX = state.weldingGunX;
+    const currentNozzleY = state.weldingGunY;
+    const weldX = currentNozzleX;
+    const weldY = currentNozzleY;
     
     // Получаем локальную ширину шва
     const adjustedWeldX = weldX - sheetMargin;
@@ -379,7 +379,7 @@ export function useGame4() {
         weldCountRef.current += 1;
       }
     }
-  }, [updateWeldingGunPosition]);
+  }, []);
   
   const handleMouseDown = useCallback(() => {
     isMouseDownRef.current = true;
