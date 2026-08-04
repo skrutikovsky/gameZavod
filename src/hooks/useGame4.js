@@ -147,14 +147,16 @@ export function useGame4({ onLevelComplete }) {
     if (!container) return;
     
     const rect = container.getBoundingClientRect();
-    const { points, widths } = generateGapPath(rect.width, rect.height);
+    const sheetMargin = 40;
+    const sheetWidth = rect.width - sheetMargin * 2;
+    const sheetHeight = rect.height - sheetMargin * 2;
+    const { points, widths } = generateGapPath(sheetWidth, sheetHeight);
     
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
     // Инициализируем позицию сварочного аппарата по середине сверху листа металла
-    const sheetMargin = 40;
     const initialGunX = rect.width / 2;
     const initialGunY = sheetMargin + NOZZLE_OFFSET_Y; // Сопло на краю листа
     
