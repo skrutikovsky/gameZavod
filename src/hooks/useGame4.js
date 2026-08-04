@@ -56,6 +56,9 @@ export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasW
   // Корректируем x с учетом отступа листа
   const adjustedX = x - sheetMargin;
   
+  // Проверяем что x находится в пределах металла
+  if (adjustedX < 0 || adjustedX > canvasWidth) return false;
+  
   // Находим ближайшую точку на центральной линии разрыва
   let minDist = Infinity;
   let closestWidth = 0;
@@ -196,24 +199,26 @@ export function useGame4() {
     const mouseY = e.clientY - rect.top;
     const currentTime = Date.now();
     
-    // Вычисляем скорость движения курсора
+    // Вычисляем скорость движения курсора постоянно
     if (lastPositionRef.current && lastTimeRef.current) {
       const dx = mouseX - lastPositionRef.current.x;
       const dy = mouseY - lastPositionRef.current.y;
       const dt = (currentTime - lastTimeRef.current) / 1000; // в секундах
       const dist = Math.hypot(dx, dy);
       
-      if (dt > 0) {
+      if (dt > 0 && dt < 0.5) { // Игнорируем большие задержки между событиями
         const speed = dist / dt; // px/sec
         speedRef.current = speed;
-        const speedPercent = Math.min(100, Math.round((speed / MAX_SPEED) * 100));
-        
-        setGameState(prev => ({
-          ...prev,
-          currentSpeed: speed,
-          speedPercent: speedPercent
-        }));
+      } else {
+        speedRef.current = 0;
       }
+      const speedPercent = Math.min(100, Math.round((speedRef.current / MAX_SPEED) * 100));
+      
+      setGameState(prev => ({
+        ...prev,
+        currentSpeed: speedRef.current,
+        speedPercent: speedPercent
+      }));
     }
     
     lastPositionRef.current = { x: mouseX, y: mouseY };
@@ -323,13 +328,14 @@ export function useGame4() {
     const state = gameStateRef.current;
     if (!state || state.gapPath.length === 0) return;
     
-    const { gapPath, gapWidths, weldPoints } = state;
+    const { gapPath, gapWidths, weldPoints, cooledPoints } = state;
     const totalLength = gapPath.length;
     
-    // Создаем битовую маску покрытия
+    // Создаем битовую маску покрытия - учитываем и горячие и остывшие точки
     const coverageMap = new Array(200).fill(false);
+    const allWeldPoints = [...weldPoints, ...cooledPoints];
     
-    weldPoints.forEach(p => {
+    allWeldPoints.forEach(p => {
       const xIdx = Math.floor((p.x / (canvasRef.current?.width || 1)) * 200);
       if (xIdx >= 0 && xIdx < 200) {
         const spread = Math.ceil((p.width * WELD_SIZE_RATIO) / ((canvasRef.current?.width || 1) / 200) / 2);

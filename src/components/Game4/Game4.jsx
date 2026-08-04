@@ -4,31 +4,6 @@ import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
 
-// Компонент лазерной точки курсора - теперь простой круг без эффектов
-const LaserCursor = ({ x, y, isWelding }) => {
-  if (x === undefined || y === undefined) return null;
-  
-  return (
-    <div
-      className="pointer-events-none fixed z-50"
-      style={{
-        left: x,
-        top: y,
-        transform: 'translate(-50%, -50%)',
-      }}
-    >
-      {/* Простая точка курсора без эффектов */}
-      <div 
-        className="rounded-full bg-red-500"
-        style={{
-          width: '8px',
-          height: '8px',
-        }}
-      />
-    </div>
-  );
-};
-
 const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
     gameState,
@@ -246,23 +221,16 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Применяем полный grayscale фильтр
       ctx.filter = 'grayscale(1)';
       
-      // Градиент для точки сварки (оранжевый цвет как у горячей)
+      // Градиент для точки сварки (оранжевый цвет как у горячей) - без прозрачности
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-      gradient.addColorStop(0, 'rgba(255, 100, 0, 1)');
-      gradient.addColorStop(0.5, 'rgba(255, 80, 0, 0.8)');
-      gradient.addColorStop(1, 'rgba(200, 50, 0, 0.6)');
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
-      
-      // Обводка для контраста с фоном
-      ctx.strokeStyle = 'rgba(255, 69, 0, 1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.stroke();
       
       // Восстанавливаем контекст
       ctx.restore();
@@ -284,23 +252,16 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Применяем grayscale фильтр который усиливается со временем (от 0 до 1)
       ctx.filter = `grayscale(${coolProgress})`;
       
-      // Градиент для точки сварки (горячий оранжевый цвет, яркость не меняется)
+      // Градиент для точки сварки (горячий оранжевый цвет, без прозрачности)
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-      gradient.addColorStop(0, 'rgba(255, 100, 0, 1)');
-      gradient.addColorStop(0.5, 'rgba(255, 80, 0, 0.8)');
-      gradient.addColorStop(1, 'rgba(200, 50, 0, 0.6)');
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
-      
-      // Обводка для контраста с фоном
-      ctx.strokeStyle = 'rgba(255, 69, 0, 1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.stroke();
       
       // Восстанавливаем контекст
       ctx.restore();
@@ -385,12 +346,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       onMouseMove={handleCanvasMouseMove}
       onMouseUp={handleCanvasMouseUp}
       onMouseLeave={handleCanvasMouseLeave}
-      style={{
-        cursor: 'none'
-      }}
     >
-      {/* Лазерный курсор */}
-      <LaserCursor x={gameState.mouseX} y={gameState.mouseY} isWelding={gameState.isRunning && gameState.weldPoints.length > 0} />
       {/* Статистика игры с кнопкой назад */}
       <GameStats
         score={gameState.score}
@@ -429,9 +385,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Скорость</span>
             <span className={`text-2xl font-bold ${gameState.speedPercent >= 100 ? 'text-red-400' : gameState.speedPercent >= 80 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {Math.min(100, gameState.speedPercent)}%
+              {Math.min(100, Math.round(gameState.speedPercent))}%
             </span>
-            <span className="text-xs opacity-60 ml-1">({Math.round(gameState.currentSpeed)})</span>
           </div>
         </div>
         
@@ -456,11 +411,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             </div>
           </div>
           <div className="flex-1">
-            <div className="text-xs opacity-60 mb-1">Скорость (макс {MAX_SPEED}px/s)</div>
+            <div className="text-xs opacity-60 mb-1">Скорость</div>
             <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-100 ${gameState.speedPercent >= 100 ? 'bg-red-500' : gameState.speedPercent >= 80 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                style={{ width: `${gameState.speedPercent}%` }}
+                style={{ width: `${Math.min(100, gameState.speedPercent)}%` }}
               />
             </div>
           </div>
