@@ -390,38 +390,76 @@ export function useGame4() {
     lastWeldPointRef.current = null;
   }, []);
   
-  // Проверка прогресса заполнения
+  // Проверка прогресса заполнения - подсчет площади покрытия
   const checkCoverage = useCallback(() => {
     const state = gameStateRef.current;
     if (!state || state.gapPath.length === 0) return;
     
     const { gapPath, gapWidths, weldPoints, cooledPoints } = state;
-    const totalLength = gapPath.length;
-    
-    // Создаем битовую маску покрытия - учитываем и горячие и остывшие точки
-    // Используем больше сегментов для более точного подсчета
-    const coverageMap = new Array(500).fill(false);
     const allWeldPoints = [...weldPoints, ...cooledPoints];
     
+    // Площадь покрытая сваркой - используем сетку для учета перекрытий
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const gridSize = 4; // Размер ячейки сетки в пикселях (чем меньше, тем точнее)
+    const sheetMargin = 40;
+    const sheetWidth = canvas.width - sheetMargin * 2;
+    const sheetHeight = canvas.height - sheetMargin * 2;
+    
+    const cols = Math.ceil(sheetWidth / gridSize);
+    const rows = Math.ceil(sheetHeight / gridSize);
+    
+    // Создаем массив для отслеживания покрытых ячеек в зоне шва
+    const coveredCells = new Set();
+    let totalCellsInGap = 0;
+    
+    // Сначала определяем все ячейки которые находятся в зоне шва
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const cellX = sheetMargin + col * gridSize + gridSize / 2;
+        const cellY = sheetMargin + row * gridSize + gridSize / 2;
+        
+        // Проверяем находится ли ячейка в зоне шва
+        const inGap = isPointInGapZone(cellX, cellY, gapPath, gapWidths, BASE_GAP_WIDTH / 2, sheetWidth, sheetMargin);
+        if (inGap) {
+          totalCellsInGap++;
+          coveredCells.add(`${col},${row}`);
+        }
+      }
+    }
+    
+    // Теперь проверяем какие ячейки покрыты сваркой
+    const weldedCells = new Set();
     allWeldPoints.forEach(p => {
-      const xIdx = Math.floor((p.x / (canvasRef.current?.width || 1)) * 500);
-      if (xIdx >= 0 && xIdx < 500) {
-        // Учитываем реальный радиус точки сварки для определения покрытия
-        const weldRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
-        // spread - сколько сегментов покрывает одна точка сварки
-        const segmentWidth = (canvasRef.current?.width || 1) / 500;
-        const spread = Math.ceil(weldRadius / segmentWidth);
-        for(let k = -spread; k <= spread; k++) {
-          if (xIdx + k >= 0 && xIdx + k < 500) {
-            coverageMap[xIdx + k] = true;
+      const weldRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      
+      // Определяем диапазон ячеек которые может покрывать эта точка сварки
+      const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
+      const maxCol = Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize));
+      const minRow = Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize));
+      const maxRow = Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize));
+      
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          const cellX = sheetMargin + col * gridSize + gridSize / 2;
+          const cellY = sheetMargin + row * gridSize + gridSize / 2;
+          
+          // Проверяем попадает ли центр ячейки в радиус сварки
+          const dist = Math.hypot(cellX - p.x, cellY - p.y);
+          if (dist <= weldRadius) {
+            // Проверяем что ячейка находится в зоне шва
+            const key = `${col},${row}`;
+            if (coveredCells.has(key)) {
+              weldedCells.add(key);
+            }
           }
         }
       }
     });
     
-    const filledCount = coverageMap.filter(Boolean).length;
-    // coverage вычисляется как процент покрытых сегментов от общего количества
-    const coverage = Math.min(100, (filledCount / 500) * 100);
+    // Процент покрытия = (количество покрытых ячеек шва / общее количество ячеек шва) * 100
+    const coverage = totalCellsInGap > 0 ? (weldedCells.size / totalCellsInGap) * 100 : 0;
     
     setGameState(prev => {
       const newState = {
