@@ -2,12 +2,13 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
 export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва
-export const WELD_SIZE_RATIO = 0.6; // Размер точки = 60% от ширины шва
+export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ширины шва (увеличено в 1.7 раза с 0.6)
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
 export const WIN_COVERAGE = 95; // Процент покрытия для победы
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
+export const MAX_SPEED = 160; // Максимальная скорость курсора (800px / 5sec = 160px/sec)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -109,7 +110,9 @@ export function useGame4() {
     gameOver: false,
     roundComplete: false,
     mouseX: 0,
-    mouseY: 0
+    mouseY: 0,
+    currentSpeed: 0,
+    speedPercent: 0
   });
   
   const gameStateRef = useRef(null);
@@ -118,6 +121,8 @@ export function useGame4() {
   const lastWeldPointRef = useRef(null);
   const canvasRef = useRef(null);
   const speedRef = useRef(0);
+  const lastPositionRef = useRef(null);
+  const lastTimeRef = useRef(null);
   
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -181,7 +186,7 @@ export function useGame4() {
   
   // Обработка движения мыши с новой логикой: рисуем точку когда курсор прошел 2/3 радиуса от последней точки
   const handleMouseMove = useCallback((e) => {
-    if (!isMouseDownRef.current || !gameStateRef.current?.isRunning) return;
+    if (!gameStateRef.current?.isRunning) return;
     
     const container = canvasRef.current?.parentElement;
     if (!container) return;
@@ -189,6 +194,37 @@ export function useGame4() {
     const rect = container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+    const currentTime = Date.now();
+    
+    // Вычисляем скорость движения курсора
+    if (lastPositionRef.current && lastTimeRef.current) {
+      const dx = mouseX - lastPositionRef.current.x;
+      const dy = mouseY - lastPositionRef.current.y;
+      const dt = (currentTime - lastTimeRef.current) / 1000; // в секундах
+      const dist = Math.hypot(dx, dy);
+      
+      if (dt > 0) {
+        const speed = dist / dt; // px/sec
+        speedRef.current = speed;
+        const speedPercent = Math.min(100, Math.round((speed / MAX_SPEED) * 100));
+        
+        setGameState(prev => ({
+          ...prev,
+          currentSpeed: speed,
+          speedPercent: speedPercent
+        }));
+      }
+    }
+    
+    lastPositionRef.current = { x: mouseX, y: mouseY };
+    lastTimeRef.current = currentTime;
+    
+    // Если скорость превышает максимальную - не варим
+    if (speedRef.current > MAX_SPEED) {
+      return;
+    }
+    
+    if (!isMouseDownRef.current) return;
     
     const { gapPath, gapWidths, cooledPoints, weldPoints } = gameStateRef.current;
     
@@ -276,6 +312,10 @@ export function useGame4() {
   const handleMouseUp = useCallback(() => {
     isMouseDownRef.current = false;
     lastWeldPointRef.current = null;
+    // Сбрасываем скорость при отпускании кнопки
+    speedRef.current = 0;
+    lastPositionRef.current = null;
+    lastTimeRef.current = null;
   }, []);
   
   // Проверка прогресса заполнения
@@ -393,6 +433,7 @@ export function useGame4() {
     MAX_WELD_POINTS,
     WELD_SIZE_RATIO,
     BASE_GAP_WIDTH,
-    FADE_DURATION
+    FADE_DURATION,
+    MAX_SPEED
   };
 }

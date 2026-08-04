@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, MAX_SPEED } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -49,8 +49,9 @@ const LaserCursor = ({ x, y, isWelding }) => {
                   background: ['#ffd700', '#ffaa00', '#ff6600', '#ffffff'][Math.floor(Math.random() * 4)],
                   boxShadow: '0 0 5px currentColor',
                   animation: `spark${i} 0.3s ease-out infinite`,
-                  left: '5px',
-                  top: '5px',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
                 }}
               />
             ))}
@@ -60,36 +61,36 @@ const LaserCursor = ({ x, y, isWelding }) => {
       
       <style>{`
         @keyframes spark0 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-20px, -15px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(-20px, -15px) scale(0); opacity: 0; }
         }
         @keyframes spark1 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(20px, -10px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(20px, -10px) scale(0); opacity: 0; }
         }
         @keyframes spark2 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(15px, 20px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(15px, 20px) scale(0); opacity: 0; }
         }
         @keyframes spark3 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-10px, 25px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(-10px, 25px) scale(0); opacity: 0; }
         }
         @keyframes spark4 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-25px, 5px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(-25px, 5px) scale(0); opacity: 0; }
         }
         @keyframes spark5 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(25px, 10px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(25px, 10px) scale(0); opacity: 0; }
         }
         @keyframes spark6 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(10px, -20px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(10px, -20px) scale(0); opacity: 0; }
         }
         @keyframes spark7 {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-15px, -25px) scale(0); opacity: 0; }
+          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) translate(-15px, -25px) scale(0); opacity: 0; }
         }
       `}</style>
     </div>
@@ -359,46 +360,20 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       }
       
       // Градиент для точки сварки (горячий оранжевый цвет)
-      const gradient = ctx.createRadialGradient(x - radius/4, y - radius/4, 0, x, y, radius);
-      if (coolProgress < 0.3) {
-        // Горячее состояние - яркие цвета
-        gradient.addColorStop(0, '#ffffff');
-        gradient.addColorStop(0.2, '#fff5e6');
-        gradient.addColorStop(0.4, '#ffcc00');
-        gradient.addColorStop(0.7, '#ff6600');
-        gradient.addColorStop(1, '#cc3300');
-      } else if (coolProgress < 0.7) {
-        // Среднее состояние - постепенно тускнеет
-        const t = (coolProgress - 0.3) / 0.4;
-        gradient.addColorStop(0, `rgb(${255 - t * 100}, ${200 - t * 120}, ${100 - t * 50})`);
-        gradient.addColorStop(0.5, `rgb(${255 - t * 150}, ${150 - t * 100}, ${50 - t * 30})`);
-        gradient.addColorStop(1, `rgb(${150 - t * 80}, ${80 - t * 50}, ${30 - t * 20})`);
-      } else {
-        // Почти остывшее - темные цвета
-        gradient.addColorStop(0, '#888888');
-        gradient.addColorStop(0.5, '#666666');
-        gradient.addColorStop(1, '#444444');
-      }
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      // Плавно угасающий градиент без бликов
+      gradient.addColorStop(0, `rgba(255, 100, 0, ${1 - coolProgress})`);
+      gradient.addColorStop(0.5, `rgba(255, 80, 0, ${0.8 * (1 - coolProgress)})`);
+      gradient.addColorStop(1, `rgba(200, 50, 0, ${0.6 * (1 - coolProgress)})`);
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       
-      // Блик на горячей сварке
-      if (coolProgress < 0.5) {
-        const highlightGradient = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x - radius/3, y - radius/3, radius/3);
-        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = highlightGradient;
-        ctx.beginPath();
-        ctx.arc(x - radius/3, y - radius/3, radius/3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      
       // Обводка для контраста с фоном
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = coolProgress < 0.5 ? '#ff4500' : '#374151';
+      ctx.strokeStyle = `rgba(255, 69, 0, ${1 - coolProgress})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -528,6 +503,13 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             <span className="text-xs opacity-80 uppercase tracking-wider block">Очки</span>
             <span className="text-2xl font-bold text-yellow-400">{gameState.score}</span>
           </div>
+          <div className="text-center">
+            <span className="text-xs opacity-80 uppercase tracking-wider block">Скорость</span>
+            <span className={`text-2xl font-bold ${gameState.speedPercent >= 100 ? 'text-red-400' : gameState.speedPercent >= 80 ? 'text-yellow-400' : 'text-green-400'}`}>
+              {gameState.speedPercent}%
+            </span>
+            <span className="text-xs opacity-60 ml-1">({Math.round(gameState.currentSpeed)}px/s)</span>
+          </div>
         </div>
         
         {/* Прогресс бар заполнения шва */}
@@ -547,6 +529,15 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
               <div 
                 className={`h-full transition-all duration-300 ${weldPercent >= 90 ? 'bg-red-500' : weldPercent >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
                 style={{ width: `${weldPercent}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <div className="text-xs opacity-60 mb-1">Скорость (макс {MAX_SPEED}px/s)</div>
+            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-100 ${gameState.speedPercent >= 100 ? 'bg-red-500' : gameState.speedPercent >= 80 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                style={{ width: `${gameState.speedPercent}%` }}
               />
             </div>
           </div>
@@ -605,6 +596,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </p>
         <p className="text-sm opacity-80 mt-1">
           Сварка остывает через 2 секунды и становится серой. Можно наваривать на остывшую сварку!
+        </p>
+        <p className="text-sm opacity-80 mt-1">
+          ⚠️ Двигай курсор медленно (не быстрее {MAX_SPEED}px/s) иначе сварка не работает
         </p>
       </div>
     </div>
