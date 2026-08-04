@@ -107,7 +107,7 @@ export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
   return false;
 }
 
-export function useGame4() {
+export function useGame4({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
     isRunning: false,
     score: 0,
@@ -120,6 +120,7 @@ export function useGame4() {
     cooledPoints: [],
     gameOver: false,
     roundComplete: false,
+    levelComplete: false,
     mouseX: 0,
     mouseY: 0,
     weldingGunX: 0,
@@ -652,9 +653,16 @@ export function useGame4() {
       
       // Проверка: если достигнут максимальный номер раунда, уровень завершен
       if (newRound > MAX_ROUNDS) {
-        // Вызываем onLevelComplete через событие или пропс
-        // Для этого нужно передать callback в хук
-        return prev; // Возвращаем без изменений, обработка будет в компоненте
+        // Вызываем onLevelComplete для показа окна завершения уровня
+        if (onLevelComplete) {
+          onLevelComplete();
+        }
+        return {
+          ...prev,
+          levelComplete: true,
+          roundComplete: false,
+          isRunning: false
+        };
       }
       
       return {
@@ -664,7 +672,7 @@ export function useGame4() {
       };
     });
     initRound();
-  }, [initRound]);
+  }, [initRound, onLevelComplete]);
   
   const setCanvasRef = useCallback((ref) => {
     canvasRef.current = ref;
@@ -687,6 +695,7 @@ export function useGame4() {
     FADE_DURATION,
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
-    NOZZLE_OFFSET_Y
+    NOZZLE_OFFSET_Y,
+    MAX_ROUNDS
   };
 }

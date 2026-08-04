@@ -22,8 +22,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     FADE_DURATION,
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
-    NOZZLE_OFFSET_Y
-  } = useGame4();
+    NOZZLE_OFFSET_Y,
+    MAX_ROUNDS
+  } = useGame4({ onLevelComplete });
   
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
@@ -437,7 +438,13 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     onGameOver();
   };
 
+  const handleRestartLevel = () => {
+    resetGame();
+    startGame();
+  };
+
   const isRoundComplete = gameState.roundComplete;
+  const isLevelComplete = gameState.levelComplete;
   const isGameOver = gameState.gameOver;
   const weldPercent = Math.round((gameState.weldUsed / MAX_WELD_POINTS) * 100);
 
@@ -529,6 +536,23 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           <div className="space-y-4">
             <Button onClick={handleNextRound} variant="primary">
               Следующий раунд
+            </Button>
+            <Button onClick={handleGameOver} variant="secondary">
+              В главное меню
+            </Button>
+          </div>
+        </Modal>
+      )}
+      
+      {/* Модальное окно завершения уровня */}
+      {isLevelComplete && (
+        <Modal
+          title="Уровень пройден!"
+          message={`Поздравляем! Вы завершили уровень.\nИтоговый счет: ${gameState.score}`}
+        >
+          <div className="space-y-4">
+            <Button onClick={handleRestartLevel} variant="primary">
+              Играть снова
             </Button>
             <Button onClick={handleGameOver} variant="secondary">
               В главное меню
