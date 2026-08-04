@@ -121,7 +121,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     // Рисуем разрыв (шов) с более контрастным видом
     const seamWidth = BASE_GAP_WIDTH;
     
-    // Тень внутри шва для объема
+    // Тень внутри шва для объема - смещаем на половину ширины шва вверх/вниз
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.beginPath();
     
@@ -130,7 +130,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
-      const y = sheetY + p.y - w / 2 - 3;
+      const y = sheetY + p.y - w / 2;
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
@@ -143,7 +143,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const p = gapPath[i];
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
-      const y = sheetY + p.y + w / 2 + 3;
+      const y = sheetY + p.y + w / 2;
       ctx.lineTo(x, y);
     }
     

@@ -9,6 +9,7 @@ export const MAX_WELD_POINTS = 2000; // Максимальное количес�
 export const WIN_COVERAGE = 95; // Процент покрытия для победы
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const MAX_SPEED = 160; // Максимальная скорость курсора (800px / 5sec = 160px/sec)
+export const SPEED_SAMPLE_INTERVAL = 200; // Замер скорости каждые 200мс (5 раз в секунду)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -77,10 +78,11 @@ export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasW
     }
   }
 
-  // Радиус зоны шва = половина ширины разрыва + допуск
+  // Радиус зоны шва = половина ширины разрыва + допуск для сварки
   const gapRadius = closestWidth / 2;
   
-  return minDist <= (gapRadius + weldRadius * 0.5);
+  // Разрешаем сварку если центр курсора попадает в зону шва (половина ширины шва)
+  return minDist <= gapRadius;
 }
 
 // Проверка возможности наваривания на существующую сварку
@@ -126,6 +128,7 @@ export function useGame4() {
   const speedRef = useRef(0);
   const lastPositionRef = useRef(null);
   const lastTimeRef = useRef(null);
+  const speedSampleTimerRef = useRef(null);
   
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -197,37 +200,22 @@ export function useGame4() {
     const rect = container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    const currentTime = Date.now();
     
-    // Вычисляем скорость движения курсора постоянно
-    if (lastPositionRef.current && lastTimeRef.current) {
-      const dx = mouseX - lastPositionRef.current.x;
-      const dy = mouseY - lastPositionRef.current.y;
-      const dt = (currentTime - lastTimeRef.current) / 1000; // в секундах
-      const dist = Math.hypot(dx, dy);
-      
-      if (dt > 0 && dt < 0.5) { // Игнорируем большие задержки между событиями
-        const speed = dist / dt; // px/sec
-        speedRef.current = speed;
-      } else {
-        speedRef.current = 0;
-      }
-      const speedPercent = Math.min(100, Math.round((speedRef.current / MAX_SPEED) * 100));
-      
-      setGameState(prev => ({
-        ...prev,
-        currentSpeed: speedRef.current,
-        speedPercent: speedPercent
-      }));
-    }
-    
+    // Сохраняем текущую позицию для замера скорости
     lastPositionRef.current = { x: mouseX, y: mouseY };
-    lastTimeRef.current = currentTime;
     
-    // Если скорость превышает максимальную - не варим
+    // Если скорость превышает максимальную - не варим и не обновляем скорость в стейте
     if (speedRef.current > MAX_SPEED) {
       return;
     }
+    
+    // Обновляем скорость в стейте только если она в допустимых пределах
+    const speedPercent = Math.min(100, Math.round((speedRef.current / MAX_SPEED) * 100));
+    setGameState(prev => ({
+      ...prev,
+      currentSpeed: speedRef.current,
+      speedPercent: speedPercent
+    }));
     
     if (!isMouseDownRef.current) return;
     
@@ -320,8 +308,53 @@ export function useGame4() {
     // Сбрасываем скорость при отпускании кнопки
     speedRef.current = 0;
     lastPositionRef.current = null;
-    lastTimeRef.current = null;
   }, []);
+  
+  // Замер скорости каждые 200мс (5 раз в секунду)
+  useEffect(() => {
+    if (!gameState.isRunning) return;
+    
+    const measureSpeed = () => {
+      if (!canvasRef.current) return;
+      
+      const container = canvasRef.current?.parentElement;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      // Получаем текущую позицию мыши из gameState
+      const currentState = gameStateRef.current;
+      if (!currentState) return;
+      
+      const mouseX = currentState.mouseX;
+      const mouseY = currentState.mouseY;
+      
+      // Инициализируем lastPositionRef если она еще не установлена
+      if (!lastPositionRef.current) {
+        lastPositionRef.current = { x: mouseX, y: mouseY };
+        return;
+      }
+      
+      // Вычисляем расстояние от последней зафиксированной позиции
+      const dx = mouseX - lastPositionRef.current.x;
+      const dy = mouseY - lastPositionRef.current.y;
+      const distance = Math.hypot(dx, dy);
+      
+      // Скорость = расстояние / 160 * 100% (где 160px это базовая ширина шва)
+      const speedPercent = (distance / 160) * 100;
+      speedRef.current = speedPercent;
+      
+      // Обновляем последнюю позицию для следующего замера
+      lastPositionRef.current = { x: mouseX, y: mouseY };
+    };
+    
+    speedSampleTimerRef.current = setInterval(measureSpeed, SPEED_SAMPLE_INTERVAL);
+    
+    return () => {
+      if (speedSampleTimerRef.current) {
+        clearInterval(speedSampleTimerRef.current);
+      }
+    };
+  }, [gameState.isRunning]);
   
   // Проверка прогресса заполнения
   const checkCoverage = useCallback(() => {
@@ -332,15 +365,20 @@ export function useGame4() {
     const totalLength = gapPath.length;
     
     // Создаем битовую маску покрытия - учитываем и горячие и остывшие точки
-    const coverageMap = new Array(200).fill(false);
+    // Используем больше сегментов для более точного подсчета
+    const coverageMap = new Array(500).fill(false);
     const allWeldPoints = [...weldPoints, ...cooledPoints];
     
     allWeldPoints.forEach(p => {
-      const xIdx = Math.floor((p.x / (canvasRef.current?.width || 1)) * 200);
-      if (xIdx >= 0 && xIdx < 200) {
-        const spread = Math.ceil((p.width * WELD_SIZE_RATIO) / ((canvasRef.current?.width || 1) / 200) / 2);
+      const xIdx = Math.floor((p.x / (canvasRef.current?.width || 1)) * 500);
+      if (xIdx >= 0 && xIdx < 500) {
+        // Учитываем реальный радиус точки сварки для определения покрытия
+        const weldRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+        // spread - сколько сегментов покрывает одна точка сварки
+        const segmentWidth = (canvasRef.current?.width || 1) / 500;
+        const spread = Math.ceil(weldRadius / segmentWidth);
         for(let k = -spread; k <= spread; k++) {
-          if (xIdx + k >= 0 && xIdx + k < 200) {
+          if (xIdx + k >= 0 && xIdx + k < 500) {
             coverageMap[xIdx + k] = true;
           }
         }
@@ -348,7 +386,8 @@ export function useGame4() {
     });
     
     const filledCount = coverageMap.filter(Boolean).length;
-    const coverage = Math.min(100, (filledCount / 200) * 100);
+    // coverage вычисляется как процент покрытых сегментов от общего количества
+    const coverage = Math.min(100, (filledCount / 500) * 100);
     
     setGameState(prev => {
       const newState = {
