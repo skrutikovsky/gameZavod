@@ -39,7 +39,8 @@ export function generateGapPath(width, height) {
     
     // Ограничиваем y в пределах листа (с запасом чтобы шов не выходил за край)
     const maxGapWidth = BASE_GAP_WIDTH * 0.6;
-    y = Math.max(height * 0.15 + maxGapWidth/2, Math.min(height * 0.85 - maxGapWidth/2, y));
+    const halfGap = maxGapWidth / 2;
+    y = Math.max(height * 0.15 + halfGap, Math.min(height * 0.85 - halfGap, y));
     
     points.push({ x, y });
     
@@ -203,8 +204,8 @@ export function useGame4() {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
-    // Если скорость превышает максимальную - не варим
-    if (speedRef.current > MAX_SPEED) {
+    // Если скорость превышает или равна максимальной - не варим
+    if (speedRef.current >= 100) {
       return;
     }
     
