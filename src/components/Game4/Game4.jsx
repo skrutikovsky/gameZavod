@@ -4,7 +4,7 @@ import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
 
-// Компонент лазерной точки курсора
+// Компонент лазерной точки курсора - теперь простой круг без эффектов
 const LaserCursor = ({ x, y, isWelding }) => {
   if (x === undefined || y === undefined) return null;
   
@@ -17,82 +17,14 @@ const LaserCursor = ({ x, y, isWelding }) => {
         transform: 'translate(-50%, -50%)',
       }}
     >
-      {/* Лазерная точка */}
+      {/* Простая точка курсора без эффектов */}
       <div 
-        className="relative"
+        className="rounded-full bg-red-500"
         style={{
-          width: '10px',
-          height: '10px',
+          width: '8px',
+          height: '8px',
         }}
-      >
-        {/* Основная красная точка */}
-        <div 
-          className="absolute rounded-full"
-          style={{
-            width: '10px',
-            height: '10px',
-            background: 'radial-gradient(circle, #ff0000 0%, #cc0000 50%, #880000 100%)',
-            boxShadow: '0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000',
-          }}
-        />
-        
-        {/* Искры при зажатой ЛКМ */}
-        {isWelding && (
-          <>
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full"
-                style={{
-                  width: `${2 + Math.random() * 3}px`,
-                  height: `${2 + Math.random() * 3}px`,
-                  background: ['#ffd700', '#ffaa00', '#ff6600', '#ffffff'][Math.floor(Math.random() * 4)],
-                  boxShadow: '0 0 5px currentColor',
-                  animation: `spark${i} 0.3s ease-out infinite`,
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                }}
-              />
-            ))}
-          </>
-        )}
-      </div>
-      
-      <style>{`
-        @keyframes spark0 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(-20px, -15px) scale(0); opacity: 0; }
-        }
-        @keyframes spark1 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(20px, -10px) scale(0); opacity: 0; }
-        }
-        @keyframes spark2 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(15px, 20px) scale(0); opacity: 0; }
-        }
-        @keyframes spark3 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(-10px, 25px) scale(0); opacity: 0; }
-        }
-        @keyframes spark4 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(-25px, 5px) scale(0); opacity: 0; }
-        }
-        @keyframes spark5 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(25px, 10px) scale(0); opacity: 0; }
-        }
-        @keyframes spark6 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(10px, -20px) scale(0); opacity: 0; }
-        }
-        @keyframes spark7 {
-          0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -50%) translate(-15px, -25px) scale(0); opacity: 0; }
-        }
-      `}</style>
+      />
     </div>
   );
 };
@@ -302,40 +234,41 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     ctx.stroke();
 
-    // Рисуем охлажденные точки сварки (серые с металлическим блеском)
+    // Рисуем охлажденные точки сварки (те же стили что и у горячих, но с grayscale(1))
     cooledPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
       const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
       
-      // Градиент для охлажденной сварки
-      const cooledGradient = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
-      cooledGradient.addColorStop(0, '#9ca3af');
-      cooledGradient.addColorStop(0.4, '#6b7280');
-      cooledGradient.addColorStop(0.7, '#4b5563');
-      cooledGradient.addColorStop(1, '#374151');
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
       
-      ctx.fillStyle = cooledGradient;
+      // Применяем полный grayscale фильтр
+      ctx.filter = 'grayscale(1)';
+      
+      // Градиент для точки сварки (оранжевый цвет как у горячей)
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      gradient.addColorStop(0, 'rgba(255, 100, 0, 1)');
+      gradient.addColorStop(0.5, 'rgba(255, 80, 0, 0.8)');
+      gradient.addColorStop(1, 'rgba(200, 50, 0, 0.6)');
+      
+      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
       
-      // Блик на охлажденной сварке
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      // Обводка для контраста с фоном
+      ctx.strokeStyle = 'rgba(255, 69, 0, 1)';
       ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(x - radius/3, y - radius/3, radius/4, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Темная обводка для контраста
-      ctx.strokeStyle = '#1f2937';
-      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
+      
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
-    // Рисуем горячие точки сварки игрока (оранжевые со свечением и эффектом остывания)
+    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
       const x = sheetX + dot.x;
       const y = sheetY + dot.y;
@@ -348,23 +281,14 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Сохраняем контекст для применения фильтра
       ctx.save();
       
-      // Применяем grayscale фильтр который усиливается со временем
-      const grayscaleValue = coolProgress;
-      ctx.filter = `grayscale(${grayscaleValue})`;
+      // Применяем grayscale фильтр который усиливается со временем (от 0 до 1)
+      ctx.filter = `grayscale(${coolProgress})`;
       
-      // Внешнее свечение (только для горячих точек)
-      if (coolProgress < 0.5) {
-        const glowIntensity = 20 * (1 - coolProgress * 2);
-        ctx.shadowColor = '#ff6600';
-        ctx.shadowBlur = glowIntensity;
-      }
-      
-      // Градиент для точки сварки (горячий оранжевый цвет)
+      // Градиент для точки сварки (горячий оранжевый цвет, яркость не меняется)
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-      // Плавно угасающий градиент без бликов
-      gradient.addColorStop(0, `rgba(255, 100, 0, ${1 - coolProgress})`);
-      gradient.addColorStop(0.5, `rgba(255, 80, 0, ${0.8 * (1 - coolProgress)})`);
-      gradient.addColorStop(1, `rgba(200, 50, 0, ${0.6 * (1 - coolProgress)})`);
+      gradient.addColorStop(0, 'rgba(255, 100, 0, 1)');
+      gradient.addColorStop(0.5, 'rgba(255, 80, 0, 0.8)');
+      gradient.addColorStop(1, 'rgba(200, 50, 0, 0.6)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
@@ -372,14 +296,13 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.fill();
       
       // Обводка для контраста с фоном
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = `rgba(255, 69, 0, ${1 - coolProgress})`;
+      ctx.strokeStyle = 'rgba(255, 69, 0, 1)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
       
-      // Восстанавливаем контекст без фильтра
+      // Восстанавливаем контекст
       ctx.restore();
     });
 
@@ -506,9 +429,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Скорость</span>
             <span className={`text-2xl font-bold ${gameState.speedPercent >= 100 ? 'text-red-400' : gameState.speedPercent >= 80 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {gameState.speedPercent}%
+              {Math.min(100, gameState.speedPercent)}%
             </span>
-            <span className="text-xs opacity-60 ml-1">({Math.round(gameState.currentSpeed)}px/s)</span>
+            <span className="text-xs opacity-60 ml-1">({Math.round(gameState.currentSpeed)})</span>
           </div>
         </div>
         
