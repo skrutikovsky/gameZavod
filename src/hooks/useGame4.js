@@ -15,12 +15,15 @@ export const WELDING_GUN_HEIGHT = 500; // Высота текстуры свар
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
 
 // Генерация случайного разрыва с неравномерной шириной
-export function generateGapPath(width, height) {
+export function generateGapPath(width, height, sheetMargin = 40) {
   const points = [];
   const widths = [];
   const centerY = height / 2;
   const segmentCount = 100;
-  const segmentLength = width / segmentCount;
+  
+  // Вычисляем доступную ширину листа металла (с учетом отступов)
+  const availableWidth = width - sheetMargin * 2;
+  const segmentLength = availableWidth / segmentCount;
   
   // Параметры для генерации извилистой линии
   const baseFrequency = 0.3 + Math.random() * 0.4;
@@ -29,7 +32,7 @@ export function generateGapPath(width, height) {
   const phaseShift = Math.random() * Math.PI * 2;
   
   for (let i = 0; i <= segmentCount; i++) {
-    const x = i * segmentLength;
+    const x = sheetMargin + i * segmentLength; // Смещаем x на величину отступа
     const t = i / segmentCount;
     
     // Комбинируем несколько синусоид для естественного вида
@@ -147,14 +150,14 @@ export function useGame4({ onLevelComplete }) {
     if (!container) return;
     
     const rect = container.getBoundingClientRect();
-    const { points, widths } = generateGapPath(rect.width, rect.height);
+    const sheetMargin = 40;
+    const { points, widths } = generateGapPath(rect.width, rect.height, sheetMargin);
     
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
     // Инициализируем позицию сварочного аппарата по середине сверху листа металла
-    const sheetMargin = 40;
     const initialGunX = rect.width / 2;
     const initialGunY = sheetMargin + NOZZLE_OFFSET_Y; // Сопло на краю листа
     
