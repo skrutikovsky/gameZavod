@@ -75,7 +75,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.fillStyle = metalGradient;
     ctx.fillRect(sheetX, sheetY, sheetWidth, sheetHeight);
     
-    // Добавляем текстуру металла (шлифованные линии) - статичные, не меняются каждый кадр
+    // Добавляем текстуру металла (шлифованные линии)
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
@@ -83,6 +83,20 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.beginPath();
       ctx.moveTo(sheetX, sheetY + i);
       ctx.lineTo(sheetX + sheetWidth, sheetY + i);
+      ctx.stroke();
+    }
+    
+    // Добавляем случайные царапины для реализма
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 20; i++) {
+      const scratchX = sheetX + Math.random() * sheetWidth;
+      const scratchY = sheetY + Math.random() * sheetHeight;
+      const scratchLen = 20 + Math.random() * 40;
+      const scratchAngle = Math.random() * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(scratchX, scratchY);
+      ctx.lineTo(scratchX + Math.cos(scratchAngle) * scratchLen, scratchY + Math.sin(scratchAngle) * scratchLen);
       ctx.stroke();
     }
     ctx.restore();
