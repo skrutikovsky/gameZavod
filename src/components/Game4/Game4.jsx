@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, MAX_SPEED } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -378,12 +378,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             <span className="text-xs opacity-80 uppercase tracking-wider block">Очки</span>
             <span className="text-2xl font-bold text-yellow-400">{gameState.score}</span>
           </div>
-          <div className="text-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider block">Скорость</span>
-            <span className={`text-2xl font-bold ${gameState.speedPercent >= 50 ? 'text-red-400' : gameState.speedPercent >= 40 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {Math.min(100, Math.round(gameState.speedPercent))}%
-            </span>
-          </div>
         </div>
         
         {/* Прогресс бар заполнения шва */}
@@ -403,15 +397,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
               <div 
                 className={`h-full transition-all duration-300 ${weldPercent >= 90 ? 'bg-red-500' : weldPercent >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
                 style={{ width: `${weldPercent}%` }}
-              />
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-xs opacity-60 mb-1">Скорость</div>
-            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-100 ${gameState.speedPercent >= 50 ? 'bg-red-500' : gameState.speedPercent >= 40 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                style={{ width: `${Math.min(100, gameState.speedPercent)}%` }}
               />
             </div>
           </div>
@@ -470,9 +455,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </p>
         <p className="text-sm opacity-80 mt-1">
           Сварка остывает через 2 секунды и становится серой. Можно наваривать на остывшую сварку!
-        </p>
-        <p className="text-sm opacity-80 mt-1">
-          ⚠️ Двигай курсор медленно (не быстрее {MAX_SPEED}px/s) иначе сварка не работает
         </p>
       </div>
     </div>
