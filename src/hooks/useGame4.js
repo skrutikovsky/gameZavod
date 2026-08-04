@@ -448,6 +448,7 @@ export function useGame4() {
     if (!gameState.isRunning) return;
     
     let animationFrameId;
+    let lastUpdateTime = performance.now();
     
     const updateLoop = () => {
       const state = gameStateRef.current;
@@ -464,11 +465,8 @@ export function useGame4() {
       
       // Получаем текущее время для расчета delta time
       const currentTime = performance.now();
-      let deltaTime = 0;
-      if (lastTimeRef.current !== null) {
-        deltaTime = (currentTime - lastTimeRef.current) / 1000;
-      }
-      lastTimeRef.current = currentTime;
+      const deltaTime = (currentTime - lastUpdateTime) / 1000; // Конвертируем в секунды
+      lastUpdateTime = currentTime;
       
       // Целевая позиция - последняя известная позиция мыши
       const targetX = state.targetX;
