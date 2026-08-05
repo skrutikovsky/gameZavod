@@ -55,8 +55,8 @@ export function generateGapPath(width, height) {
   return { points, widths };
 }
 
-// Проверка находится ли точка в зоне шва
-export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasWidth, sheetMargin = 0) {
+// Проверка находится ли точка над разрывом (где нельзя варить)
+export function isPointOverGap(x, y, gapPoints, gapWidths, canvasWidth, sheetMargin = 0) {
   if (gapPoints.length === 0) return false;
 
   // Корректируем x и y с учетом отступа листа
@@ -84,10 +84,10 @@ export function isPointInGapZone(x, y, gapPoints, gapWidths, weldRadius, canvasW
     }
   }
 
-  // Радиус зоны шва = половина ширины разрыва + допуск для сварки
+  // Радиус зоны разрыва = половина ширины разрыва (нельзя варить прямо в разрыве)
   const gapRadius = closestWidth / 2;
   
-  // Разрешаем сварку если центр курсора попадает в зону шва (половина ширины шва)
+  // Возвращаем true если точка находится НАД разрывом (нельзя варить)
   return minDist <= gapRadius;
 }
 
@@ -331,11 +331,13 @@ export function useGame4({ onLevelComplete }) {
         return;
       }
       
-      // Проверяем что точка в зоне шва или на существующей сварке
-      const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
+      // Проверяем что точка НЕ над разрывом ИЛИ на существующей сварке
+      // Сварку можно наносить только если под ней лист металла или другая сварка
+      const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
       const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
       
-      if (!inGap && !onWeld) {
+      // Нельзя варить если точка над разрывом и нет существующей сварки под ней
+      if (overGap && !onWeld) {
         return;
       }
       
@@ -362,10 +364,11 @@ export function useGame4({ onLevelComplete }) {
       // Первая точка при зажатии ЛКМ
       lastWeldPointRef.current = { x: weldX, y: weldY };
       
-      const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
+      const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
       const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
       
-      if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+      // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
+      if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
         const newDot = {
           x: weldX,
           y: weldY,
@@ -424,9 +427,9 @@ export function useGame4({ onLevelComplete }) {
         const cellX = sheetMargin + col * gridSize + gridSize / 2;
         const cellY = sheetMargin + row * gridSize + gridSize / 2;
         
-        // Проверяем находится ли ячейка в зоне шва
-        const inGap = isPointInGapZone(cellX, cellY, gapPath, gapWidths, BASE_GAP_WIDTH / 2, sheetWidth, sheetMargin);
-        if (inGap) {
+        // Проверяем находится ли ячейка в зоне шва (разрыва)
+        const overGap = isPointOverGap(cellX, cellY, gapPath, gapWidths, sheetWidth, sheetMargin);
+        if (overGap) {
           totalCellsInGap++;
           coveredCells.add(`${col},${row}`);
         }
@@ -551,10 +554,12 @@ export function useGame4({ onLevelComplete }) {
           const dist = Math.hypot(dx, dy);
           
           if (dist >= triggerDistance) {
-            const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
+            // Проверяем что точка НЕ над разрывом ИЛИ на существующей сварке
+            const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
             const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
             
-            if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+            // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
+            if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
               const newDot = {
                 x: weldX,
                 y: weldY,
@@ -576,10 +581,11 @@ export function useGame4({ onLevelComplete }) {
         } else {
           lastWeldPointRef.current = { x: weldX, y: weldY };
           
-          const inGap = isPointInGapZone(weldX, weldY, gapPath, gapWidths, localWeldRadius, sheetWidth, sheetMargin);
+          const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
           const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
           
-          if ((inGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+          // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
+          if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
             const newDot = {
               x: weldX,
               y: weldY,
