@@ -486,22 +486,13 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </div>
         
         {/* Прогресс бар заполнения шва */}
-        <div className="mt-3 flex gap-4">
-          <div className="flex-1">
+        <div className="mt-3">
+          <div>
             <div className="text-xs opacity-60 mb-1">Покрытие шва</div>
             <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-300 ${gameState.weldCoverage >= 95 ? 'bg-green-500' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
                 style={{ width: `${gameState.weldCoverage}%` }}
-              />
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-xs opacity-60 mb-1">Использовано сварки</div>
-            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${weldPercent >= 90 ? 'bg-red-500' : weldPercent >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                style={{ width: `${weldPercent}%` }}
               />
             </div>
           </div>
@@ -557,7 +548,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {isGameOver && (
         <Modal
           title="Сварка закончилась!"
-          message={`Не удалось заполнить шов.\nИспользовано: ${gameState.weldUsed} точек\nПокрытие: ${gameState.weldCoverage}%\nОбщий счет: ${gameState.score}`}
+          message={`Не удалось заполнить шов.\nПокрытие: ${gameState.weldCoverage}%\nОбщий счет: ${gameState.score}`}
         >
           <div className="space-y-4">
             <Button onClick={handleRestart} variant="primary">

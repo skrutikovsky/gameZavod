@@ -480,8 +480,6 @@ export function useGame4({ onLevelComplete }) {
         return;
       }
       
-      if (weldCountRef.current >= 100000) return;
-      
       // Рандомизация размера капли (+-5%)
       const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
       
@@ -511,7 +509,7 @@ export function useGame4({ onLevelComplete }) {
       const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
       
       // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-      if ((!overGap && !overHole || onWeld) && weldCountRef.current < 100000) {
+      if ((!overGap && !overHole || onWeld)) {
         // Рандомизация размера капли (+-5%)
         const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
         
@@ -705,7 +703,7 @@ export function useGame4({ onLevelComplete }) {
             const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
             
             // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-            if ((!overGap && !overHole || onWeld) && weldCountRef.current < 100000) {
+            if ((!overGap && !overHole || onWeld)) {
               // Рандомизация размера капли (+-5%)
               const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
               
@@ -735,7 +733,7 @@ export function useGame4({ onLevelComplete }) {
           const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
           
           // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-          if ((!overGap && !overHole || onWeld) && weldCountRef.current < 100000) {
+          if ((!overGap && !overHole || onWeld)) {
             // Рандомизация размера капли (+-5%)
             const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
             
