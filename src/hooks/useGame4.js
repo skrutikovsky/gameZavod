@@ -13,6 +13,7 @@ export const WELDING_GUN_SPEED = 200; // Скорость движения со�
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
+export const WELD_BASE_RADIUS = (BASE_GAP_WIDTH * WELD_SIZE_RATIO) / 2; // Базовый радиус капли сварки
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -203,9 +204,8 @@ export function isPointOverWeld(x, y, cooledPoints, allWeldPoints) {
   const allPoints = [...cooledPoints, ...allWeldPoints];
   
   for (let p of allPoints) {
-    // Учитываем randomFactor существующей точки для её реального радиуса
-    const baseRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
-    const localRadius = baseRadius * (p.randomFactor || 1);
+    // Используем фиксированный базовый радиус для всех точек сварки
+    const localRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
     const dist = Math.hypot(x - p.x, y - p.y);
     // Проверяем находится ли точка внутри существующей сварки
     if (dist <= localRadius) {
@@ -454,12 +454,13 @@ export function useGame4({ onLevelComplete }) {
     const weldX = currentNozzleX;
     const weldY = currentNozzleY;
     
-    // Получаем локальную ширину шва
+    // Получаем локальную ширину шва для triggerDistance (но не для размера капли)
     const adjustedWeldX = weldX - sheetMargin;
     const approximateIndex = Math.floor((adjustedWeldX / sheetWidth) * (gapWidths.length - 1));
     const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
     const localGapWidth = gapWidths[idx];
-    const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
+    // Используем фиксированный базовый радиус для триггера
+    const localWeldRadius = WELD_BASE_RADIUS;
     const triggerDistance = localWeldRadius * (2/3); // 2/3 радиуса для триггера
     
     if (lastWeldPointRef.current) {
@@ -494,7 +495,7 @@ export function useGame4({ onLevelComplete }) {
         y: weldY,
         timestamp: Date.now(),
         id: weldCountRef.current,
-        width: localGapWidth,
+        width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
         randomFactor: randomFactor
       };
       
@@ -525,7 +526,7 @@ export function useGame4({ onLevelComplete }) {
           y: weldY,
           timestamp: Date.now(),
           id: weldCountRef.current,
-          width: localGapWidth,
+          width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
           randomFactor: randomFactor
         };
         
@@ -592,7 +593,8 @@ export function useGame4({ onLevelComplete }) {
     // Теперь проверяем какие ячейки покрыты сваркой
     const weldedCells = new Set();
     allWeldPoints.forEach(p => {
-      const weldRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      // Используем фиксированный базовый радиус с учетом randomFactor
+      const weldRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
       
       // Определяем диапазон ячеек которые может покрывать эта точка сварки
       const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
@@ -693,12 +695,13 @@ export function useGame4({ onLevelComplete }) {
         
         const { gapPath, gapWidths, cooledPoints, weldPoints } = state;
         
-        // Получаем локальную ширину шва
+        // Получаем локальную ширину шва для triggerDistance (но не для размера капли)
         const adjustedWeldX = weldX - sheetMargin;
         const approximateIndex = Math.floor((adjustedWeldX / sheetWidth) * (gapWidths.length - 1));
         const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
         const localGapWidth = gapWidths[idx];
-        const localWeldRadius = (localGapWidth * WELD_SIZE_RATIO) / 2;
+        // Используем фиксированный базовый радиус для триггера
+        const localWeldRadius = WELD_BASE_RADIUS;
         const triggerDistance = localWeldRadius * (2/3);
         
         if (lastWeldPointRef.current) {
@@ -722,7 +725,7 @@ export function useGame4({ onLevelComplete }) {
                 y: weldY,
                 timestamp: Date.now(),
                 id: weldCountRef.current,
-                width: localGapWidth,
+                width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
                 randomFactor: randomFactor
               };
               
@@ -753,7 +756,7 @@ export function useGame4({ onLevelComplete }) {
               y: weldY,
               timestamp: Date.now(),
               id: weldCountRef.current,
-              width: localGapWidth,
+              width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
               randomFactor: randomFactor
             };
             
