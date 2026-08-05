@@ -201,7 +201,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем охлажденные точки сварки
     cooledPoints.forEach(dot => {
-      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      const baseRadius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      // Применяем рандомизацию размера (+-5%)
+      const radius = baseRadius * (dot.randomFactor || 1);
       
       // Сохраняем контекст для применения фильтра
       ctx.save();
@@ -226,7 +228,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
-      const radius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      const baseRadius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+      // Применяем рандомизацию размера (+-5%)
+      const radius = baseRadius * (dot.randomFactor || 1);
       
       // Вычисляем прогресс остывания (0..1 за 2 секунды)
       const elapsed = Date.now() - dot.timestamp;
