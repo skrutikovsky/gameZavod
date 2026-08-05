@@ -550,7 +550,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {isLevelComplete && (
         <Modal
           title="Уровень пройден!"
-          message={`Поздравляем! Вы завершили уровень.\nИтоговый счет: ${gameState.score}`}
+          message={`Поздравляем! Вы прошли уровень на 100%!\nИтоговый счет: ${gameState.score}`}
         >
           <div className="space-y-4">
             <Button onClick={handleRestartLevel} variant="primary">
