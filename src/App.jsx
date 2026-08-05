@@ -32,6 +32,11 @@ function App() {
     setCurrentScreen('menu');
     setSelectedLevel(null);
   };
+  
+  // Для Game4 - просто продолжаем игру, не переходя в меню
+  const handleGame4LevelComplete = () => {
+    // Ничего не делаем - следующий раунд уже запущен через nextRound
+  };
 
   return (
     <div className="app">
@@ -74,7 +79,7 @@ function App() {
             level={selectedLevel} 
             onGameOver={handleBackToLevels}
             onBack={handleBackToMenu}
-            onLevelComplete={handleLevelComplete}
+            onLevelComplete={handleGame4LevelComplete}
           />
         ) : (
           <div className="game-container min-h-screen flex flex-col items-center justify-center p-4">
