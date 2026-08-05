@@ -267,7 +267,6 @@ export function useGame4({ onLevelComplete }) {
   });
   
   const gameStateRef = useRef(null);
-  const weldCountRef = useRef(0);
   const isMouseDownRef = useRef(false);
   const lastWeldPointRef = useRef(null);
   const canvasRef = useRef(null);
@@ -277,6 +276,8 @@ export function useGame4({ onLevelComplete }) {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+  
+  const weldCountRef = useRef(0);
   
   // Инициализация нового раунда
   const initRound = useCallback(() => {
@@ -495,7 +496,7 @@ export function useGame4({ onLevelComplete }) {
         randomFactor: randomFactor
       };
       
-      // Проверяем лимит капель сварки
+      // Проверяем лимит капель сварки - нельзя ставить больше 200
       if (weldCountRef.current >= MAX_WELD_DROPS) {
         // Сварка закончилась - проверяем покрытие
         const coverage = gameStateRef.current.weldCoverage;
@@ -528,7 +529,7 @@ export function useGame4({ onLevelComplete }) {
       
       // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
       if ((!overGap && !overHole || onWeld)) {
-        // Проверяем лимит капель сварки
+        // Проверяем лимит капель сварки - нельзя ставить больше 200
         if (weldCountRef.current >= MAX_WELD_DROPS) {
           // Сварка закончилась - проверяем покрытие
           const coverage = gameStateRef.current.weldCoverage;
@@ -740,7 +741,7 @@ export function useGame4({ onLevelComplete }) {
               // Рандомизация размера капли (+-5%)
               const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
               
-              // Проверяем лимит капель сварки
+              // Проверяем лимит капель сварки - нельзя ставить больше 200
               if (weldCountRef.current >= MAX_WELD_DROPS) {
                 // Сварка закончилась - проверяем покрытие
                 const coverage = gameStateRef.current.weldCoverage;
@@ -782,7 +783,7 @@ export function useGame4({ onLevelComplete }) {
           
           // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
           if ((!overGap && !overHole || onWeld)) {
-            // Проверяем лимит капель сварки
+            // Проверяем лимит капель сварки - нельзя ставить больше 200
             if (weldCountRef.current >= MAX_WELD_DROPS) {
               // Сварка закончилась - проверяем покрытие
               const coverage = gameStateRef.current.weldCoverage;
@@ -903,6 +904,9 @@ export function useGame4({ onLevelComplete }) {
     FADE_DURATION,
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
-    NOZZLE_OFFSET_Y
+    NOZZLE_OFFSET_Y,
+    weldCountRef,
+    lastWeldPointRef,
+    lastTimeRef
   };
 }

@@ -19,7 +19,10 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     FADE_DURATION,
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
-    NOZZLE_OFFSET_Y
+    NOZZLE_OFFSET_Y,
+    weldCountRef,
+    lastWeldPointRef,
+    lastTimeRef
   } = useGame4({ onLevelComplete });
   
   const canvasRef = useRef(null);
@@ -438,9 +441,15 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
   const handleRestartLevel = () => {
     // Полный сброс игры с инициализацией нового раунда с тем же разрывом
-    weldCountRef.current = 0;
-    lastWeldPointRef.current = null;
-    lastTimeRef.current = null;
+    if (weldCountRef) {
+      weldCountRef.current = 0;
+    }
+    if (lastWeldPointRef) {
+      lastWeldPointRef.current = null;
+    }
+    if (lastTimeRef) {
+      lastTimeRef.current = null;
+    }
     
     // Сохраняем текущий round и gapPath для повторного использования
     const currentRound = gameState.round;
@@ -520,13 +529,24 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         </div>
         
         {/* Прогресс бар заполнения шва */}
-        <div className="mt-3">
-          <div>
+        <div className="mt-3 flex gap-8">
+          <div className="flex-1">
             <div className="text-xs opacity-60 mb-1">Покрытие шва</div>
             <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-300 ${gameState.weldCoverage >= 95 ? 'bg-green-500' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
                 style={{ width: `${gameState.weldCoverage}%` }}
+              />
+            </div>
+          </div>
+          
+          {/* Прогресс бар количества сварки */}
+          <div className="flex-1">
+            <div className="text-xs opacity-60 mb-1">Оставшаяся сварка</div>
+            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-cyan-500"
+                style={{ width: `${((200 - gameState.weldUsed) / 200) * 100}%` }}
               />
             </div>
           </div>
