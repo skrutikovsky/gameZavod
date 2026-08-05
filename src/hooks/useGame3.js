@@ -10,7 +10,6 @@ const ITEM_TYPES = [
   { id: 6, name: 'болт', points: 400, probability: 0.30 },
 ];
 
-const MAX_BOX_COUNT = 25;
 let currentRoundItemCount = 12; // Начальное количество предметов
 let roundNumber = 0; // Номер раунда для увеличения количества предметов
 
@@ -185,14 +184,8 @@ export const useGame3 = () => {
         
         const newBoxes = prev.boxes.map(b => {
           if (b.type === item.type) {
-            if (newCount >= MAX_BOX_COUNT) {
-              // Коробка заполнена - начисляем очки и сбрасываем счетчик
-              pointsEarned = b.points;
-              return {
-                ...b,
-                count: 0,
-              };
-            }
+            // Лимит убран - коробка заполняется бесконечно, очки начисляются за каждый предмет
+            pointsEarned = b.points;
             return {
               ...b,
               count: newCount,
@@ -469,6 +462,5 @@ export const useGame3 = () => {
     handleDragEnd,
     updateItemPosition,
     ITEM_TYPES,
-    MAX_BOX_COUNT,
   };
 };

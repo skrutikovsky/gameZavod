@@ -10,7 +10,6 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     handleDragMove,
     handleDragEnd,
     ITEM_TYPES,
-    MAX_BOX_COUNT,
   } = useGame3();
 
   const gameContainerRef = useRef(null);
@@ -216,13 +215,13 @@ const Game3 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             </div>
             <div className="mt-2 flex items-center justify-between">
               <div className="text-white text-lg font-bold">
-                {box.count} / {MAX_BOX_COUNT}
+                {box.count}
               </div>
-              {/* Прогресс бар */}
+              {/* Прогресс бар - без лимита, просто показываем заполнение */}
               <div className="flex-1 ml-3 h-3 bg-black/30 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-green-400 transition-all duration-300"
-                  style={{ width: `${(box.count / MAX_BOX_COUNT) * 100}%` }}
+                  style={{ width: `${Math.min((box.count / 25) * 100, 100)}%` }}
                 />
               </div>
             </div>
