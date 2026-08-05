@@ -6,6 +6,7 @@ export const WELD_SIZE_RATIO = 0.588; // Размер точки = 58.8% от ш
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const WIN_COVERAGE = 95; // Процент покрытия для победы (фактический)
+export const MAX_WELD_DROPS = 200; // Лимит количества капель сварки
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const WELDING_GUN_SPEED = 350; // Скорость движения сопла в пикселях в секунду (увеличено для плавности)
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
@@ -249,6 +250,7 @@ export function useGame4({ onLevelComplete }) {
     score: 0,
     round: 1,
     weldCoverage: 0,
+    weldUsed: 0,
     gapPath: [],
     gapWidths: [],
     holes: [],
@@ -300,6 +302,7 @@ export function useGame4({ onLevelComplete }) {
       ...prev,
       isRunning: true,
       weldCoverage: 0,
+      weldUsed: 0,
       gapPath: points,
       gapWidths: widths,
       holes: holes,
@@ -334,6 +337,7 @@ export function useGame4({ onLevelComplete }) {
       score: 0,
       round: 1,
       weldCoverage: 0,
+      weldUsed: 0,
       gapPath: [],
       gapWidths: [],
       holes: [],
@@ -491,9 +495,24 @@ export function useGame4({ onLevelComplete }) {
         randomFactor: randomFactor
       };
       
+      // Проверяем лимит капель сварки
+      if (weldCountRef.current >= MAX_WELD_DROPS) {
+        // Сварка закончилась - проверяем покрытие
+        const coverage = gameStateRef.current.weldCoverage;
+        if (coverage < WIN_COVERAGE) {
+          setGameState(prev => ({
+            ...prev,
+            gameOver: true,
+            isRunning: false
+          }));
+          return;
+        }
+      }
+      
       setGameState(prev => ({
         ...prev,
-        weldPoints: [...prev.weldPoints, newDot]
+        weldPoints: [...prev.weldPoints, newDot],
+        weldUsed: weldCountRef.current + 1
       }));
       
       weldCountRef.current += 1;
@@ -509,6 +528,20 @@ export function useGame4({ onLevelComplete }) {
       
       // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
       if ((!overGap && !overHole || onWeld)) {
+        // Проверяем лимит капель сварки
+        if (weldCountRef.current >= MAX_WELD_DROPS) {
+          // Сварка закончилась - проверяем покрытие
+          const coverage = gameStateRef.current.weldCoverage;
+          if (coverage < WIN_COVERAGE) {
+            setGameState(prev => ({
+              ...prev,
+              gameOver: true,
+              isRunning: false
+            }));
+            return;
+          }
+        }
+        
         // Рандомизация размера капли (+-5%)
         const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
         
@@ -523,7 +556,8 @@ export function useGame4({ onLevelComplete }) {
         
         setGameState(prev => ({
           ...prev,
-          weldPoints: [...prev.weldPoints, newDot]
+          weldPoints: [...prev.weldPoints, newDot],
+          weldUsed: weldCountRef.current + 1
         }));
         
         weldCountRef.current += 1;
@@ -706,6 +740,20 @@ export function useGame4({ onLevelComplete }) {
               // Рандомизация размера капли (+-5%)
               const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
               
+              // Проверяем лимит капель сварки
+              if (weldCountRef.current >= MAX_WELD_DROPS) {
+                // Сварка закончилась - проверяем покрытие
+                const coverage = gameStateRef.current.weldCoverage;
+                if (coverage < WIN_COVERAGE) {
+                  setGameState(prev => ({
+                    ...prev,
+                    gameOver: true,
+                    isRunning: false
+                  }));
+                  return;
+                }
+              }
+              
               const newDot = {
                 x: weldX,
                 y: weldY,
@@ -717,7 +765,8 @@ export function useGame4({ onLevelComplete }) {
               
               setGameState(prev => ({
                 ...prev,
-                weldPoints: [...prev.weldPoints, newDot]
+                weldPoints: [...prev.weldPoints, newDot],
+                weldUsed: weldCountRef.current + 1
               }));
               
               weldCountRef.current += 1;
@@ -733,6 +782,20 @@ export function useGame4({ onLevelComplete }) {
           
           // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
           if ((!overGap && !overHole || onWeld)) {
+            // Проверяем лимит капель сварки
+            if (weldCountRef.current >= MAX_WELD_DROPS) {
+              // Сварка закончилась - проверяем покрытие
+              const coverage = gameStateRef.current.weldCoverage;
+              if (coverage < WIN_COVERAGE) {
+                setGameState(prev => ({
+                  ...prev,
+                  gameOver: true,
+                  isRunning: false
+                }));
+                return;
+              }
+            }
+            
             // Рандомизация размера капли (+-5%)
             const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
             
@@ -747,7 +810,8 @@ export function useGame4({ onLevelComplete }) {
             
             setGameState(prev => ({
               ...prev,
-              weldPoints: [...prev.weldPoints, newDot]
+              weldPoints: [...prev.weldPoints, newDot],
+              weldUsed: weldCountRef.current + 1
             }));
             
             weldCountRef.current += 1;

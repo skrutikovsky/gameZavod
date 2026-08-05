@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole, WELD_BASE_RADIUS } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole, WELD_BASE_RADIUS, MAX_WELD_DROPS } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
-import { Modal } from '../UI/Modal';
-import { Button } from '../UI/Button';
 
 const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -443,6 +441,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     startGame();
   };
 
+  // Проверяем можно ли показать кнопку "Следующий лист"
+  const canShowNextSheet = gameState.weldCoverage >= 95 && !gameState.gameOver;
+  // Проверяем можно ли показать кнопку "Рестарт" (сварка кончилась и покрытие < 95%)
+  const canShowRestart = gameState.weldUsed >= 200 && gameState.weldCoverage < 95 && !gameState.roundComplete;
+  
   const isRoundComplete = gameState.roundComplete;
   const isGameOver = gameState.gameOver;
 
@@ -479,6 +482,10 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             </span>
           </div>
           <div className="text-center">
+            <span className="text-xs opacity-80 uppercase tracking-wider block">Сварка</span>
+            <span className="text-2xl font-bold text-blue-400">{gameState.weldUsed}/200</span>
+          </div>
+          <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Очки</span>
             <span className="text-2xl font-bold text-yellow-400">{gameState.score}</span>
           </div>
@@ -509,38 +516,24 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         height={window.innerHeight}
       />
       
-      {/* Модальное окно победы в раунде */}
-      {isRoundComplete && (
-        <Modal
-          title="Шов заварен!"
-          message={`Качество сварки: 100%\nОчки за раунд: ${Math.round(1000 * (gameState.weldCoverage / 100))}\nОбщий счет: ${gameState.score}`}
+      {/* Кнопка "Следующий лист" - показывается когда покрытие >= 95% */}
+      {canShowNextSheet && (
+        <button
+          onClick={handleNextRound}
+          className="absolute top-24 left-8 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg z-30 transition-all transform hover:scale-105 border-2 border-green-400"
         >
-          <div className="space-y-4">
-            <Button onClick={handleNextRound} variant="primary">
-              Следующий раунд
-            </Button>
-            <Button onClick={handleGameOver} variant="secondary">
-              В главное меню
-            </Button>
-          </div>
-        </Modal>
+          📋 Следующий лист
+        </button>
       )}
       
-      {/* Модальное окно проигрыша */}
-      {isGameOver && (
-        <Modal
-          title="Сварка закончилась!"
-          message={`Не удалось заполнить шов.\nПокрытие: ${gameState.weldCoverage}%\nОбщий счет: ${gameState.score}`}
+      {/* Кнопка "Рестарт" - показывается когда сварка кончилась и покрытие < 95% */}
+      {canShowRestart && (
+        <button
+          onClick={handleRestartLevel}
+          className="absolute top-24 left-8 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg z-30 transition-all transform hover:scale-105 border-2 border-red-400"
         >
-          <div className="space-y-4">
-            <Button onClick={handleRestart} variant="primary">
-              Попробовать снова
-            </Button>
-            <Button onClick={handleGameOver} variant="secondary">
-              В главное меню
-            </Button>
-          </div>
-        </Modal>
+          🔄 Рестарт
+        </button>
       )}
       
       {/* Подсказка внизу экрана */}
