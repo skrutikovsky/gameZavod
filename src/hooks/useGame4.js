@@ -28,6 +28,19 @@ export function generateGapPath(width, height) {
   const noiseAmplitude = height * 0.03;
   const phaseShift = Math.random() * Math.PI * 2;
   
+  // Шанс 30% на появление дополнительной широкой бреши
+  const hasExtraBreach = Math.random() < 0.3;
+  let breachStartX = -1;
+  let breachEndX = -1;
+  
+  if (hasExtraBreach) {
+    // Дополнительная брешь в 4 раза шире обычной ширины разрыва
+    const extraBreachWidth = BASE_GAP_WIDTH * 0.6 * 4;
+    // Случайная позиция для бреши (в пределах 20%-80% ширины листа)
+    breachStartX = width * (0.2 + Math.random() * 0.4);
+    breachEndX = breachStartX + extraBreachWidth;
+  }
+  
   for (let i = 0; i <= segmentCount; i++) {
     const x = i * segmentLength;
     const t = i / segmentCount;
@@ -48,11 +61,104 @@ export function generateGapPath(width, height) {
     points.push({ x, y });
     
     // Ширина шва всегда фиксирована = 60% от базовой ширины разрыва
-    const w = BASE_GAP_WIDTH * 0.6;
+    let w = BASE_GAP_WIDTH * 0.6;
+    
+    // Если есть дополнительная брешь и мы в её зоне - увеличиваем ширину
+    if (hasExtraBreach && x >= breachStartX && x <= breachEndX) {
+      w = BASE_GAP_WIDTH * 0.6 * 4; // В 4 раза шире
+    }
+    
     widths.push(w);
   }
   
   return { points, widths };
+}
+
+// Генерация дыр неправильной формы (0-3 дыры)
+export function generateHoles(width, height, gapPoints, gapWidths) {
+  const holes = [];
+  const holeCount = Math.floor(Math.random() * 4); // 0-3 дыры
+  
+  const maxAttempts = 20; // Максимальное количество попыток для размещения каждой дыры
+  
+  for (let h = 0; h < holeCount; h++) {
+    let placed = false;
+    let attempts = 0;
+    
+    while (!placed && attempts < maxAttempts) {
+      attempts++;
+      
+      // Случайный размер дыры (от 30 до 80 пикселей в диаметре)
+      const holeSize = 30 + Math.random() * 50;
+      const holeRadius = holeSize / 2;
+      
+      // Случайная позиция (с запасом от краев листа)
+      const sheetMargin = 40;
+      const minX = sheetMargin + holeRadius + 20;
+      const maxX = width - holeRadius - 20;
+      const minY = sheetMargin + holeRadius + 20;
+      const maxY = height - holeRadius - 20;
+      
+      const centerX = minX + Math.random() * (maxX - minX);
+      const centerY = minY + Math.random() * (maxY - minY);
+      
+      // Проверяем что дыра не пересекает основной разрыв
+      let intersectsGap = false;
+      const checkPoints = 12; // Количество точек для проверки по периметру дыры
+      
+      for (let i = 0; i < checkPoints; i++) {
+        const angle = (i / checkPoints) * Math.PI * 2;
+        const checkX = centerX + Math.cos(angle) * holeRadius;
+        const checkY = centerY + Math.sin(angle) * holeRadius;
+        
+        if (isPointOverGap(checkX, checkY, gapPoints, gapWidths, width, sheetMargin)) {
+          intersectsGap = true;
+          break;
+        }
+      }
+      
+      if (intersectsGap) continue;
+      
+      // Проверяем что дыра не пересекает другие уже созданные дыры
+      let intersectsOtherHoles = false;
+      for (const existingHole of holes) {
+        const dist = Math.hypot(centerX - existingHole.x, centerY - existingHole.y);
+        if (dist < holeRadius + existingHole.radius + 10) { // 10px запас
+          intersectsOtherHoles = true;
+          break;
+        }
+      }
+      
+      if (intersectsOtherHoles) continue;
+      
+      // Дыра успешно размещена
+      // Генерируем неправильную форму используя несколько точек
+      const shapePoints = [];
+      const pointCount = 8 + Math.floor(Math.random() * 4); // 8-11 точек
+      
+      for (let i = 0; i < pointCount; i++) {
+        const angle = (i / pointCount) * Math.PI * 2;
+        // Вариация радиуса для неправильной формы (+-20%)
+        const radiusVariation = 0.8 + Math.random() * 0.4;
+        const r = holeRadius * radiusVariation;
+        shapePoints.push({
+          x: centerX + Math.cos(angle) * r,
+          y: centerY + Math.sin(angle) * r
+        });
+      }
+      
+      holes.push({
+        x: centerX,
+        y: centerY,
+        radius: holeRadius,
+        shapePoints: shapePoints
+      });
+      
+      placed = true;
+    }
+  }
+  
+  return holes;
 }
 
 // Проверка находится ли точка над разрывом (где нельзя варить)
@@ -109,6 +215,36 @@ export function isPointOverWeld(x, y, cooledPoints, allWeldPoints) {
   return false;
 }
 
+// Проверка находится ли точка над дырой (где нельзя варить)
+export function isPointOverHole(x, y, holes, sheetMargin = 0) {
+  if (!holes || holes.length === 0) return false;
+  
+  const adjustedX = x - sheetMargin;
+  const adjustedY = y - sheetMargin;
+  
+  for (const hole of holes) {
+    // Проверяем попадание точки внутрь полигона дыры
+    let inside = false;
+    const shapePoints = hole.shapePoints;
+    const n = shapePoints.length;
+    
+    // Алгоритм луча для проверки точки внутри полигона
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const xi = shapePoints[i].x, yi = shapePoints[i].y;
+      const xj = shapePoints[j].x, yj = shapePoints[j].y;
+      
+      if (((yi > adjustedY) !== (yj > adjustedY)) &&
+          (adjustedX < (xj - xi) * (adjustedY - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    
+    if (inside) return true;
+  }
+  
+  return false;
+}
+
 export function useGame4({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
     isRunning: false,
@@ -118,6 +254,7 @@ export function useGame4({ onLevelComplete }) {
     weldUsed: 0,
     gapPath: [],
     gapWidths: [],
+    holes: [],
     weldPoints: [],
     cooledPoints: [],
     gameOver: false,
@@ -153,6 +290,7 @@ export function useGame4({ onLevelComplete }) {
     const sheetWidth = rect.width - sheetMargin * 2;
     const sheetHeight = rect.height - sheetMargin * 2;
     const { points, widths } = generateGapPath(sheetWidth, sheetHeight);
+    const holes = generateHoles(sheetWidth, sheetHeight, points, widths);
     
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
@@ -169,6 +307,7 @@ export function useGame4({ onLevelComplete }) {
       weldUsed: 0,
       gapPath: points,
       gapWidths: widths,
+      holes: holes,
       weldPoints: [],
       cooledPoints: [],
       roundComplete: false,
@@ -203,6 +342,7 @@ export function useGame4({ onLevelComplete }) {
       weldUsed: 0,
       gapPath: [],
       gapWidths: [],
+      holes: [],
       weldPoints: [],
       cooledPoints: [],
       gameOver: false,
@@ -337,9 +477,10 @@ export function useGame4({ onLevelComplete }) {
       // Сварку можно наносить только если под ней лист металла или другая сварка
       const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
       const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
+      const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
       
-      // Нельзя варить если точка над разрывом и нет существующей сварки под ней
-      if (overGap && !onWeld) {
+      // Нельзя варить если точка над разрывом или дырой и нет существующей сварки под ней
+      if ((overGap || overHole) && !onWeld) {
         return;
       }
       
@@ -372,9 +513,10 @@ export function useGame4({ onLevelComplete }) {
       
       const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
       const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
+      const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
       
-      // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
-      if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+      // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
+      if ((!overGap && !overHole || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
         // Рандомизация размера капли (+-5%)
         const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
         
@@ -412,7 +554,7 @@ export function useGame4({ onLevelComplete }) {
     const state = gameStateRef.current;
     if (!state || state.gapPath.length === 0) return;
     
-    const { gapPath, gapWidths, weldPoints, cooledPoints } = state;
+    const { gapPath, gapWidths, holes, weldPoints, cooledPoints } = state;
     const allWeldPoints = [...weldPoints, ...cooledPoints];
     
     // Площадь покрытая сваркой - используем сетку для учета перекрытий
@@ -427,19 +569,20 @@ export function useGame4({ onLevelComplete }) {
     const cols = Math.ceil(sheetWidth / gridSize);
     const rows = Math.ceil(sheetHeight / gridSize);
     
-    // Создаем массив для отслеживания покрытых ячеек в зоне шва
+    // Создаем массив для отслеживания покрытых ячеек в зоне шва и дыр
     const coveredCells = new Set();
     let totalCellsInGap = 0;
     
-    // Сначала определяем все ячейки которые находятся в зоне шва
+    // Сначала определяем все ячейки которые находятся в зоне шва (разрыва) или дыр
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const cellX = sheetMargin + col * gridSize + gridSize / 2;
         const cellY = sheetMargin + row * gridSize + gridSize / 2;
         
-        // Проверяем находится ли ячейка в зоне шва (разрыва)
+        // Проверяем находится ли ячейка в зоне шва (разрыва) или дыры
         const overGap = isPointOverGap(cellX, cellY, gapPath, gapWidths, sheetWidth, sheetMargin);
-        if (overGap) {
+        const overHole = isPointOverHole(cellX, cellY, holes, sheetMargin);
+        if (overGap || overHole) {
           totalCellsInGap++;
           coveredCells.add(`${col},${row}`);
         }
@@ -564,12 +707,13 @@ export function useGame4({ onLevelComplete }) {
           const dist = Math.hypot(dx, dy);
           
           if (dist >= triggerDistance) {
-            // Проверяем что точка НЕ над разрывом ИЛИ на существующей сварке
+            // Проверяем что точка НЕ над разрывом или дырой ИЛИ на существующей сварке
             const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
             const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
+            const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
             
-            // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
-            if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+            // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
+            if ((!overGap && !overHole || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
               // Рандомизация размера капли (+-5%)
               const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
               
@@ -597,9 +741,10 @@ export function useGame4({ onLevelComplete }) {
           
           const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
           const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
+          const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
           
-          // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
-          if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+          // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
+          if ((!overGap && !overHole || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
             // Рандомизация размера капли (+-5%)
             const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
             
