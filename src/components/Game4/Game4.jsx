@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole, WELD_BASE_RADIUS } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole, WELD_BASE_RADIUS } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -16,14 +16,12 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     nextRound,
     setCanvasRef,
     initRound,
-    MAX_WELD_POINTS,
     BASE_GAP_WIDTH,
     WELD_SIZE_RATIO,
     FADE_DURATION,
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
-    NOZZLE_OFFSET_Y,
-    MAX_ROUNDS
+    NOZZLE_OFFSET_Y
   } = useGame4({ onLevelComplete });
   
   const canvasRef = useRef(null);
@@ -448,7 +446,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const isRoundComplete = gameState.roundComplete;
   const isLevelComplete = gameState.levelComplete;
   const isGameOver = gameState.gameOver;
-  const weldPercent = Math.round((gameState.weldUsed / MAX_WELD_POINTS) * 100);
 
   return (
     <div 
@@ -473,7 +470,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         itemsOnBoard={gameState.weldCoverage}
       />
       
-      {/* Индикатор прогресса и лимита сварки */}
+      {/* Индикатор прогресса сварки */}
       <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm rounded-xl px-6 py-4 text-white z-20 border border-white/20">
         <div className="flex items-center gap-6">
           <div className="text-center">
@@ -481,13 +478,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             <span className={`text-2xl font-bold ${gameState.weldCoverage >= 95 ? 'text-green-400' : 'text-white'}`}>
               {gameState.weldCoverage}%
             </span>
-          </div>
-          <div className="text-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider block">Сварка</span>
-            <span className={`text-2xl font-bold ${weldPercent >= 90 ? 'text-red-400' : weldPercent >= 70 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {weldPercent}%
-            </span>
-            <span className="text-xs opacity-60 ml-1">({gameState.weldUsed}/{MAX_WELD_POINTS})</span>
           </div>
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Очки</span>
