@@ -5,9 +5,7 @@ export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва
 export const WELD_SIZE_RATIO = 0.588; // Размер точки = 58.8% от ширины шва (уменьшено в 1.7 раза с 1.0)
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
-export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
 export const WIN_COVERAGE = 95; // Процент покрытия для победы (фактический)
-export const MAX_ROUNDS = 3; // Максимальное количество раундов для завершения уровня
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
 export const WELDING_GUN_SPEED = 350; // Скорость движения сопла в пикселях в секунду (увеличено для плавности)
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
@@ -251,7 +249,6 @@ export function useGame4({ onLevelComplete }) {
     score: 0,
     round: 1,
     weldCoverage: 0,
-    weldUsed: 0,
     gapPath: [],
     gapWidths: [],
     holes: [],
@@ -304,7 +301,6 @@ export function useGame4({ onLevelComplete }) {
       ...prev,
       isRunning: true,
       weldCoverage: 0,
-      weldUsed: 0,
       gapPath: points,
       gapWidths: widths,
       holes: holes,
@@ -339,7 +335,6 @@ export function useGame4({ onLevelComplete }) {
       score: 0,
       round: 1,
       weldCoverage: 0,
-      weldUsed: 0,
       gapPath: [],
       gapWidths: [],
       holes: [],
@@ -485,7 +480,7 @@ export function useGame4({ onLevelComplete }) {
         return;
       }
       
-      if (weldCountRef.current >= MAX_WELD_POINTS) return;
+      if (weldCountRef.current >= 100000) return;
       
       // Рандомизация размера капли (+-5%)
       const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
@@ -501,8 +496,7 @@ export function useGame4({ onLevelComplete }) {
       
       setGameState(prev => ({
         ...prev,
-        weldPoints: [...prev.weldPoints, newDot],
-        weldUsed: weldCountRef.current + 1
+        weldPoints: [...prev.weldPoints, newDot]
       }));
       
       weldCountRef.current += 1;
@@ -517,7 +511,7 @@ export function useGame4({ onLevelComplete }) {
       const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
       
       // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-      if ((!overGap && !overHole || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+      if ((!overGap && !overHole || onWeld) && weldCountRef.current < 100000) {
         // Рандомизация размера капли (+-5%)
         const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
         
@@ -532,8 +526,7 @@ export function useGame4({ onLevelComplete }) {
         
         setGameState(prev => ({
           ...prev,
-          weldPoints: [...prev.weldPoints, newDot],
-          weldUsed: weldCountRef.current + 1
+          weldPoints: [...prev.weldPoints, newDot]
         }));
         
         weldCountRef.current += 1;
@@ -637,9 +630,6 @@ export function useGame4({ onLevelComplete }) {
         newState.score = prev.score + pointsEarned;
         newState.roundComplete = true;
         newState.isRunning = false;
-      } else if (weldCountRef.current >= MAX_WELD_POINTS && coverage < WIN_COVERAGE) {
-        newState.gameOver = true;
-        newState.isRunning = false;
       }
       
       return newState;
@@ -715,7 +705,7 @@ export function useGame4({ onLevelComplete }) {
             const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
             
             // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-            if ((!overGap && !overHole || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+            if ((!overGap && !overHole || onWeld) && weldCountRef.current < 100000) {
               // Рандомизация размера капли (+-5%)
               const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
               
@@ -730,8 +720,7 @@ export function useGame4({ onLevelComplete }) {
               
               setGameState(prev => ({
                 ...prev,
-                weldPoints: [...prev.weldPoints, newDot],
-                weldUsed: weldCountRef.current + 1
+                weldPoints: [...prev.weldPoints, newDot]
               }));
               
               weldCountRef.current += 1;
@@ -746,7 +735,7 @@ export function useGame4({ onLevelComplete }) {
           const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
           
           // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-          if ((!overGap && !overHole || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+          if ((!overGap && !overHole || onWeld) && weldCountRef.current < 100000) {
             // Рандомизация размера капли (+-5%)
             const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
             
@@ -761,8 +750,7 @@ export function useGame4({ onLevelComplete }) {
             
             setGameState(prev => ({
               ...prev,
-              weldPoints: [...prev.weldPoints, newDot],
-              weldUsed: weldCountRef.current + 1
+              weldPoints: [...prev.weldPoints, newDot]
             }));
             
             weldCountRef.current += 1;
@@ -828,24 +816,15 @@ export function useGame4({ onLevelComplete }) {
     setGameState(prev => {
       const newRound = prev.round + 1;
       
-      // Проверка: если достигнут максимальный номер раунда, уровень завершен
-      if (newRound > MAX_ROUNDS) {
-        // Вызываем onLevelComplete для показа окна завершения уровня
-        if (onLevelComplete) {
-          onLevelComplete();
-        }
-        return {
-          ...prev,
-          levelComplete: true,
-          roundComplete: false,
-          isRunning: false
-        };
+      // Уровень завершен - вызываем onLevelComplete для показа окна завершения уровня
+      if (onLevelComplete) {
+        onLevelComplete();
       }
-      
       return {
         ...prev,
-        round: newRound,
-        roundComplete: false
+        levelComplete: true,
+        roundComplete: false,
+        isRunning: false
       };
     });
     initRound();
@@ -866,13 +845,11 @@ export function useGame4({ onLevelComplete }) {
     nextRound,
     setCanvasRef,
     initRound,
-    MAX_WELD_POINTS,
     WELD_SIZE_RATIO,
     BASE_GAP_WIDTH,
     FADE_DURATION,
     WELDING_GUN_WIDTH,
     WELDING_GUN_HEIGHT,
-    NOZZLE_OFFSET_Y,
-    MAX_ROUNDS
+    NOZZLE_OFFSET_Y
   };
 }
