@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole } from '../../hooks/useGame4';
+import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, MAX_WELD_POINTS, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole, WELD_BASE_RADIUS } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
 import { Modal } from '../UI/Modal';
 import { Button } from '../UI/Button';
@@ -201,9 +201,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем охлажденные точки сварки
     cooledPoints.forEach(dot => {
-      const baseRadius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
-      // Применяем рандомизацию размера (+-5%)
-      const radius = baseRadius * (dot.randomFactor || 1);
+      // Используем фиксированный базовый радиус с учетом randomFactor
+      const radius = WELD_BASE_RADIUS * (dot.randomFactor || 1);
       
       // Сохраняем контекст для применения фильтра
       ctx.save();
@@ -228,9 +227,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
-      const baseRadius = (dot.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
-      // Применяем рандомизацию размера (+-5%)
-      const radius = baseRadius * (dot.randomFactor || 1);
+      // Используем фиксированный базовый радиус с учетом randomFactor
+      const radius = WELD_BASE_RADIUS * (dot.randomFactor || 1);
       
       // Вычисляем прогресс остывания (0..1 за 2 секунды)
       const elapsed = Date.now() - dot.timestamp;
