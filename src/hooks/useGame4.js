@@ -2,14 +2,14 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
 export const BASE_GAP_WIDTH = 160; // Базовая ширина разрыва
-export const WELD_SIZE_RATIO = 1.0; // Размер точки = 100% от ширины шва (увеличено в 1.7 раза с 0.6)
+export const WELD_SIZE_RATIO = 0.588; // Размер точки = 58.8% от ширины шва (уменьшено в 1.7 раза с 1.0)
 export const COOL_DOWN_TIME = 2000; // Время остывания в мс
 export const FADE_DURATION = 2000; // Длительность остывания (2 секунды)
 export const MAX_WELD_POINTS = 2000; // Максимальное количество точек сварки
 export const WIN_COVERAGE = 98; // Процент покрытия для победы (фактический)
 export const MAX_ROUNDS = 3; // Максимальное количество раундов для завершения уровня
 export const INNER_TRIGGER_RATIO = 1/3; // Внутренняя зона триггера = 1/3 радиуса
-export const WELDING_GUN_SPEED = 200; // Скорость движения сопла в пикселях в секунду
+export const WELDING_GUN_SPEED = 350; // Скорость движения сопла в пикселях в секунду (увеличено для плавности)
 export const WELDING_GUN_WIDTH = 400; // Ширина текстуры сварочного аппарата
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
