@@ -437,8 +437,36 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const handleRestartLevel = () => {
-    resetGame();
-    startGame();
+    // Полный сброс игры с инициализацией нового раунда с тем же разрывом
+    weldCountRef.current = 0;
+    lastWeldPointRef.current = null;
+    lastTimeRef.current = null;
+    
+    // Сохраняем текущий round и gapPath для повторного использования
+    const currentRound = gameState.round;
+    const currentGapPath = gameState.gapPath;
+    const currentGapWidths = gameState.gapWidths;
+    const currentHoles = gameState.holes;
+    
+    setGameState(prev => ({
+      ...prev,
+      isRunning: true,
+      score: 0,
+      round: currentRound,
+      weldCoverage: 0,
+      weldUsed: 0,
+      gapPath: currentGapPath,
+      gapWidths: currentGapWidths,
+      holes: currentHoles,
+      weldPoints: [],
+      cooledPoints: [],
+      gameOver: false,
+      roundComplete: false,
+      weldingGunX: window.innerWidth / 2,
+      weldingGunY: 40 + NOZZLE_OFFSET_Y,
+      mouseX: window.innerWidth / 2,
+      mouseY: 40
+    }));
   };
 
   // Проверяем можно ли показать кнопку "Следующий лист"
