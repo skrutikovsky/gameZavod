@@ -92,16 +92,17 @@ export function isPointOverGap(x, y, gapPoints, gapWidths, canvasWidth, sheetMar
 }
 
 // Проверка возможности наваривания на существующую сварку
-export function canWeldOnExisting(x, y, radius, cooledPoints, allWeldPoints) {
-  // Можно варить на любую существующую сварку (остывшую или горячую)
+// Возвращает true если точка (позиция сопла) находится над существующей сваркой
+export function isPointOverWeld(x, y, cooledPoints, allWeldPoints) {
   const allPoints = [...cooledPoints, ...allWeldPoints];
   
   for (let p of allPoints) {
-    const localRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+    // Учитываем randomFactor существующей точки для её реального радиуса
+    const baseRadius = (p.width || BASE_GAP_WIDTH) * WELD_SIZE_RATIO / 2;
+    const localRadius = baseRadius * (p.randomFactor || 1);
     const dist = Math.hypot(x - p.x, y - p.y);
-    // Проверяем любое пересечение с существующей сваркой (сумма радиусов)
-    // Новая точка может касаться или перекрывать существующую
-    if (dist < (localRadius + radius)) {
+    // Проверяем находится ли точка внутри существующей сварки
+    if (dist <= localRadius) {
       return true;
     }
   }
@@ -335,7 +336,7 @@ export function useGame4({ onLevelComplete }) {
       // Проверяем что точка НЕ над разрывом ИЛИ на существующей сварке
       // Сварку можно наносить только если под ней лист металла или другая сварка
       const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
-      const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
+      const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
       
       // Нельзя варить если точка над разрывом и нет существующей сварки под ней
       if (overGap && !onWeld) {
@@ -370,7 +371,7 @@ export function useGame4({ onLevelComplete }) {
       lastWeldPointRef.current = { x: weldX, y: weldY };
       
       const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
-      const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
+      const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
       
       // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
       if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
@@ -565,16 +566,20 @@ export function useGame4({ onLevelComplete }) {
           if (dist >= triggerDistance) {
             // Проверяем что точка НЕ над разрывом ИЛИ на существующей сварке
             const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
-            const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
+            const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
             
             // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
             if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+              // Рандомизация размера капли (+-5%)
+              const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
+              
               const newDot = {
                 x: weldX,
                 y: weldY,
                 timestamp: Date.now(),
                 id: weldCountRef.current,
-                width: localGapWidth
+                width: localGapWidth,
+                randomFactor: randomFactor
               };
               
               setGameState(prev => ({
@@ -591,16 +596,20 @@ export function useGame4({ onLevelComplete }) {
           lastWeldPointRef.current = { x: weldX, y: weldY };
           
           const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
-          const onWeld = canWeldOnExisting(weldX, weldY, localWeldRadius, cooledPoints, weldPoints);
+          const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
           
           // Можно варить если точка НЕ над разрывом ИЛИ на существующей сварке
           if ((!overGap || onWeld) && weldCountRef.current < MAX_WELD_POINTS) {
+            // Рандомизация размера капли (+-5%)
+            const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
+            
             const newDot = {
               x: weldX,
               y: weldY,
               timestamp: Date.now(),
               id: weldCountRef.current,
-              width: localGapWidth
+              width: localGapWidth,
+              randomFactor: randomFactor
             };
             
             setGameState(prev => ({
