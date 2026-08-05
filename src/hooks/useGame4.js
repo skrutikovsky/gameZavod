@@ -256,7 +256,6 @@ export function useGame4({ onLevelComplete }) {
     cooledPoints: [],
     gameOver: false,
     roundComplete: false,
-    levelComplete: false,
     mouseX: 0,
     mouseY: 0,
     weldingGunX: 0,
@@ -811,22 +810,14 @@ export function useGame4({ onLevelComplete }) {
   
   // Переход к следующему раунду
   const nextRound = useCallback(() => {
-    setGameState(prev => {
-      const newRound = prev.round + 1;
-      
-      // Уровень завершен - вызываем onLevelComplete для показа окна завершения уровня
-      if (onLevelComplete) {
-        onLevelComplete();
-      }
-      return {
-        ...prev,
-        levelComplete: true,
-        roundComplete: false,
-        isRunning: false
-      };
-    });
+    setGameState(prev => ({
+      ...prev,
+      round: prev.round + 1,
+      roundComplete: false,
+      isRunning: false
+    }));
     initRound();
-  }, [initRound, onLevelComplete]);
+  }, [initRound]);
   
   const setCanvasRef = useCallback((ref) => {
     canvasRef.current = ref;

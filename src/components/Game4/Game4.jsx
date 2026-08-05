@@ -444,7 +444,6 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   const isRoundComplete = gameState.roundComplete;
-  const isLevelComplete = gameState.levelComplete;
   const isGameOver = gameState.gameOver;
 
   return (
@@ -514,28 +513,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {isRoundComplete && (
         <Modal
           title="Шов заварен!"
-          message={`Качество сварки: ${gameState.weldCoverage}%\nОчки за раунд: ${Math.round(1000 * (gameState.weldCoverage / 100))}\nОбщий счет: ${gameState.score}`}
+          message={`Качество сварки: 100%\nОчки за раунд: ${Math.round(1000 * (gameState.weldCoverage / 100))}\nОбщий счет: ${gameState.score}`}
         >
           <div className="space-y-4">
             <Button onClick={handleNextRound} variant="primary">
               Следующий раунд
-            </Button>
-            <Button onClick={handleGameOver} variant="secondary">
-              В главное меню
-            </Button>
-          </div>
-        </Modal>
-      )}
-      
-      {/* Модальное окно завершения уровня */}
-      {isLevelComplete && (
-        <Modal
-          title="Уровень пройден!"
-          message={`Поздравляем! Вы прошли уровень на 100%!\nИтоговый счет: ${gameState.score}`}
-        >
-          <div className="space-y-4">
-            <Button onClick={handleRestartLevel} variant="primary">
-              Играть снова
             </Button>
             <Button onClick={handleGameOver} variant="secondary">
               В главное меню
