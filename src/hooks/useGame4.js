@@ -663,12 +663,12 @@ export function useGame4({ onLevelComplete }) {
         weldCoverage: displayedCoverage
       };
       
-      if (coverage >= WIN_COVERAGE) {
+      // Начисляем очки только один раз при достижении 95% покрытия
+      if (coverage >= WIN_COVERAGE && !prev.roundComplete) {
         const pointsEarned = Math.round(1000 * (coverage / 100));
         newState.score = prev.score + pointsEarned;
         newState.roundComplete = true;
         // Не останавливаем игру - игрок может продолжать варить пока не кончится сварка
-        // newState.isRunning = false;
       }
       
       return newState;
@@ -888,12 +888,22 @@ export function useGame4({ onLevelComplete }) {
   
   // Переход к следующему раунду
   const nextRound = useCallback(() => {
+    // Сначала сбрасываем счетчики сварки
+    weldCountRef.current = 0;
+    lastWeldPointRef.current = null;
+    lastTimeRef.current = null;
+    
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
       roundComplete: false,
-      isRunning: false
+      weldCoverage: 0,
+      weldUsed: 0,
+      weldPoints: [],
+      cooledPoints: []
     }));
+    
+    // Инициализируем новый раунд с новым разрывом
     initRound();
   }, [initRound]);
   
