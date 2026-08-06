@@ -893,15 +893,16 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
-    // Инициализируем новый раунд с новым разрывом
-    initRound();
-    
-    // Обновляем номер раунда и сбрасываем флаг завершения
+    // Обновляем номер раунда и сбрасываем флаг завершения ДО инициализации
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
-      roundComplete: false
+      roundComplete: false,
+      isRunning: true
     }));
+    
+    // Инициализируем новый раунд с новым разрывом
+    initRound();
   }, [initRound]);
   
   const setCanvasRef = useCallback((ref) => {
