@@ -487,15 +487,6 @@ export function useGame4({ onLevelComplete }) {
       // Рандомизация размера капли (+-5%)
       const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
       
-      const newDot = {
-        x: weldX,
-        y: weldY,
-        timestamp: Date.now(),
-        id: weldCountRef.current,
-        width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
-        randomFactor: randomFactor
-      };
-      
       // Проверяем лимит капель сварки - нельзя ставить больше 200
       if (weldCountRef.current >= MAX_WELD_DROPS) {
         // Сварка закончилась - проверяем покрытие
@@ -507,8 +498,20 @@ export function useGame4({ onLevelComplete }) {
             isRunning: false
           }));
           return;
+        } else {
+          // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+          return;
         }
       }
+      
+      const newDot = {
+        x: weldX,
+        y: weldY,
+        timestamp: Date.now(),
+        id: weldCountRef.current,
+        width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
+        randomFactor: randomFactor
+      };
       
       setGameState(prev => ({
         ...prev,
@@ -539,6 +542,9 @@ export function useGame4({ onLevelComplete }) {
               gameOver: true,
               isRunning: false
             }));
+            return;
+          } else {
+            // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
             return;
           }
         }
@@ -661,7 +667,8 @@ export function useGame4({ onLevelComplete }) {
         const pointsEarned = Math.round(1000 * (coverage / 100));
         newState.score = prev.score + pointsEarned;
         newState.roundComplete = true;
-        newState.isRunning = false;
+        // Не останавливаем игру - игрок может продолжать варить пока не кончится сварка
+        // newState.isRunning = false;
       }
       
       return newState;
@@ -752,6 +759,9 @@ export function useGame4({ onLevelComplete }) {
                     isRunning: false
                   }));
                   return;
+                } else {
+                  // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+                  return;
                 }
               }
               
@@ -793,6 +803,9 @@ export function useGame4({ onLevelComplete }) {
                   gameOver: true,
                   isRunning: false
                 }));
+                return;
+              } else {
+                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
                 return;
               }
             }

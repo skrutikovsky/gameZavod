@@ -479,9 +479,9 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   // Проверяем можно ли показать кнопку "Следующий лист"
-  const canShowNextSheet = gameState.weldCoverage >= 95 && !gameState.gameOver;
+  const canShowNextSheet = gameState.roundComplete && !gameState.gameOver;
   // Проверяем можно ли показать кнопку "Рестарт" (сварка кончилась и покрытие < 95%)
-  const canShowRestart = gameState.weldUsed >= 200 && gameState.weldCoverage < 95 && !gameState.roundComplete;
+  const canShowRestart = gameState.weldUsed >= MAX_WELD_DROPS && gameState.weldCoverage < 95 && !gameState.roundComplete;
   
   const isRoundComplete = gameState.roundComplete;
   const isGameOver = gameState.gameOver;
@@ -520,7 +520,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           </div>
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Сварка</span>
-            <span className="text-2xl font-bold text-blue-400">{gameState.weldUsed}/200</span>
+            <span className="text-2xl font-bold text-blue-400">{gameState.weldUsed}/{MAX_WELD_DROPS}</span>
           </div>
           <div className="text-center">
             <span className="text-xs opacity-80 uppercase tracking-wider block">Очки</span>
@@ -546,7 +546,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
             <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
               <div 
                 className="h-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-cyan-500"
-                style={{ width: `${((200 - gameState.weldUsed) / 200) * 100}%` }}
+                style={{ width: `${((MAX_WELD_DROPS - gameState.weldUsed) / MAX_WELD_DROPS) * 100}%` }}
               />
             </div>
           </div>
