@@ -893,18 +893,15 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
+    // Инициализируем новый раунд с новым разрывом
+    initRound();
+    
+    // Обновляем номер раунда и сбрасываем флаг завершения
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
-      roundComplete: false,
-      weldCoverage: 0,
-      weldUsed: 0,
-      weldPoints: [],
-      cooledPoints: []
+      roundComplete: false
     }));
-    
-    // Инициализируем новый раунд с новым разрывом
-    initRound();
   }, [initRound]);
   
   const setCanvasRef = useCallback((ref) => {
