@@ -314,7 +314,9 @@ export function useGame4({ onLevelComplete }) {
       weldingGunX: initialGunX,
       weldingGunY: initialGunY,
       mouseX: initialGunX,
-      mouseY: sheetMargin // Позиция сопла на листе
+      mouseY: sheetMargin, // Позиция сопла на листе
+      targetX: initialGunX,
+      targetY: sheetMargin // Целевая позиция для движения сопла
     }));
   }, []);
   
