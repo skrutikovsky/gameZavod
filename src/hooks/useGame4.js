@@ -499,11 +499,8 @@ export function useGame4({ onLevelComplete }) {
             gameOver: true,
             isRunning: false
           }));
-          return;
-        } else {
-          // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-          return;
         }
+        return;
       }
       
       const newDot = {
@@ -544,11 +541,8 @@ export function useGame4({ onLevelComplete }) {
               gameOver: true,
               isRunning: false
             }));
-            return;
-          } else {
-            // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-            return;
           }
+          return;
         }
         
         // Рандомизация размера капли (+-5%)
@@ -771,11 +765,8 @@ export function useGame4({ onLevelComplete }) {
                     gameOver: true,
                     isRunning: false
                   }));
-                  return;
-                } else {
-                  // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                  return;
                 }
+                return;
               }
               
               const newDot = {
@@ -816,11 +807,8 @@ export function useGame4({ onLevelComplete }) {
                   gameOver: true,
                   isRunning: false
                 }));
-                return;
-              } else {
-                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                return;
               }
+              return;
             }
             
             // Рандомизация размера капли (+-5%)
@@ -906,14 +894,20 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
+    // Сбрасываем флаг завершения раунда перед инициализацией нового
+    setGameState(prev => ({
+      ...prev,
+      roundComplete: false,
+      isRunning: true
+    }));
+    
     // Инициализируем новый раунд с новым разрывом
     initRound();
     
-    // Обновляем номер раунда и сбрасываем флаг завершения
+    // Обновляем номер раунда
     setGameState(prev => ({
       ...prev,
-      round: prev.round + 1,
-      roundComplete: false
+      round: prev.round + 1
     }));
   }, [initRound]);
   
