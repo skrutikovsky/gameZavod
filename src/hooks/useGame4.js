@@ -272,11 +272,9 @@ export function useGame4({ onLevelComplete }) {
   const canvasRef = useRef(null);
   const lastTimeRef = useRef(null);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
-  const isRunningRef = useRef(false);
   
   useEffect(() => {
     gameStateRef.current = gameState;
-    isRunningRef.current = gameState.isRunning;
   }, [gameState]);
   
   const weldCountRef = useRef(0);
@@ -412,7 +410,7 @@ export function useGame4({ onLevelComplete }) {
   
   // Обработка движения мыши с логикой сварочного аппарата
   const handleMouseMove = useCallback((e) => {
-    if (!isRunningRef.current) return;
+    if (!gameStateRef.current?.isRunning) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -597,7 +595,7 @@ export function useGame4({ onLevelComplete }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const gridSize = 8; // Увеличенный размер ячейки для оптимизации (было 4)
+    const gridSize = 4; // Размер ячейки сетки в пикселях (чем меньше, тем точнее)
     const sheetMargin = 40;
     const sheetWidth = canvas.width - sheetMargin * 2;
     const sheetHeight = canvas.height - sheetMargin * 2;
@@ -609,21 +607,7 @@ export function useGame4({ onLevelComplete }) {
     const coveredCells = new Set();
     let totalCellsInGap = 0;
     
-    // Оптимизация: предварительно вычисляем bounding box для каждой точки сварки
-    const weldBoundingBoxes = allWeldPoints.map(p => {
-      const weldRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
-      return {
-        p,
-        weldRadius,
-        minCol: Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize)),
-        maxCol: Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize)),
-        minRow: Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize)),
-        maxRow: Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize))
-      };
-    });
-    
     // Сначала определяем все ячейки которые находятся в зоне шва (разрыва) или дыр
-    // Оптимизация: проверяем только ячейки которые могут быть покрыты сваркой
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const cellX = sheetMargin + col * gridSize + gridSize / 2;
@@ -641,10 +625,15 @@ export function useGame4({ onLevelComplete }) {
     
     // Теперь проверяем какие ячейки покрыты сваркой
     const weldedCells = new Set();
-    
-    // Оптимизация: проходим по bounding boxes точек сварки вместо всех ячеек
-    weldBoundingBoxes.forEach(bb => {
-      const { p, weldRadius, minCol, maxCol, minRow, maxRow } = bb;
+    allWeldPoints.forEach(p => {
+      // Используем фиксированный базовый радиус с учетом randomFactor
+      const weldRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
+      
+      // Определяем диапазон ячеек которые может покрывать эта точка сварки
+      const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
+      const maxCol = Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize));
+      const minRow = Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize));
+      const maxRow = Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize));
       
       for (let row = minRow; row <= maxRow; row++) {
         for (let col = minCol; col <= maxCol; col++) {
@@ -690,14 +679,14 @@ export function useGame4({ onLevelComplete }) {
   
   // Игровой цикл для постоянного движения сопла к курсору
   useEffect(() => {
-    if (!isRunningRef.current) return;
+    if (!gameState.isRunning) return;
     
     let animationFrameId;
     let lastUpdateTime = performance.now();
     
     const updateLoop = () => {
       const state = gameStateRef.current;
-      if (!state || !canvasRef.current || !isRunningRef.current) {
+      if (!state || !canvasRef.current) {
         animationFrameId = requestAnimationFrame(updateLoop);
         return;
       }
@@ -856,11 +845,11 @@ export function useGame4({ onLevelComplete }) {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [updateWeldingGunPosition]);
+  }, [gameState.isRunning, updateWeldingGunPosition]);
   
   // Эффект остывания сварки
   useEffect(() => {
-    if (!isRunningRef.current) return;
+    if (!gameState.isRunning) return;
     
     const coolInterval = setInterval(() => {
       const now = Date.now();
@@ -889,15 +878,15 @@ export function useGame4({ onLevelComplete }) {
     }, 500);
     
     return () => clearInterval(coolInterval);
-  }, []);
+  }, [gameState.isRunning]);
   
   // Периодическая проверка покрытия
   useEffect(() => {
-    if (!isRunningRef.current) return;
+    if (!gameState.isRunning) return;
     
     const checkInterval = setInterval(checkCoverage, 100);
     return () => clearInterval(checkInterval);
-  }, [checkCoverage]);
+  }, [gameState.isRunning, checkCoverage]);
   
   // Переход к следующему раунду
   const nextRound = useCallback(() => {
@@ -906,15 +895,15 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
-    // Обновляем номер раунда и сбрасываем флаг завершения ПЕРЕД вызовом initRound
+    // Инициализируем новый раунд с новым разрывом
+    initRound();
+    
+    // Обновляем номер раунда и сбрасываем флаг завершения
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
       roundComplete: false
     }));
-    
-    // Инициализируем новый раунд с новым разрывом
-    initRound();
   }, [initRound]);
   
   const setCanvasRef = useCallback((ref) => {
