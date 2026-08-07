@@ -596,11 +596,10 @@ export function useGame4({ onLevelComplete }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const rect = canvas.getBoundingClientRect();
     const gridSize = COVERAGE_GRID_SIZE; // Размер ячейки сетки в пикселях (оптимизировано)
     const sheetMargin = 40;
-    const sheetWidth = rect.width - sheetMargin * 2;
-    const sheetHeight = rect.height - sheetMargin * 2;
+    const sheetWidth = canvas.width - sheetMargin * 2;
+    const sheetHeight = canvas.height - sheetMargin * 2;
     
     const cols = Math.ceil(sheetWidth / gridSize);
     const rows = Math.ceil(sheetHeight / gridSize);
