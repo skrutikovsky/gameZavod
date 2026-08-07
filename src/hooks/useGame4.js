@@ -895,6 +895,13 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
+    // Сбрасываем флаг game over перед инициализацией нового раунда
+    setGameState(prev => ({
+      ...prev,
+      gameOver: false,
+      isRunning: true
+    }));
+    
     // Инициализируем новый раунд с новым разрывом
     initRound();
     
