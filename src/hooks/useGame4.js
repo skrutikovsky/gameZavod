@@ -277,6 +277,11 @@ export function useGame4({ onLevelComplete }) {
   useEffect(() => {
     gameStateRef.current = gameState;
     isRunningRef.current = gameState.isRunning;
+    
+    // Если игра запущена (например после nextRound), убеждаемся что ref обновлен
+    if (gameState.isRunning) {
+      isRunningRef.current = true;
+    }
   }, [gameState]);
   
   const weldCountRef = useRef(0);
@@ -320,6 +325,9 @@ export function useGame4({ onLevelComplete }) {
       targetX: initialGunX,
       targetY: sheetMargin // Целевая позиция для движения сопла
     }));
+    
+    // Явно обновляем isRunningRef после установки состояния
+    isRunningRef.current = true;
   }, []);
   
   const startGame = useCallback(() => {
@@ -412,17 +420,12 @@ export function useGame4({ onLevelComplete }) {
   
   // Обработка движения мыши с логикой сварочного аппарата
   const handleMouseMove = useCallback((e) => {
-    if (!isRunningRef.current) return;
-    
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    
-    const state = gameStateRef.current;
-    const { gapPath, gapWidths, cooledPoints, weldPoints } = state;
     
     // Параметры листа (должны совпадать с отрисовкой)
     const sheetMargin = 40;
@@ -450,6 +453,12 @@ export function useGame4({ onLevelComplete }) {
     // Если ЛКМ не зажата - просто обновляем позицию курсора и выходим
     // Движение сопла происходит в игровом цикле updateLoop
     if (!isMouseDownRef.current) return;
+    
+    // Если игра не запущена - не варим
+    if (!isRunningRef.current) return;
+    
+    const state = gameStateRef.current;
+    const { gapPath, gapWidths, cooledPoints, weldPoints } = state;
     
     // Позиция сопла для сварки берется из текущего состояния (обновляется в updateLoop)
     const currentNozzleX = state.weldingGunX;
@@ -577,7 +586,9 @@ export function useGame4({ onLevelComplete }) {
   }, []);
   
   const handleMouseDown = useCallback(() => {
-    isMouseDownRef.current = true;
+    if (isRunningRef.current) {
+      isMouseDownRef.current = true;
+    }
   }, []);
   
   const handleMouseUp = useCallback(() => {
@@ -697,7 +708,7 @@ export function useGame4({ onLevelComplete }) {
     
     const updateLoop = () => {
       const state = gameStateRef.current;
-      if (!state || !canvasRef.current || !isRunningRef.current) {
+      if (!state || !canvasRef.current) {
         animationFrameId = requestAnimationFrame(updateLoop);
         return;
       }
@@ -717,50 +728,96 @@ export function useGame4({ onLevelComplete }) {
       const targetX = state.targetX;
       const targetY = state.targetY;
       
-      // Обновляем позицию сопла
-      const nozzlePos = updateWeldingGunPosition(targetX, targetY, deltaTime);
-      
-      // Обновляем состояние с новой позицией сопла
-      setGameState(prev => ({
-        ...prev,
-        weldingGunX: nozzlePos.x,
-        weldingGunY: nozzlePos.y,
-        mouseX: nozzlePos.x,
-        mouseY: nozzlePos.y
-      }));
-      
-      // Если ЛКМ зажата - продолжаем сварку
-      if (isMouseDownRef.current) {
-        const weldX = nozzlePos.x;
-        const weldY = nozzlePos.y;
+      // Обновляем позицию сопла только если игра активна
+      if (isRunningRef.current) {
+        const nozzlePos = updateWeldingGunPosition(targetX, targetY, deltaTime);
         
-        const { gapPath, gapWidths, cooledPoints, weldPoints } = state;
+        // Обновляем состояние с новой позицией сопла
+        setGameState(prev => ({
+          ...prev,
+          weldingGunX: nozzlePos.x,
+          weldingGunY: nozzlePos.y,
+          mouseX: nozzlePos.x,
+          mouseY: nozzlePos.y
+        }));
         
-        // Получаем локальную ширину шва для triggerDistance (но не для размера капли)
-        const adjustedWeldX = weldX - sheetMargin;
-        const approximateIndex = Math.floor((adjustedWeldX / sheetWidth) * (gapWidths.length - 1));
-        const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
-        const localGapWidth = gapWidths[idx];
-        // Используем фиксированный базовый радиус для триггера
-        const localWeldRadius = WELD_BASE_RADIUS;
-        const triggerDistance = localWeldRadius * (2/3);
-        
-        if (lastWeldPointRef.current) {
-          const dx = weldX - lastWeldPointRef.current.x;
-          const dy = weldY - lastWeldPointRef.current.y;
-          const dist = Math.hypot(dx, dy);
+        // Если ЛКМ зажата - продолжаем сварку
+        if (isMouseDownRef.current) {
+          const weldX = nozzlePos.x;
+          const weldY = nozzlePos.y;
           
-          if (dist >= triggerDistance) {
-            // Проверяем что точка НЕ над разрывом или дырой ИЛИ на существующей сварке
+          const { gapPath, gapWidths, cooledPoints, weldPoints } = state;
+          
+          // Получаем локальную ширину шва для triggerDistance (но не для размера капли)
+          const adjustedWeldX = weldX - sheetMargin;
+          const approximateIndex = Math.floor((adjustedWeldX / sheetWidth) * (gapWidths.length - 1));
+          const idx = Math.max(0, Math.min(gapWidths.length - 1, approximateIndex));
+          const localGapWidth = gapWidths[idx];
+          // Используем фиксированный базовый радиус для триггера
+          const localWeldRadius = WELD_BASE_RADIUS;
+          const triggerDistance = localWeldRadius * (2/3);
+          
+          if (lastWeldPointRef.current) {
+            const dx = weldX - lastWeldPointRef.current.x;
+            const dy = weldY - lastWeldPointRef.current.y;
+            const dist = Math.hypot(dx, dy);
+            
+            if (dist >= triggerDistance) {
+              // Проверяем что точка НЕ над разрывом или дырой ИЛИ на существующей сварке
+              const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
+              const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
+              const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
+              
+              // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
+              if ((!overGap && !overHole || onWeld)) {
+                // Рандомизация размера капли (+-5%)
+                const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
+                
+                // Проверяем лимит капель сварки - нельзя ставить больше 200
+                if (weldCountRef.current >= MAX_WELD_DROPS) {
+                  // Сварка закончилась - проверяем покрытие
+                  const coverage = gameStateRef.current.weldCoverage;
+                  if (coverage < WIN_COVERAGE) {
+                    setGameState(prev => ({
+                      ...prev,
+                      gameOver: true,
+                      isRunning: false
+                    }));
+                    return;
+                  } else {
+                    // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+                    return;
+                  }
+                }
+                
+                const newDot = {
+                  x: weldX,
+                  y: weldY,
+                  timestamp: Date.now(),
+                  id: weldCountRef.current,
+                  width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
+                  randomFactor: randomFactor
+                };
+                
+                setGameState(prev => ({
+                  ...prev,
+                  weldPoints: [...prev.weldPoints, newDot],
+                  weldUsed: weldCountRef.current + 1
+                }));
+                
+                weldCountRef.current += 1;
+                lastWeldPointRef.current = { x: weldX, y: weldY };
+              }
+            }
+          } else {
+            lastWeldPointRef.current = { x: weldX, y: weldY };
+            
             const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
             const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
             const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
             
             // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
             if ((!overGap && !overHole || onWeld)) {
-              // Рандомизация размера капли (+-5%)
-              const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
-              
               // Проверяем лимит капель сварки - нельзя ставить больше 200
               if (weldCountRef.current >= MAX_WELD_DROPS) {
                 // Сварка закончилась - проверяем покрытие
@@ -778,6 +835,9 @@ export function useGame4({ onLevelComplete }) {
                 }
               }
               
+              // Рандомизация размера капли (+-5%)
+              const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
+              
               const newDot = {
                 x: weldX,
                 y: weldY,
@@ -794,54 +854,7 @@ export function useGame4({ onLevelComplete }) {
               }));
               
               weldCountRef.current += 1;
-              lastWeldPointRef.current = { x: weldX, y: weldY };
             }
-          }
-        } else {
-          lastWeldPointRef.current = { x: weldX, y: weldY };
-          
-          const overGap = isPointOverGap(weldX, weldY, gapPath, gapWidths, sheetWidth, sheetMargin);
-          const onWeld = isPointOverWeld(weldX, weldY, cooledPoints, weldPoints);
-          const overHole = isPointOverHole(weldX, weldY, state.holes, sheetMargin);
-          
-          // Можно варить если точка НЕ над разрывом или дырой ИЛИ на существующей сварке
-          if ((!overGap && !overHole || onWeld)) {
-            // Проверяем лимит капель сварки - нельзя ставить больше 200
-            if (weldCountRef.current >= MAX_WELD_DROPS) {
-              // Сварка закончилась - проверяем покрытие
-              const coverage = gameStateRef.current.weldCoverage;
-              if (coverage < WIN_COVERAGE) {
-                setGameState(prev => ({
-                  ...prev,
-                  gameOver: true,
-                  isRunning: false
-                }));
-                return;
-              } else {
-                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                return;
-              }
-            }
-            
-            // Рандомизация размера капли (+-5%)
-            const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
-            
-            const newDot = {
-              x: weldX,
-              y: weldY,
-              timestamp: Date.now(),
-              id: weldCountRef.current,
-              width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
-              randomFactor: randomFactor
-            };
-            
-            setGameState(prev => ({
-              ...prev,
-              weldPoints: [...prev.weldPoints, newDot],
-              weldUsed: weldCountRef.current + 1
-            }));
-            
-            weldCountRef.current += 1;
           }
         }
       }
@@ -910,7 +923,9 @@ export function useGame4({ onLevelComplete }) {
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
-      roundComplete: false
+      roundComplete: false,
+      isRunning: true,
+      gameOver: false
     }));
     
     // Инициализируем новый раунд с новым разрывом
