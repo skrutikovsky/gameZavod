@@ -510,7 +510,7 @@ export function useGame4({ onLevelComplete }) {
       setGameState(prev => ({
         ...prev,
         weldPoints: [...prev.weldPoints, newDot],
-        weldUsed: weldCountRef.current + 1
+        weldUsed: weldCountRef.current
       }));
       
       weldCountRef.current += 1;
@@ -558,7 +558,7 @@ export function useGame4({ onLevelComplete }) {
         setGameState(prev => ({
           ...prev,
           weldPoints: [...prev.weldPoints, newDot],
-          weldUsed: weldCountRef.current + 1
+          weldUsed: weldCountRef.current
         }));
         
         weldCountRef.current += 1;
@@ -782,7 +782,7 @@ export function useGame4({ onLevelComplete }) {
               setGameState(prev => ({
                 ...prev,
                 weldPoints: [...prev.weldPoints, newDot],
-                weldUsed: weldCountRef.current + 1
+                weldUsed: weldCountRef.current
               }));
               
               weldCountRef.current += 1;
@@ -830,7 +830,7 @@ export function useGame4({ onLevelComplete }) {
             setGameState(prev => ({
               ...prev,
               weldPoints: [...prev.weldPoints, newDot],
-              weldUsed: weldCountRef.current + 1
+              weldUsed: weldCountRef.current
             }));
             
             weldCountRef.current += 1;
