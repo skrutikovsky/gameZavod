@@ -494,6 +494,7 @@ export function useGame4({ onLevelComplete }) {
           return;
         } else {
           // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+          // Важно: НЕ устанавливаем gameOver, так как уровень пройден
           return;
         }
       }
@@ -539,6 +540,7 @@ export function useGame4({ onLevelComplete }) {
             return;
           } else {
             // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+            // Важно: НЕ устанавливаем gameOver, так как уровень пройден
             return;
           }
         }
@@ -766,6 +768,7 @@ export function useGame4({ onLevelComplete }) {
                   return;
                 } else {
                   // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+                  // Важно: НЕ устанавливаем gameOver, так как уровень пройден
                   return;
                 }
               }
@@ -811,6 +814,7 @@ export function useGame4({ onLevelComplete }) {
                 return;
               } else {
                 // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
+                // Важно: НЕ устанавливаем gameOver, так как уровень пройден
                 return;
               }
             }
@@ -898,14 +902,21 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
     
+    // Сбрасываем флаг game over перед новым раундом и устанавливаем isRunning=true
+    setGameState(prev => ({
+      ...prev,
+      gameOver: false,
+      isRunning: true,
+      roundComplete: false
+    }));
+    
     // Инициализируем новый раунд с новым разрывом
     initRound();
     
-    // Обновляем номер раунда и сбрасываем флаг завершения
+    // Обновляем номер раунда (initRound уже установит roundComplete: false)
     setGameState(prev => ({
       ...prev,
-      round: prev.round + 1,
-      roundComplete: false
+      round: prev.round + 1
     }));
   }, [initRound]);
   
