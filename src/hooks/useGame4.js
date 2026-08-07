@@ -294,6 +294,7 @@ export function useGame4({ onLevelComplete }) {
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
     lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
+    lastMousePosRef.current = { x: rect.width / 2, y: sheetMargin }; // Сбрасываем последнюю позицию мыши
     
     // Инициализируем позицию сварочного аппарата по середине сверху листа металла
     const initialGunX = rect.width / 2;
