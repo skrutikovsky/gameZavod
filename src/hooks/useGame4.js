@@ -900,6 +900,22 @@ export function useGame4({ onLevelComplete }) {
     lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
     isMouseDownRef.current = false; // Сбрасываем состояние кнопки мыши
     
+    // Получаем размеры канваса для установки начальной позиции
+    const container = canvasRef.current?.parentElement;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const sheetMargin = 40;
+      // Сбрасываем последнюю позицию мыши в центр сверху листа
+      lastMousePosRef.current = { x: rect.width / 2, y: sheetMargin };
+      
+      // Обновляем целевую позицию в центр сверху листа
+      setGameState(prev => ({
+        ...prev,
+        targetX: rect.width / 2,
+        targetY: sheetMargin
+      }));
+    }
+    
     // Инициализируем новый раунд с новым разрывом
     initRound();
     
