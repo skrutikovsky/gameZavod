@@ -494,7 +494,6 @@ export function useGame4({ onLevelComplete }) {
           return;
         } else {
           // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-          // Важно: не останавливаем игру и не ставим gameOver, чтобы игрок мог завершить раунд
           return;
         }
       }
@@ -540,7 +539,6 @@ export function useGame4({ onLevelComplete }) {
             return;
           } else {
             // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-            // Важно: не останавливаем игру и не ставим gameOver, чтобы игрок мог завершить раунд
             return;
           }
         }
@@ -813,7 +811,6 @@ export function useGame4({ onLevelComplete }) {
                 return;
               } else {
                 // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                // Важно: не останавливаем игру и не ставим gameOver, чтобы игрок мог завершить раунд
                 return;
               }
             }
@@ -901,17 +898,15 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
     
-    // Обновляем номер раунда и сбрасываем флаги перед инициализацией нового раунда
+    // Инициализируем новый раунд с новым разрывом
+    initRound();
+    
+    // Обновляем номер раунда и сбрасываем флаг завершения
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
-      roundComplete: false,
-      gameOver: false,
-      isRunning: true
+      roundComplete: false
     }));
-    
-    // Инициализируем новый раунд с новым разрывом
-    initRound();
   }, [initRound]);
   
   const setCanvasRef = useCallback((ref) => {
