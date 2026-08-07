@@ -410,7 +410,9 @@ export function useGame4({ onLevelComplete }) {
   
   // Обработка движения мыши с логикой сварочного аппарата
   const handleMouseMove = useCallback((e) => {
-    if (!gameStateRef.current?.isRunning) return;
+    // Разрешаем обработку движения мыши даже если isRunning=false (например при game over после использования всей сварки)
+    // Проверяем только что gameState существует и canvas доступен
+    if (!gameStateRef.current) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -682,7 +684,8 @@ export function useGame4({ onLevelComplete }) {
   
   // Игровой цикл для постоянного движения сопла к курсору
   useEffect(() => {
-    if (!gameState.isRunning) return;
+    // Разрешаем игровой цикл работать даже если isRunning=false (например при game over после использования всей сварки)
+    // Проверяем только что gameState существует
     
     let animationFrameId;
     let lastUpdateTime = performance.now();
@@ -848,12 +851,10 @@ export function useGame4({ onLevelComplete }) {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [gameState.isRunning, updateWeldingGunPosition]);
+  }, [updateWeldingGunPosition]);
   
   // Эффект остывания сварки
   useEffect(() => {
-    if (!gameState.isRunning) return;
-    
     const coolInterval = setInterval(() => {
       const now = Date.now();
       setGameState(prev => {
@@ -881,15 +882,13 @@ export function useGame4({ onLevelComplete }) {
     }, 500);
     
     return () => clearInterval(coolInterval);
-  }, [gameState.isRunning]);
+  }, []);
   
   // Периодическая проверка покрытия
   useEffect(() => {
-    if (!gameState.isRunning) return;
-    
     const checkInterval = setInterval(checkCoverage, 100);
     return () => clearInterval(checkInterval);
-  }, [gameState.isRunning, checkCoverage]);
+  }, [checkCoverage]);
   
   // Переход к следующему раунду
   const nextRound = useCallback(() => {
@@ -897,6 +896,13 @@ export function useGame4({ onLevelComplete }) {
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
     lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
+    
+    // Сбрасываем флаг game over перед инициализацией нового раунда
+    setGameState(prev => ({
+      ...prev,
+      gameOver: false,
+      isRunning: true
+    }));
     
     // Инициализируем новый раунд с новым разрывом
     initRound();
