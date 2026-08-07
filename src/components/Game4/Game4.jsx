@@ -1,30 +1,6 @@
-import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useGame4, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, INNER_TRIGGER_RATIO, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, generateHoles, isPointOverHole, WELD_BASE_RADIUS, MAX_WELD_DROPS } from '../../hooks/useGame4';
 import { GameStats } from '../UI/GameStats';
-
-// Оптимизация: кэшируем константы отрисовки
-const SHEET_MARGIN = 40;
-const METAL_GRADIENT_STOPS = [
-  { pos: 0, color: '#5a6b7c' },
-  { pos: 0.2, color: '#6d8299' },
-  { pos: 0.5, color: '#7f94ab' },
-  { pos: 0.8, color: '#6d8299' },
-  { pos: 1, color: '#5a6b7c' }
-];
-const BG_GRADIENT_STOPS = [
-  { pos: 0, color: '#1a1a2e' },
-  { pos: 1, color: '#16213e' }
-];
-const SEAM_GRADIENT_STOPS = [
-  { pos: 0, color: '#2a2a2a' },
-  { pos: 0.5, color: '#3a3a3a' },
-  { pos: 1, color: '#2a2a2a' }
-];
-const WELD_COLORS = [
-  { pos: 0, color: 'rgb(255, 100, 0)' },
-  { pos: 0.5, color: 'rgb(255, 80, 0)' },
-  { pos: 1, color: 'rgb(200, 50, 0)' }
-];
 
 const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -51,49 +27,22 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   
   const canvasRef = useRef(null);
   const requestRef = useRef(null);
-  const gradientCacheRef = useRef({});
 
-  // Оптимизация: создаем градиенты один раз при изменении размеров канваса
-  const createGradients = useCallback((ctx, width, height) => {
-    const cache = gradientCacheRef.current;
-    
-    if (!cache.bg || cache.bgWidth !== width || cache.bgHeight !== height) {
-      const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-      BG_GRADIENT_STOPS.forEach(stop => bgGradient.addColorStop(stop.pos, stop.color));
-      cache.bg = bgGradient;
-      cache.bgWidth = width;
-      cache.bgHeight = height;
-    }
-    
-    const sheetX = SHEET_MARGIN;
-    const sheetY = SHEET_MARGIN;
-    const sheetWidth = width - SHEET_MARGIN * 2;
-    const sheetHeight = height - SHEET_MARGIN * 2;
-    
-    if (!cache.metal || cache.metalX !== sheetX || cache.metalY !== sheetY) {
-      const metalGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY + sheetHeight);
-      METAL_GRADIENT_STOPS.forEach(stop => metalGradient.addColorStop(stop.pos, stop.color));
-      cache.metal = metalGradient;
-      cache.metalX = sheetX;
-      cache.metalY = sheetY;
-    }
-    
-    if (!cache.seam || cache.seamWidth !== sheetWidth) {
-      const seamGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY);
-      SEAM_GRADIENT_STOPS.forEach(stop => seamGradient.addColorStop(stop.pos, stop.color));
-      cache.seam = seamGradient;
-      cache.seamWidth = sheetWidth;
-    }
-    
-    return cache;
+  useEffect(() => {
+    startGame();
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
   }, []);
 
-  // Отрисовка на канвасе с оптимизацией
+  // Отрисовка на канвасе
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !gameState.gapPath.length) return;
 
-    const ctx = canvas.getContext('2d', { alpha: false }); // Оптимизация: отключаем альфа-канал фона
+    const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     
     // Очищаем канвас
@@ -102,46 +51,101 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const { gapPath, weldPoints, cooledPoints } = gameState;
     
     // Параметры листа металла
-    const sheetX = SHEET_MARGIN;
-    const sheetY = SHEET_MARGIN;
-    const sheetWidth = width - SHEET_MARGIN * 2;
-    const sheetHeight = height - SHEET_MARGIN * 2;
-
-    // Создаем/получаем кэшированные градиенты
-    const gradients = createGradients(ctx, width, height);
+    const sheetMargin = 40;
+    const sheetX = sheetMargin;
+    const sheetY = sheetMargin;
+    const sheetWidth = width - sheetMargin * 2;
+    const sheetHeight = height - sheetMargin * 2;
 
     // Рисуем фон (темный цех)
-    ctx.fillStyle = gradients.bg;
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, '#1a1a2e');
+    bgGradient.addColorStop(1, '#16213e');
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Рисуем лист металла
-    ctx.fillStyle = gradients.metal;
+    // Рисуем лист металла с более реалистичной текстурой
+    const metalGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY + sheetHeight);
+    metalGradient.addColorStop(0, '#5a6b7c');
+    metalGradient.addColorStop(0.2, '#6d8299');
+    metalGradient.addColorStop(0.5, '#7f94ab');
+    metalGradient.addColorStop(0.8, '#6d8299');
+    metalGradient.addColorStop(1, '#5a6b7c');
+    
+    ctx.fillStyle = metalGradient;
     ctx.fillRect(sheetX, sheetY, sheetWidth, sheetHeight);
     
-    // Оптимизация: рисуем текстуру металла только если нужно
+    // Добавляем текстуру металла (шлифованные линии)
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
     for (let i = 0; i < sheetHeight; i += 4) {
+      ctx.beginPath();
       ctx.moveTo(sheetX, sheetY + i);
       ctx.lineTo(sheetX + sheetWidth, sheetY + i);
+      ctx.stroke();
     }
-    ctx.stroke();
     ctx.restore();
 
-    // Рисуем края листа с разрезом
-    ctx.fillStyle = '#2d3e50';
+    // Рисуем края листа с разрезом (более темные и объемные)
+    const edgeGradient = ctx.createLinearGradient(sheetX - 10, sheetY, sheetX + 10, sheetY);
+    edgeGradient.addColorStop(0, '#2d3e50');
+    edgeGradient.addColorStop(0.5, '#4a5d70');
+    edgeGradient.addColorStop(1, '#2d3e50');
+    
+    ctx.fillStyle = edgeGradient;
     ctx.fillRect(sheetX - 10, sheetY, 10, sheetHeight);
     ctx.fillRect(sheetX + sheetWidth, sheetY, 10, sheetHeight);
+    
+    // Верхний и нижний край
+    const topEdgeGradient = ctx.createLinearGradient(sheetX, sheetY - 10, sheetX, sheetY + 10);
+    topEdgeGradient.addColorStop(0, '#2d3e50');
+    topEdgeGradient.addColorStop(0.5, '#4a5d70');
+    topEdgeGradient.addColorStop(1, '#2d3e50');
+    
+    ctx.fillStyle = topEdgeGradient;
     ctx.fillRect(sheetX - 10, sheetY - 10, sheetWidth + 20, 10);
     ctx.fillRect(sheetX - 10, sheetY + sheetHeight, sheetWidth + 20, 10);
 
-    // Рисуем разрыв (шов)
+    // Рисуем разрыв (шов) с более контрастным видом
     const seamWidth = BASE_GAP_WIDTH;
     
-    // Тень внутри шва
+    // Тень внутри шва для объема - смещаем на половину ширины шва вверх/вниз
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.beginPath();
+    
+    // Верхняя граница шва с неравномерной шириной
+    for (let i = 0; i < gapPath.length; i++) {
+      const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
+      const x = sheetX + p.x;
+      const y = sheetY + p.y - w / 2;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    
+    // Нижняя граница шва (в обратном направлении) с неравномерной шириной
+    for (let i = gapPath.length - 1; i >= 0; i--) {
+      const p = gapPath[i];
+      const w = gameState.gapWidths[i] || seamWidth;
+      const x = sheetX + p.x;
+      const y = sheetY + p.y + w / 2;
+      ctx.lineTo(x, y);
+    }
+    
+    ctx.closePath();
+    ctx.fill();
+    
+    // Основная область шва (темная с красноватым оттенком раскаленного металла)
+    const seamGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY);
+    seamGradient.addColorStop(0, '#2a2a2a');
+    seamGradient.addColorStop(0.5, '#3a3a3a');
+    seamGradient.addColorStop(1, '#2a2a2a');
+    
+    ctx.fillStyle = seamGradient;
     ctx.beginPath();
     
     // Верхняя граница шва
@@ -150,8 +154,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const w = gameState.gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y - w / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
     }
     
     // Нижняя граница шва
@@ -166,31 +173,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.closePath();
     ctx.fill();
     
-    // Основная область шва
-    ctx.fillStyle = gradients.seam;
-    ctx.beginPath();
-    
-    for (let i = 0; i < gapPath.length; i++) {
-      const p = gapPath[i];
-      const w = gameState.gapWidths[i] || seamWidth;
-      const x = sheetX + p.x;
-      const y = sheetY + p.y - w / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    
-    for (let i = gapPath.length - 1; i >= 0; i--) {
-      const p = gapPath[i];
-      const w = gameState.gapWidths[i] || seamWidth;
-      const x = sheetX + p.x;
-      const y = sheetY + p.y + w / 2;
-      ctx.lineTo(x, y);
-    }
-    
-    ctx.closePath();
-    ctx.fill();
-    
-    // Края разреза
+    // Края разреза (светлые, как свежий металл)
     ctx.strokeStyle = '#8a9aab';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -215,85 +198,120 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
     ctx.stroke();
 
-    // Оптимизация: рисуем охлажденные точки без filter (он медленный)
+    // Рисуем охлажденные точки сварки
     cooledPoints.forEach(dot => {
+      // Используем фиксированный базовый радиус с учетом randomFactor
       const radius = WELD_BASE_RADIUS * (dot.randomFactor || 1);
       
-      // Градиент для точки сварки (без filter, используем grayscale цвета напрямую)
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
+      
+      // Применяем полный grayscale фильтр
+      ctx.filter = 'grayscale(1)';
+      
+      // Градиент для точки сварки (оранжевый цвет как у горячей) - без прозрачности
       const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
-      WELD_COLORS.forEach(stop => gradient.addColorStop(stop.pos, stop.color));
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
-    // Рисуем горячие точки сварки игрока
-    const now = Date.now();
+    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
+      // Используем фиксированный базовый радиус с учетом randomFactor
       const radius = WELD_BASE_RADIUS * (dot.randomFactor || 1);
       
       // Вычисляем прогресс остывания (0..1 за 2 секунды)
-      const elapsed = now - dot.timestamp;
+      const elapsed = Date.now() - dot.timestamp;
       const coolProgress = Math.min(1, elapsed / FADE_DURATION);
       
-      // Оптимизация: вместо filter меняем цвета градиента
-      const intensity = 1 - coolProgress * 0.5; // От полного цвета до 50% насыщенности
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
+      
+      // Применяем grayscale фильтр который усиливается со временем (от 0 до 1)
+      ctx.filter = `grayscale(${coolProgress})`;
+      
+      // Градиент для точки сварки (горячий оранжевый цвет, без прозрачности)
       const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
-      gradient.addColorStop(0, `rgb(${255 * intensity}, ${100 * intensity}, 0)`);
-      gradient.addColorStop(0.5, `rgb(${255 * intensity}, ${80 * intensity}, 0)`);
-      gradient.addColorStop(1, `rgb(${200 * intensity}, ${50 * intensity}, 0)`);
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
-    // Рисуем границы листа
+    // Рисуем границы листа (объемные)
     ctx.strokeStyle = '#3d4c5e';
     ctx.lineWidth = 4;
     ctx.strokeRect(sheetX - 10, sheetY - 10, sheetWidth + 20, sheetHeight + 20);
     
+    // Внутренняя рамка
     ctx.strokeStyle = '#6b7d91';
     ctx.lineWidth = 2;
     ctx.strokeRect(sheetX, sheetY, sheetWidth, sheetHeight);
 
-    // Рисуем сварочный аппарат (упрощенная отрисовка для производительности)
+    // Рисуем сварочный аппарат с детализированной текстурой
     const gunX = gameState.weldingGunX - WELDING_GUN_WIDTH / 2;
     const gunY = gameState.weldingGunY - WELDING_GUN_HEIGHT + NOZZLE_OFFSET_Y;
     
-    // Верхняя часть аппарата
-    ctx.fillStyle = '#888';
-    ctx.fillRect(gunX + 50, gunY, 300, 250);
+    // Фон прозрачный (не рисуем)
+    
+    // --- ВЕРХНЯЯ ПОЛОВИНА (0-250px от верха аппарата): Механизмы и провода ---
+    const topSectionX = gunX + 50;
+    const topSectionY = gunY;
+    const topSectionWidth = 300;
+    const topSectionHeight = 250;
+    
+    // Градиент верхней части
+    const gradientTop = ctx.createLinearGradient(topSectionX, topSectionY, topSectionX + topSectionWidth, topSectionY + topSectionHeight);
+    gradientTop.addColorStop(0, '#555');
+    gradientTop.addColorStop(0.2, '#888');
+    gradientTop.addColorStop(0.5, '#aaa');
+    gradientTop.addColorStop(0.8, '#888');
+    gradientTop.addColorStop(1, '#555');
+    ctx.fillStyle = gradientTop;
+    ctx.fillRect(topSectionX, topSectionY, topSectionWidth, topSectionHeight);
     
     // Ребра жесткости
     ctx.strokeStyle = '#444';
     ctx.lineWidth = 2;
     for (let i = 0; i < 5; i++) {
-      const ribX = gunX + 50 + i * 60;
+      const ribX = topSectionX + i * 60;
       ctx.beginPath();
-      ctx.moveTo(ribX, gunY);
-      ctx.lineTo(ribX, gunY + 250);
+      ctx.moveTo(ribX, topSectionY);
+      ctx.lineTo(ribX, topSectionY + topSectionHeight);
       ctx.stroke();
     }
     
-    // Провода (упрощенно)
-    ctx.strokeStyle = '#d35400';
+    // Провода и детали
+    ctx.strokeStyle = '#d35400'; // Оранжевые провода
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(gunX + 100, gunY + 50);
     ctx.bezierCurveTo(gunX + 150, gunY + 100, gunX + 250, gunY + 100, gunX + 300, gunY + 50);
     ctx.stroke();
     
-    ctx.strokeStyle = '#2980b9';
+    ctx.strokeStyle = '#2980b9'; // Синие провода
     ctx.beginPath();
     ctx.moveTo(gunX + 120, gunY + 80);
     ctx.bezierCurveTo(gunX + 180, gunY + 150, gunX + 220, gunY + 150, gunX + 280, gunY + 80);
     ctx.stroke();
     
-    // Болты
+    // Болты/заклепки
     ctx.fillStyle = '#333';
     for (let y = gunY + 40; y < gunY + 250; y += 50) {
       ctx.beginPath();
@@ -302,51 +320,77 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.fill();
     }
     
-    // Переходная часть
-    ctx.fillStyle = '#bdc3c7';
-    ctx.fillRect(gunX + 100, gunY + 250, 200, 125);
+    // --- ПЕРЕХОДНОЙ МЕХАНИЗМ (250-375px от верха): Ширина 200px ---
+    const transitionYStart = gunY + 250;
+    const transitionYEnd = gunY + 375;
+    const transitionWidth = 200;
+    const transitionLeft = gunX + 100;
     
-    // Сопло (конус)
+    // Градиент переходной части
+    const gradientMid = ctx.createLinearGradient(transitionLeft, transitionYStart, transitionLeft + transitionWidth, transitionYEnd);
+    gradientMid.addColorStop(0, '#7f8c8d');
+    gradientMid.addColorStop(0.5, '#bdc3c7');
+    gradientMid.addColorStop(1, '#7f8c8d');
+    
+    ctx.fillStyle = gradientMid;
+    ctx.fillRect(transitionLeft, transitionYStart, transitionWidth, transitionYEnd - transitionYStart);
+    
+    // Детали переходника (болты по бокам)
+    ctx.fillStyle = '#555';
+    ctx.fillRect(transitionLeft - 10, transitionYStart + 20, 10, 40);
+    ctx.fillRect(transitionLeft + transitionWidth, transitionYStart + 20, 10, 40);
+    ctx.fillRect(transitionLeft - 10, transitionYEnd - 60, 10, 40);
+    ctx.fillRect(transitionLeft + transitionWidth, transitionYEnd - 60, 10, 40);
+    
+    // --- НИЖНЯЯ ЧЕТВЕРТЬ (375-500px от верха): Тонкое сопло (игла/конус) ---
     const nozzleYStart = gunY + 375;
     const nozzleYEnd = gunY + 500;
+    const nozzleTipWidth = 10; // Очень узкий кончик
+    const nozzleBaseWidth = 50; // Основание сопла
     const centerX = gunX + WELDING_GUN_WIDTH / 2;
     
+    // Рисуем конус сопла
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
-    ctx.moveTo(centerX - 25, nozzleYStart);
-    ctx.lineTo(centerX + 25, nozzleYStart);
-    ctx.lineTo(centerX + 5, nozzleYEnd);
-    ctx.lineTo(centerX - 5, nozzleYEnd);
+    // Левый край основания
+    ctx.moveTo(centerX - nozzleBaseWidth / 2, nozzleYStart);
+    // Правый край основания
+    ctx.lineTo(centerX + nozzleBaseWidth / 2, nozzleYStart);
+    // Правый край кончика
+    ctx.lineTo(centerX + nozzleTipWidth / 2, nozzleYEnd);
+    // Левый край кончика
+    ctx.lineTo(centerX - nozzleTipWidth / 2, nozzleYEnd);
     ctx.closePath();
     ctx.fill();
     
-    // Отверстие сопла
+    // Блик на сопле
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX - nozzleBaseWidth / 4, nozzleYStart + 5);
+    ctx.lineTo(centerX - nozzleTipWidth / 4, nozzleYEnd - 5);
+    ctx.stroke();
+    
+    // Точка выхода сварки (на самом кончике сопла)
     const tipX = gameState.weldingGunX;
     const tipY = gameState.weldingGunY;
     
+    // Визуальное отверстие сопла
     ctx.fillStyle = '#1a202c';
     ctx.beginPath();
     ctx.arc(tipX, tipY, 5, 0, Math.PI * 2);
     ctx.fill();
     
+    // Кольцо вокруг отверстия (красное - горячее)
     ctx.strokeStyle = '#e53e3e';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(tipX, tipY, 8, 0, Math.PI * 2);
     ctx.stroke();
 
-  }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, createGradients]);
+  }, [gameState, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y]);
 
-  // Игровой цикл для отрисовки (оптимизация: старт только при изменении gameState)
-  useEffect(() => {
-    startGame();
-    return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
-    };
-  }, []);
-
+  // Игровой цикл для отрисовки
   useEffect(() => {
     const animate = () => {
       draw();
