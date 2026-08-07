@@ -583,7 +583,7 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
   }, []);
   
-  // Проверка прогресса заполнения - подсчет площади покрытия
+  // Проверка прогресса заполнения - оптимизированная версия
   const checkCoverage = useCallback(() => {
     const state = gameStateRef.current;
     if (!state || state.gapPath.length === 0) return;
@@ -591,11 +591,11 @@ export function useGame4({ onLevelComplete }) {
     const { gapPath, gapWidths, holes, weldPoints, cooledPoints } = state;
     const allWeldPoints = [...weldPoints, ...cooledPoints];
     
-    // Площадь покрытая сваркой - используем сетку для учета перекрытий
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const gridSize = 4; // Размер ячейки сетки в пикселях (чем меньше, тем точнее)
+    // Увеличенный размер ячейки для более быстрой проверки (меньше точность, но быстрее)
+    const gridSize = 8;
     const sheetMargin = 40;
     const sheetWidth = canvas.width - sheetMargin * 2;
     const sheetHeight = canvas.height - sheetMargin * 2;
@@ -603,49 +603,65 @@ export function useGame4({ onLevelComplete }) {
     const cols = Math.ceil(sheetWidth / gridSize);
     const rows = Math.ceil(sheetHeight / gridSize);
     
-    // Создаем массив для отслеживания покрытых ячеек в зоне шва и дыр
     const coveredCells = new Set();
     let totalCellsInGap = 0;
     
-    // Сначала определяем все ячейки которые находятся в зоне шва (разрыва) или дыр
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const cellX = sheetMargin + col * gridSize + gridSize / 2;
-        const cellY = sheetMargin + row * gridSize + gridSize / 2;
-        
-        // Проверяем находится ли ячейка в зоне шва (разрыва) или дыры
-        const overGap = isPointOverGap(cellX, cellY, gapPath, gapWidths, sheetWidth, sheetMargin);
-        const overHole = isPointOverHole(cellX, cellY, holes, sheetMargin);
-        if (overGap || overHole) {
-          totalCellsInGap++;
-          coveredCells.add(`${col},${row}`);
+    // Оптимизация: предварительно вычисляем индексы ячеек для шва
+    const gapCellSet = new Set();
+    for (let i = 0; i < gapPath.length; i++) {
+      const p = gapPath[i];
+      const w = gapWidths[i] || BASE_GAP_WIDTH;
+      const cellCol = Math.floor((p.x) / gridSize);
+      const cellRow = Math.floor((p.y) / gridSize);
+      const halfWidthCells = Math.ceil((w / 2) / gridSize);
+      
+      // Добавляем ячейки вокруг точки шва
+      for (let dc = -halfWidthCells; dc <= halfWidthCells; dc++) {
+        for (let dr = -halfWidthCells; dr <= halfWidthCells; dr++) {
+          gapCellSet.add(`${cellCol + dc},${cellRow + dr}`);
         }
       }
     }
     
-    // Теперь проверяем какие ячейки покрыты сваркой
+    // Проверяем только ячейки в зоне шва
+    gapCellSet.forEach(key => {
+      const [colStr, rowStr] = key.split(',');
+      const col = parseInt(colStr);
+      const row = parseInt(rowStr);
+      
+      if (col >= 0 && col < cols && row >= 0 && row < rows) {
+        const cellX = sheetMargin + col * gridSize + gridSize / 2;
+        const cellY = sheetMargin + row * gridSize + gridSize / 2;
+        
+        const overGap = isPointOverGap(cellX, cellY, gapPath, gapWidths, sheetWidth, sheetMargin);
+        const overHole = isPointOverHole(cellX, cellY, holes, sheetMargin);
+        if (overGap || overHole) {
+          totalCellsInGap++;
+          coveredCells.add(key);
+        }
+      }
+    });
+    
+    // Проверяем покрытие сваркой
     const weldedCells = new Set();
     allWeldPoints.forEach(p => {
-      // Используем фиксированный базовый радиус с учетом randomFactor
       const weldRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
+      const radiusCells = Math.ceil(weldRadius / gridSize);
       
-      // Определяем диапазон ячеек которые может покрывать эта точка сварки
-      const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
-      const maxCol = Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize));
-      const minRow = Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize));
-      const maxRow = Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize));
+      const centerCol = Math.floor((p.x - sheetMargin) / gridSize);
+      const centerRow = Math.floor((p.y - sheetMargin) / gridSize);
       
-      for (let row = minRow; row <= maxRow; row++) {
-        for (let col = minCol; col <= maxCol; col++) {
-          const cellX = sheetMargin + col * gridSize + gridSize / 2;
-          const cellY = sheetMargin + row * gridSize + gridSize / 2;
+      for (let dr = -radiusCells; dr <= radiusCells; dr++) {
+        for (let dc = -radiusCells; dc <= radiusCells; dc++) {
+          const col = centerCol + dc;
+          const row = centerRow + dr;
+          const key = `${col},${row}`;
           
-          // Проверяем попадает ли центр ячейки в радиус сварки
-          const dist = Math.hypot(cellX - p.x, cellY - p.y);
-          if (dist <= weldRadius) {
-            // Проверяем что ячейка находится в зоне шва
-            const key = `${col},${row}`;
-            if (coveredCells.has(key)) {
+          if (coveredCells.has(key)) {
+            const cellX = sheetMargin + col * gridSize + gridSize / 2;
+            const cellY = sheetMargin + row * gridSize + gridSize / 2;
+            const dist = Math.hypot(cellX - p.x, cellY - p.y);
+            if (dist <= weldRadius) {
               weldedCells.add(key);
             }
           }
@@ -653,10 +669,7 @@ export function useGame4({ onLevelComplete }) {
       }
     });
     
-    // Процент покрытия = (количество покрытых ячеек шва / общее количество ячеек шва) * 100
     const coverage = totalCellsInGap > 0 ? (weldedCells.size / totalCellsInGap) * 100 : 0;
-    
-    // Для отображения игроку показываем 100% когда уровень пройден
     const displayedCoverage = coverage >= WIN_COVERAGE ? 100 : Math.round(coverage);
     
     setGameState(prev => {
@@ -665,12 +678,10 @@ export function useGame4({ onLevelComplete }) {
         weldCoverage: displayedCoverage
       };
       
-      // Начисляем очки только один раз при достижении 95% покрытия
       if (coverage >= WIN_COVERAGE && !prev.roundComplete) {
         const pointsEarned = Math.round(1000 * (coverage / 100));
         newState.score = prev.score + pointsEarned;
         newState.roundComplete = true;
-        // Не останавливаем игру - игрок может продолжать варить пока не кончится сварка
       }
       
       return newState;
