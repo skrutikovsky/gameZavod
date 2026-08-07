@@ -14,8 +14,17 @@ export const WELDING_GUN_HEIGHT = 500; // Высота текстуры свар
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
 export const WELD_BASE_RADIUS = (BASE_GAP_WIDTH * WELD_SIZE_RATIO) / 2; // Базовый радиус капли сварки
 
+// Оптимизация: кэширование результатов генерации
+const gapPathCache = new Map();
+
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
+  // Проверка кэша
+  const cacheKey = `${width}_${height}`;
+  if (gapPathCache.has(cacheKey)) {
+    return gapPathCache.get(cacheKey);
+  }
+  
   const points = [];
   const widths = [];
   const centerY = height / 2;
@@ -71,7 +80,9 @@ export function generateGapPath(width, height) {
     widths.push(w);
   }
   
-  return { points, widths };
+  const result = { points, widths };
+  gapPathCache.set(cacheKey, result);
+  return result;
 }
 
 // Генерация дыр неправильной формы (0-3 дыры)
