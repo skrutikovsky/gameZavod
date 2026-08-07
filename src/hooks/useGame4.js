@@ -491,11 +491,8 @@ export function useGame4({ onLevelComplete }) {
             gameOver: true,
             isRunning: false
           }));
-          return;
-        } else {
-          // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-          return;
         }
+        return;
       }
       
       const newDot = {
@@ -536,11 +533,8 @@ export function useGame4({ onLevelComplete }) {
               gameOver: true,
               isRunning: false
             }));
-            return;
-          } else {
-            // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-            return;
           }
+          return;
         }
         
         // Рандомизация размера капли (+-5%)
@@ -763,11 +757,8 @@ export function useGame4({ onLevelComplete }) {
                     gameOver: true,
                     isRunning: false
                   }));
-                  return;
-                } else {
-                  // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                  return;
                 }
+                return;
               }
               
               const newDot = {
@@ -808,11 +799,8 @@ export function useGame4({ onLevelComplete }) {
                   gameOver: true,
                   isRunning: false
                 }));
-                return;
-              } else {
-                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                return;
               }
+              return;
             }
             
             // Рандомизация размера капли (+-5%)
