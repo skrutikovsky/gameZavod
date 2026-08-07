@@ -299,7 +299,6 @@ export function useGame4({ onLevelComplete }) {
     const initialGunX = rect.width / 2;
     const initialGunY = sheetMargin + NOZZLE_OFFSET_Y; // Сопло на краю листа
     
-    // Сбрасываем targetX и targetY в null чтобы они обновлялись от движения мыши
     setGameState(prev => ({
       ...prev,
       isRunning: true,
@@ -316,8 +315,8 @@ export function useGame4({ onLevelComplete }) {
       weldingGunY: initialGunY,
       mouseX: initialGunX,
       mouseY: sheetMargin, // Позиция сопла на листе
-      targetX: null, // Сбрасываем чтобы обновлялось от движения мыши
-      targetY: null // Сбрасываем чтобы обновлялось от движения мыши
+      targetX: initialGunX,
+      targetY: sheetMargin // Целевая позиция для движения сопла
     }));
   }, []);
   
@@ -372,11 +371,6 @@ export function useGame4({ onLevelComplete }) {
     // Текущая позиция сопла
     let currentNozzleX = state.weldingGunX;
     let currentNozzleY = state.weldingGunY;
-    
-    // Если targetX/targetY еще не установлены (null), сопло остается на месте
-    if (targetX === null || targetY === null) {
-      return { x: currentNozzleX, y: currentNozzleY };
-    }
     
     // Проверяем, находится ли курсор за пределами листа металла
     const isCursorOutsideSheet = targetX < sheetMargin || targetX > sheetMargin + sheetWidth || 
@@ -499,8 +493,7 @@ export function useGame4({ onLevelComplete }) {
           }));
           return;
         } else {
-          // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку и останавливаем сварку
-          isMouseDownRef.current = false;
+          // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
           return;
         }
       }
@@ -545,8 +538,7 @@ export function useGame4({ onLevelComplete }) {
             }));
             return;
           } else {
-            // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку и останавливаем сварку
-            isMouseDownRef.current = false;
+            // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
             return;
           }
         }
@@ -773,8 +765,7 @@ export function useGame4({ onLevelComplete }) {
                   }));
                   return;
                 } else {
-                  // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку и останавливаем сварку
-                  isMouseDownRef.current = false;
+                  // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
                   return;
                 }
               }
@@ -819,8 +810,7 @@ export function useGame4({ onLevelComplete }) {
                 }));
                 return;
               } else {
-                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку и останавливаем сварку
-                isMouseDownRef.current = false;
+                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
                 return;
               }
             }
