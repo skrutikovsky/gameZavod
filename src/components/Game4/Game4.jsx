@@ -520,7 +520,8 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   };
 
   // Проверяем можно ли показать кнопку "Следующий лист"
-  const canShowNextSheet = gameState.roundComplete && !gameState.gameOver;
+  // Показываем когда покрытие >= 95% (раунд пройден) ИЛИ когда сварка кончилась но покрытие >= 95%
+  const canShowNextSheet = (gameState.roundComplete || (gameState.weldUsed >= MAX_WELD_DROPS && gameState.weldCoverage >= 95)) && !gameState.gameOver;
   // Проверяем можно ли показать кнопку "Рестарт" (сварка кончилась и покрытие < 95%)
   const canShowRestart = gameState.weldUsed >= MAX_WELD_DROPS && gameState.weldCoverage < 95 && !gameState.roundComplete;
   

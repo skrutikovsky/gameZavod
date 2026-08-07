@@ -293,7 +293,7 @@ export function useGame4({ onLevelComplete }) {
     
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
-    lastTimeRef.current = null;
+    lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
     
     // Инициализируем позицию сварочного аппарата по середине сверху листа металла
     const initialGunX = rect.width / 2;
@@ -334,7 +334,7 @@ export function useGame4({ onLevelComplete }) {
   const resetGame = useCallback(() => {
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
-    lastTimeRef.current = null;
+    lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
     setGameState({
       isRunning: false,
       score: 0,
@@ -429,14 +429,6 @@ export function useGame4({ onLevelComplete }) {
     
     // Обновляем последнюю позицию курсора
     lastMousePosRef.current = { x: mouseX, y: mouseY };
-    
-    // Получаем текущее время для расчета delta time
-    const currentTime = performance.now();
-    let deltaTime = 0;
-    if (lastTimeRef.current !== null) {
-      deltaTime = (currentTime - lastTimeRef.current) / 1000; // Конвертируем в секунды
-    }
-    lastTimeRef.current = currentTime;
     
     // Обновляем целевую позицию (курсор) - сопло будет двигаться к ней в игровом цикле
     setGameState(prev => ({
@@ -904,7 +896,7 @@ export function useGame4({ onLevelComplete }) {
     // Сначала сбрасываем счетчики сварки
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
-    lastTimeRef.current = null;
+    lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
     
     // Инициализируем новый раунд с новым разрывом
     initRound();
