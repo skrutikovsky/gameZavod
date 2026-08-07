@@ -153,20 +153,28 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const { sheetMargin, seamWidth } = drawConstants;
     const sheetX = sheetMargin;
     const sheetY = sheetMargin;
-    
-    // Рисуем разрыв (шов)
+    const sheetWidth = width - sheetMargin * 2;
+    const sheetHeight = height - sheetMargin * 2;
+
+    // Рисуем разрыв (шов) с более контрастным видом
+    // Тень внутри шва для объема - смещаем на половину ширины шва вверх/вниз
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.beginPath();
-    
+
+    // Верхняя граница шва с неравномерной шириной
     for (let i = 0; i < gapPath.length; i++) {
       const p = gapPath[i];
       const w = gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y - w / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
     }
-    
+
+    // Нижняя граница шва (в обратном направлении) с неравномерной шириной
     for (let i = gapPath.length - 1; i >= 0; i--) {
       const p = gapPath[i];
       const w = gapWidths[i] || seamWidth;
@@ -174,28 +182,33 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const y = sheetY + p.y + w / 2;
       ctx.lineTo(x, y);
     }
-    
+
     ctx.closePath();
     ctx.fill();
-    
-    // Основная область шва
+
+    // Основная область шва (темная с красноватым оттенком раскаленного металла)
     const seamGradient = ctx.createLinearGradient(sheetX, sheetY, sheetX + sheetWidth, sheetY);
     seamGradient.addColorStop(0, '#2a2a2a');
     seamGradient.addColorStop(0.5, '#3a3a3a');
     seamGradient.addColorStop(1, '#2a2a2a');
-    
+
     ctx.fillStyle = seamGradient;
     ctx.beginPath();
-    
+
+    // Верхняя граница шва
     for (let i = 0; i < gapPath.length; i++) {
       const p = gapPath[i];
       const w = gapWidths[i] || seamWidth;
       const x = sheetX + p.x;
       const y = sheetY + p.y - w / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
     }
-    
+
+    // Нижняя граница шва
     for (let i = gapPath.length - 1; i >= 0; i--) {
       const p = gapPath[i];
       const w = gapWidths[i] || seamWidth;
@@ -203,11 +216,11 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const y = sheetY + p.y + w / 2;
       ctx.lineTo(x, y);
     }
-    
+
     ctx.closePath();
     ctx.fill();
-    
-    // Края разреза
+
+    // Края разреза (светлые, как свежий металл)
     ctx.strokeStyle = '#8a9aab';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -220,7 +233,7 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    
+
     ctx.beginPath();
     for (let i = 0; i < gapPath.length; i++) {
       const p = gapPath[i];
@@ -238,83 +251,185 @@ const Game4 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     weldGradientCache.addColorStop(0.5, 'rgb(255, 80, 0)');
     weldGradientCache.addColorStop(1, 'rgb(200, 50, 0)');
 
-    // Рисуем охлажденные точки сварки (без фильтра - быстрее)
+    // Рисуем охлажденные точки сварки (с фильтрами для реалистичности)
     cooledPoints.forEach(dot => {
+      // Используем фиксированный базовый радиус с учетом randomFactor
       const radius = drawConstants.weldBaseRadius * (dot.randomFactor || 1);
-      
-      // Используем простой цвет вместо градиента для охлажденных точек
-      ctx.fillStyle = 'rgb(139, 69, 19)'; // Темно-коричневый для остывшей сварки
+
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
+
+      // Применяем полный grayscale фильтр
+      ctx.filter = 'grayscale(1)';
+
+      // Градиент для точки сварки (оранжевый цвет как у горячей) - без прозрачности
+      const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
+
+      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
       ctx.fill();
+
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
-    // Рисуем горячие точки сварки (упрощенно, без filter)
-    const now = Date.now();
+    // Рисуем горячие точки сварки игрока (оранжевые с плавным угасанием в grayscale)
     weldPoints.forEach(dot => {
+      // Используем фиксированный базовый радиус с учетом randomFactor
       const radius = drawConstants.weldBaseRadius * (dot.randomFactor || 1);
-      const elapsed = now - dot.timestamp;
+
+      // Вычисляем прогресс остывания (0..1 за 2 секунды)
+      const elapsed = Date.now() - dot.timestamp;
       const coolProgress = Math.min(1, elapsed / FADE_DURATION);
-      
-      // Упрощенная отрисовка без grayscale фильтра
-      const intensity = 1 - coolProgress * 0.5;
-      const r = Math.round(255 * intensity);
-      const g = Math.round(80 * intensity);
-      const b = Math.round(0);
-      
-      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+
+      // Сохраняем контекст для применения фильтра
+      ctx.save();
+
+      // Применяем grayscale фильтр который усиливается со временем (от 0 до 1)
+      ctx.filter = `grayscale(${coolProgress})`;
+
+      // Градиент для точки сварки (горячий оранжевый цвет, без прозрачности)
+      const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, radius);
+      gradient.addColorStop(0, 'rgb(255, 100, 0)');
+      gradient.addColorStop(0.5, 'rgb(255, 80, 0)');
+      gradient.addColorStop(1, 'rgb(200, 50, 0)');
+
+      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
       ctx.fill();
+
+      // Восстанавливаем контекст
+      ctx.restore();
     });
 
-    // Рисуем сварочный аппарат (упрощенно)
+    // Рисуем сварочный аппарат с детализированной текстурой
     const gunX = gameState.weldingGunX - WELDING_GUN_WIDTH / 2;
     const gunY = gameState.weldingGunY - WELDING_GUN_HEIGHT + NOZZLE_OFFSET_Y;
-    const centerX = gunX + WELDING_GUN_WIDTH / 2;
-    
-    // Верхняя часть аппарата
-    const gradientTop = ctx.createLinearGradient(gunX + 50, gunY, gunX + 350, gunY + 250);
+
+    // --- ВЕРХНЯЯ ПОЛОВИНА (0-250px от верха аппарата): Механизмы и провода ---
+    const topSectionX = gunX + 50;
+    const topSectionY = gunY;
+    const topSectionWidth = 300;
+    const topSectionHeight = 250;
+
+    // Градиент верхней части
+    const gradientTop = ctx.createLinearGradient(topSectionX, topSectionY, topSectionX + topSectionWidth, topSectionY + topSectionHeight);
     gradientTop.addColorStop(0, '#555');
+    gradientTop.addColorStop(0.2, '#888');
     gradientTop.addColorStop(0.5, '#aaa');
+    gradientTop.addColorStop(0.8, '#888');
     gradientTop.addColorStop(1, '#555');
     ctx.fillStyle = gradientTop;
-    ctx.fillRect(gunX + 50, gunY, 300, 250);
-    
-    // Переходная часть
-    const gradientMid = ctx.createLinearGradient(gunX + 100, gunY + 250, gunX + 300, gunY + 375);
+    ctx.fillRect(topSectionX, topSectionY, topSectionWidth, topSectionHeight);
+
+    // Ребра жесткости
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const ribX = topSectionX + i * 60;
+      ctx.beginPath();
+      ctx.moveTo(ribX, topSectionY);
+      ctx.lineTo(ribX, topSectionY + topSectionHeight);
+      ctx.stroke();
+    }
+
+    // Провода и детали
+    ctx.strokeStyle = '#d35400'; // Оранжевые провода
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(gunX + 100, gunY + 50);
+    ctx.bezierCurveTo(gunX + 150, gunY + 100, gunX + 250, gunY + 100, gunX + 300, gunY + 50);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#2980b9'; // Синие провода
+    ctx.beginPath();
+    ctx.moveTo(gunX + 120, gunY + 80);
+    ctx.bezierCurveTo(gunX + 180, gunY + 150, gunX + 220, gunY + 150, gunX + 280, gunY + 80);
+    ctx.stroke();
+
+    // Болты/заклепки
+    ctx.fillStyle = '#333';
+    for (let y = gunY + 40; y < gunY + 250; y += 50) {
+      ctx.beginPath();
+      ctx.arc(gunX + 80, y, 4, 0, Math.PI * 2);
+      ctx.arc(gunX + 320, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // --- ПЕРЕХОДНОЙ МЕХАНИЗМ (250-375px от верха): Ширина 200px ---
+    const transitionYStart = gunY + 250;
+    const transitionYEnd = gunY + 375;
+    const transitionWidth = 200;
+    const transitionLeft = gunX + 100;
+
+    // Градиент переходной части
+    const gradientMid = ctx.createLinearGradient(transitionLeft, transitionYStart, transitionLeft + transitionWidth, transitionYEnd);
     gradientMid.addColorStop(0, '#7f8c8d');
     gradientMid.addColorStop(0.5, '#bdc3c7');
     gradientMid.addColorStop(1, '#7f8c8d');
+
     ctx.fillStyle = gradientMid;
-    ctx.fillRect(gunX + 100, gunY + 250, 200, 125);
-    
-    // Сопло (конус)
+    ctx.fillRect(transitionLeft, transitionYStart, transitionWidth, transitionYEnd - transitionYStart);
+
+    // Детали переходника (болты по бокам)
+    ctx.fillStyle = '#555';
+    ctx.fillRect(transitionLeft - 10, transitionYStart + 20, 10, 40);
+    ctx.fillRect(transitionLeft + transitionWidth, transitionYStart + 20, 10, 40);
+    ctx.fillRect(transitionLeft - 10, transitionYEnd - 60, 10, 40);
+    ctx.fillRect(transitionLeft + transitionWidth, transitionYEnd - 60, 10, 40);
+
+    // --- НИЖНЯЯ ЧЕТВЕРТЬ (375-500px от верха): Тонкое сопло (игла/конус) ---
+    const nozzleYStart = gunY + 375;
+    const nozzleYEnd = gunY + 500;
+    const nozzleTipWidth = 10; // Очень узкий кончик
+    const nozzleBaseWidth = 50; // Основание сопла
+    const centerX = gunX + WELDING_GUN_WIDTH / 2;
+
+    // Рисуем конус сопла
     ctx.fillStyle = '#95a5a6';
     ctx.beginPath();
-    ctx.moveTo(centerX - 25, gunY + 375);
-    ctx.lineTo(centerX + 25, gunY + 375);
-    ctx.lineTo(centerX + 5, gunY + 500);
-    ctx.lineTo(centerX - 5, gunY + 500);
+    // Левый край основания
+    ctx.moveTo(centerX - nozzleBaseWidth / 2, nozzleYStart);
+    // Правый край основания
+    ctx.lineTo(centerX + nozzleBaseWidth / 2, nozzleYStart);
+    // Правый край кончика
+    ctx.lineTo(centerX + nozzleTipWidth / 2, nozzleYEnd);
+    // Левый край кончика
+    ctx.lineTo(centerX - nozzleTipWidth / 2, nozzleYEnd);
     ctx.closePath();
     ctx.fill();
-    
-    // Отверстие сопла
+
+    // Блик на сопле
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX - nozzleBaseWidth / 4, nozzleYStart + 5);
+    ctx.lineTo(centerX - nozzleTipWidth / 4, nozzleYEnd - 5);
+    ctx.stroke();
+
+    // Точка выхода сварки (на самом кончике сопла)
     const tipX = gameState.weldingGunX;
     const tipY = gameState.weldingGunY;
-    
+
+    // Визуальное отверстие сопла
     ctx.fillStyle = '#1a202c';
     ctx.beginPath();
     ctx.arc(tipX, tipY, 5, 0, Math.PI * 2);
     ctx.fill();
-    
+
+    // Кольцо вокруг отверстия (красное - горячее)
     ctx.strokeStyle = '#e53e3e';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(tipX, tipY, 8, 0, Math.PI * 2);
     ctx.stroke();
 
-  }, [gameState, drawConstants, cacheBackground, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y]);
+  }, [gameState, drawConstants, cacheBackground, WELDING_GUN_WIDTH, WELDING_GUN_HEIGHT, NOZZLE_OFFSET_Y, BASE_GAP_WIDTH, WELD_SIZE_RATIO, FADE_DURATION]);
 
   // Игровой цикл для отрисовки
   useEffect(() => {
