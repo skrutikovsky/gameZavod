@@ -491,30 +491,27 @@ export function useGame4({ onLevelComplete }) {
             gameOver: true,
             isRunning: false
           }));
-          return;
-        } else {
-          // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-          return;
         }
+        // Не прерываем выполнение handleMouseMove - просто не добавляем точку
+      } else {
+        const newDot = {
+          x: weldX,
+          y: weldY,
+          timestamp: Date.now(),
+          id: weldCountRef.current,
+          width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
+          randomFactor: randomFactor
+        };
+        
+        setGameState(prev => ({
+          ...prev,
+          weldPoints: [...prev.weldPoints, newDot],
+          weldUsed: weldCountRef.current
+        }));
+        
+        weldCountRef.current += 1;
+        lastWeldPointRef.current = { x: weldX, y: weldY };
       }
-      
-      const newDot = {
-        x: weldX,
-        y: weldY,
-        timestamp: Date.now(),
-        id: weldCountRef.current,
-        width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
-        randomFactor: randomFactor
-      };
-      
-      setGameState(prev => ({
-        ...prev,
-        weldPoints: [...prev.weldPoints, newDot],
-        weldUsed: weldCountRef.current
-      }));
-      
-      weldCountRef.current += 1;
-      lastWeldPointRef.current = { x: weldX, y: weldY };
       
     } else {
       // Первая точка при зажатии ЛКМ
@@ -536,32 +533,29 @@ export function useGame4({ onLevelComplete }) {
               gameOver: true,
               isRunning: false
             }));
-            return;
-          } else {
-            // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-            return;
           }
+          // Не прерываем выполнение handleMouseMove - просто не добавляем точку
+        } else {
+          // Рандомизация размера капли (+-5%)
+          const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
+          
+          const newDot = {
+            x: weldX,
+            y: weldY,
+            timestamp: Date.now(),
+            id: weldCountRef.current,
+            width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
+            randomFactor: randomFactor
+          };
+          
+          setGameState(prev => ({
+            ...prev,
+            weldPoints: [...prev.weldPoints, newDot],
+            weldUsed: weldCountRef.current
+          }));
+          
+          weldCountRef.current += 1;
         }
-        
-        // Рандомизация размера капли (+-5%)
-        const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
-        
-        const newDot = {
-          x: weldX,
-          y: weldY,
-          timestamp: Date.now(),
-          id: weldCountRef.current,
-          width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
-          randomFactor: randomFactor
-        };
-        
-        setGameState(prev => ({
-          ...prev,
-          weldPoints: [...prev.weldPoints, newDot],
-          weldUsed: weldCountRef.current
-        }));
-        
-        weldCountRef.current += 1;
       }
     }
   }, []);
@@ -763,30 +757,27 @@ export function useGame4({ onLevelComplete }) {
                     gameOver: true,
                     isRunning: false
                   }));
-                  return;
-                } else {
-                  // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                  return;
                 }
+                // Не прерываем цикл - просто не добавляем точку, чтобы сопло продолжало двигаться
+              } else {
+                const newDot = {
+                  x: weldX,
+                  y: weldY,
+                  timestamp: Date.now(),
+                  id: weldCountRef.current,
+                  width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
+                  randomFactor: randomFactor
+                };
+                
+                setGameState(prev => ({
+                  ...prev,
+                  weldPoints: [...prev.weldPoints, newDot],
+                  weldUsed: weldCountRef.current
+                }));
+                
+                weldCountRef.current += 1;
+                lastWeldPointRef.current = { x: weldX, y: weldY };
               }
-              
-              const newDot = {
-                x: weldX,
-                y: weldY,
-                timestamp: Date.now(),
-                id: weldCountRef.current,
-                width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
-                randomFactor: randomFactor
-              };
-              
-              setGameState(prev => ({
-                ...prev,
-                weldPoints: [...prev.weldPoints, newDot],
-                weldUsed: weldCountRef.current
-              }));
-              
-              weldCountRef.current += 1;
-              lastWeldPointRef.current = { x: weldX, y: weldY };
             }
           }
         } else {
@@ -808,32 +799,29 @@ export function useGame4({ onLevelComplete }) {
                   gameOver: true,
                   isRunning: false
                 }));
-                return;
-              } else {
-                // Покрытие >= 95%, но сварка кончилась - просто не добавляем новую точку
-                return;
               }
+              // Не прерываем цикл - просто не добавляем точку, чтобы сопло продолжало двигаться
+            } else {
+              // Рандомизация размера капли (+-5%)
+              const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
+              
+              const newDot = {
+                x: weldX,
+                y: weldY,
+                timestamp: Date.now(),
+                id: weldCountRef.current,
+                width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
+                randomFactor: randomFactor
+              };
+              
+              setGameState(prev => ({
+                ...prev,
+                weldPoints: [...prev.weldPoints, newDot],
+                weldUsed: weldCountRef.current
+              }));
+              
+              weldCountRef.current += 1;
             }
-            
-            // Рандомизация размера капли (+-5%)
-            const randomFactor = 0.95 + Math.random() * 0.1; // от 0.95 до 1.05
-            
-            const newDot = {
-              x: weldX,
-              y: weldY,
-              timestamp: Date.now(),
-              id: weldCountRef.current,
-              width: BASE_GAP_WIDTH, // Используем базовую ширину вместо локальной
-              randomFactor: randomFactor
-            };
-            
-            setGameState(prev => ({
-              ...prev,
-              weldPoints: [...prev.weldPoints, newDot],
-              weldUsed: weldCountRef.current
-            }));
-            
-            weldCountRef.current += 1;
           }
         }
       }
