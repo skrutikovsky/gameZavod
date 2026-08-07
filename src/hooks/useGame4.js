@@ -13,7 +13,6 @@ export const WELDING_GUN_WIDTH = 400; // Ширина текстуры свар�
 export const WELDING_GUN_HEIGHT = 500; // Высота текстуры сварочного аппарата
 export const NOZZLE_OFFSET_Y = 0; // Смещение сопла от низа аппарата (теперь 0 - сопло в самом низу)
 export const WELD_BASE_RADIUS = (BASE_GAP_WIDTH * WELD_SIZE_RATIO) / 2; // Базовый радиус капли сварки
-export const COVERAGE_GRID_SIZE = 8; // Размер ячейки сетки для расчета покрытия (оптимизировано)
 
 // Генерация случайного разрыва с неравномерной шириной
 export function generateGapPath(width, height) {
@@ -596,7 +595,7 @@ export function useGame4({ onLevelComplete }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const gridSize = COVERAGE_GRID_SIZE; // Размер ячейки сетки в пикселях (оптимизировано)
+    const gridSize = 4; // Размер ячейки сетки в пикселях (чем меньше, тем точнее)
     const sheetMargin = 40;
     const sheetWidth = canvas.width - sheetMargin * 2;
     const sheetHeight = canvas.height - sheetMargin * 2;
@@ -607,22 +606,6 @@ export function useGame4({ onLevelComplete }) {
     // Создаем массив для отслеживания покрытых ячеек в зоне шва и дыр
     const coveredCells = new Set();
     let totalCellsInGap = 0;
-    
-    // Оптимизация: предварительно вычисляем bounding box для каждой точки сварки
-    const weldBoundingBoxes = [];
-    for (let i = 0; i < allWeldPoints.length; i++) {
-      const p = allWeldPoints[i];
-      const weldRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
-      weldBoundingBoxes.push({
-        minX: Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize)),
-        maxX: Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize)),
-        minRow: Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize)),
-        maxRow: Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize)),
-        x: p.x,
-        y: p.y,
-        radius: weldRadius
-      });
-    }
     
     // Сначала определяем все ячейки которые находятся в зоне шва (разрыва) или дыр
     for (let row = 0; row < rows; row++) {
@@ -642,23 +625,24 @@ export function useGame4({ onLevelComplete }) {
     
     // Теперь проверяем какие ячейки покрыты сваркой
     const weldedCells = new Set();
-    
-    // Оптимизация: проходим по bounding box каждой точки сварки
-    for (let bb of weldBoundingBoxes) {
-      const weldRadius = bb.radius;
-      const weldRadiusSq = weldRadius * weldRadius; // Используем квадрат расстояния для оптимизации
+    allWeldPoints.forEach(p => {
+      // Используем фиксированный базовый радиус с учетом randomFactor
+      const weldRadius = WELD_BASE_RADIUS * (p.randomFactor || 1);
       
-      for (let row = bb.minRow; row <= bb.maxRow; row++) {
-        for (let col = bb.minCol; col <= bb.maxCol; col++) {
+      // Определяем диапазон ячеек которые может покрывать эта точка сварки
+      const minCol = Math.max(0, Math.floor((p.x - sheetMargin - weldRadius) / gridSize));
+      const maxCol = Math.min(cols - 1, Math.floor((p.x - sheetMargin + weldRadius) / gridSize));
+      const minRow = Math.max(0, Math.floor((p.y - sheetMargin - weldRadius) / gridSize));
+      const maxRow = Math.min(rows - 1, Math.floor((p.y - sheetMargin + weldRadius) / gridSize));
+      
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
           const cellX = sheetMargin + col * gridSize + gridSize / 2;
           const cellY = sheetMargin + row * gridSize + gridSize / 2;
           
-          // Проверяем попадает ли центр ячейки в радиус сварки (используем квадрат расстояния)
-          const dx = cellX - bb.x;
-          const dy = cellY - bb.y;
-          const distSq = dx * dx + dy * dy;
-          
-          if (distSq <= weldRadiusSq) {
+          // Проверяем попадает ли центр ячейки в радиус сварки
+          const dist = Math.hypot(cellX - p.x, cellY - p.y);
+          if (dist <= weldRadius) {
             // Проверяем что ячейка находится в зоне шва
             const key = `${col},${row}`;
             if (coveredCells.has(key)) {
@@ -667,7 +651,7 @@ export function useGame4({ onLevelComplete }) {
           }
         }
       }
-    }
+    });
     
     // Процент покрытия = (количество покрытых ячеек шва / общее количество ячеек шва) * 100
     const coverage = totalCellsInGap > 0 ? (weldedCells.size / totalCellsInGap) * 100 : 0;
@@ -911,17 +895,15 @@ export function useGame4({ onLevelComplete }) {
     lastWeldPointRef.current = null;
     lastTimeRef.current = null;
     
-    // Обновляем номер раунда и сбрасываем флаг завершения ПЕРЕД инициализацией
+    // Инициализируем новый раунд с новым разрывом
+    initRound();
+    
+    // Обновляем номер раунда и сбрасываем флаг завершения
     setGameState(prev => ({
       ...prev,
       round: prev.round + 1,
-      roundComplete: false,
-      gameOver: false,
-      isRunning: true
+      roundComplete: false
     }));
-    
-    // Инициализируем новый раунд с новым разрывом
-    initRound();
   }, [initRound]);
   
   const setCanvasRef = useCallback((ref) => {
