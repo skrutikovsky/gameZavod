@@ -507,14 +507,13 @@ export function useGame4({ onLevelComplete }) {
         randomFactor: randomFactor
       };
       
-      weldCountRef.current += 1;
-      
       setGameState(prev => ({
         ...prev,
         weldPoints: [...prev.weldPoints, newDot],
-        weldUsed: weldCountRef.current
+        weldUsed: weldCountRef.current + 1
       }));
       
+      weldCountRef.current += 1;
       lastWeldPointRef.current = { x: weldX, y: weldY };
       
     } else {
@@ -556,13 +555,13 @@ export function useGame4({ onLevelComplete }) {
           randomFactor: randomFactor
         };
         
-        weldCountRef.current += 1;
-        
         setGameState(prev => ({
           ...prev,
           weldPoints: [...prev.weldPoints, newDot],
-          weldUsed: weldCountRef.current
+          weldUsed: weldCountRef.current + 1
         }));
+        
+        weldCountRef.current += 1;
       }
     }
   }, []);
@@ -780,14 +779,13 @@ export function useGame4({ onLevelComplete }) {
                 randomFactor: randomFactor
               };
               
-              weldCountRef.current += 1;
-              
               setGameState(prev => ({
                 ...prev,
                 weldPoints: [...prev.weldPoints, newDot],
-                weldUsed: weldCountRef.current
+                weldUsed: weldCountRef.current + 1
               }));
               
+              weldCountRef.current += 1;
               lastWeldPointRef.current = { x: weldX, y: weldY };
             }
           }
@@ -829,13 +827,13 @@ export function useGame4({ onLevelComplete }) {
               randomFactor: randomFactor
             };
             
-            weldCountRef.current += 1;
-            
             setGameState(prev => ({
               ...prev,
               weldPoints: [...prev.weldPoints, newDot],
-              weldUsed: weldCountRef.current
+              weldUsed: weldCountRef.current + 1
             }));
+            
+            weldCountRef.current += 1;
           }
         }
       }
