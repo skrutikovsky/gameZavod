@@ -897,6 +897,7 @@ export function useGame4({ onLevelComplete }) {
     weldCountRef.current = 0;
     lastWeldPointRef.current = null;
     lastTimeRef.current = performance.now(); // Инициализируем время чтобы избежать проблем с delta time
+    isMouseDownRef.current = false; // Сбрасываем состояние кнопки мыши
     
     // Инициализируем новый раунд с новым разрывом
     initRound();
