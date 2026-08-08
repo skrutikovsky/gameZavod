@@ -3,8 +3,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 // Константы игры
 export const ICE_CREAM_WIDTH = 200; // Ширина мороженки в пикселях
 export const ICE_CREAM_HEIGHT = 350; // Высота мороженки в пикселях
-export const STICK_WIDTH = 24; // Ширина палочки (увеличена в 2 раза)
-export const STICK_HEIGHT = 150; // Высота палочки (увеличена в 1.5 раза)
+export const STICK_WIDTH = 48; // Ширина палочки (увеличена в 2 раза от 24px)
+export const STICK_HEIGHT = 300; // Высота палочки (увеличена в 2 раза от 150px)
 export const STICK_FALL_SPEED = 400; // Скорость падения палочки (пикселей в секунду)
 export const CONVEYOR_SPEED = 150; // Скорость конвейера (пикселей в секунду)
 export const CENTER_ZONE = 0.20; // 20% центральная зона (500 очков)
@@ -244,17 +244,25 @@ export function useGame5({ onLevelComplete }) {
                 newScore += points;
                 
                 // Вычисляем относительную позицию палочки (0-1) - где именно она упала
-                const relativeOffset = (stick.x - icecream.x) / ICE_CREAM_WIDTH;
+                // Сохраняем позицию X палочки относительно левой границы мороженки
+                const absoluteOffsetX = stick.x - icecream.x;
+                const relativeOffset = absoluteOffsetX / ICE_CREAM_WIDTH;
+                
+                // Сохраняем абсолютную позицию Y где палочка коснулась верха мороженки
+                // Палочка остается на том уровне где коснулась верха мороженки (не телепортируется вниз)
+                const stickTopAtCollision = conveyorY - STICK_HEIGHT;
                 
                 // Сохраняем относительную позицию прямо в объекте мороженки
                 icecream.stuckStickOffset = relativeOffset;
+                icecream.stickTopY = stickTopAtCollision; // Запоминаем Y позицию верха палочки
                 
                 // Добавляем палочку в массив stuckSticks для совместимости
                 stuckSticksUpdated.push({
                   id: stick.id,
                   iceCreamId: icecream.id,
-                  offsetX: stick.x - icecream.x,
+                  offsetX: absoluteOffsetX,
                   relativeOffset: relativeOffset,
+                  topY: stickTopAtCollision,
                 });
                 
                 sticksToRemove.push(stick.id);
