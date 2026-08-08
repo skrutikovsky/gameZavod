@@ -6,6 +6,10 @@ build/
 # Dependencies
 node_modules/
 
+# Logs and temp files
+*.log
+*.tmp
+
 # Environment
 .env
 .env.local
@@ -15,18 +19,13 @@ node_modules/
 .vscode/
 .idea/
 
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Compiled and binary files
+# Compiled and binary
 *.o
 *.obj
 *.exe
@@ -35,7 +34,7 @@ __pycache__/
 *.a
 *.out
 
-# Compression files
+# Compressed files
 *.zip
 *.gz
 *.tar
@@ -54,24 +53,23 @@ __pycache__/
 *.Z
 *.lz
 *.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# System files
+.DS_Store
+Thumbs.db
 
 # Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Cache
+# Cache directories
 .mypy_cache/
 .pytest_cache/
-.cache/
-.target/
-
-# Gradle
 .gradle/
-
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
+target/
 ```

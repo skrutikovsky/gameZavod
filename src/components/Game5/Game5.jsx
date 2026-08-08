@@ -277,31 +277,6 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       }
     });
 
-    // Зоны на конвейере (визуальная подсказка)
-    const centerX = width / 2;
-    
-    // Центральная 20% зона
-    ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(centerX - ICE_CREAM_WIDTH * 0.1, conveyorY);
-    ctx.lineTo(centerX - ICE_CREAM_WIDTH * 0.1, conveyorY + ICE_CREAM_HEIGHT);
-    ctx.moveTo(centerX + ICE_CREAM_WIDTH * 0.1, conveyorY);
-    ctx.lineTo(centerX + ICE_CREAM_WIDTH * 0.1, conveyorY + ICE_CREAM_HEIGHT);
-    ctx.stroke();
-
-    // Хорошая 70% зона
-    ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
-    ctx.beginPath();
-    ctx.moveTo(centerX - ICE_CREAM_WIDTH * 0.35, conveyorY);
-    ctx.lineTo(centerX - ICE_CREAM_WIDTH * 0.35, conveyorY + ICE_CREAM_HEIGHT);
-    ctx.moveTo(centerX + ICE_CREAM_WIDTH * 0.35, conveyorY);
-    ctx.lineTo(centerX + ICE_CREAM_WIDTH * 0.35, conveyorY + ICE_CREAM_HEIGHT);
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-
   }, [gameState, cacheBackground]);
 
   // Игровой цикл для отрисовки
