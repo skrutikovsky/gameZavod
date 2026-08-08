@@ -212,7 +212,12 @@ export function useGame5({ onLevelComplete }) {
       // Но палочка еще не прошла полностью мимо (верх палочки выше линии регистрации)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      if (stickBottom >= registrationLineY && stick.y < registrationLineY) {
+      // Палочка может быть зарегистрирована только если её нижняя граница 
+      // еще не пролетела верхнюю границу мороженого больше чем на 1 пиксель
+      // То есть stickBottom должен быть <= conveyorY + 1
+      const missedIceCream = stickBottom > conveyorY + 1;
+      
+      if (!missedIceCream && stickBottom >= registrationLineY && stick.y < registrationLineY) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
