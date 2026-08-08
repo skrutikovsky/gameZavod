@@ -3,8 +3,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 // Константы игры
 export const ICE_CREAM_WIDTH = 200; // Ширина мороженки в пикселях
 export const ICE_CREAM_HEIGHT = 350; // Высота мороженки в пикселях
-export const STICK_WIDTH = 12; // Ширина палочки
-export const STICK_HEIGHT = 100; // Высота палочки
+export const STICK_WIDTH = 24; // Ширина палочки (увеличена в 2 раза)
+export const STICK_HEIGHT = 150; // Высота палочки (увеличена в 1.5 раза)
 export const STICK_FALL_SPEED = 400; // Скорость падения палочки (пикселей в секунду)
 export const CONVEYOR_SPEED = 150; // Скорость конвейера (пикселей в секунду)
 export const CENTER_ZONE = 0.20; // 20% центральная зона (500 очков)
@@ -204,10 +204,11 @@ export function useGame5({ onLevelComplete }) {
     const sticksToRemove = [];
     
     fallingSticksUpdated.forEach(stick => {
-      // Проверяем достигла ли палочка уровня конвейера
+      // Проверяем достигла ли палочка уровня конвейера (коллизия по нижней границе палочки с верхней границей мороженки)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      if (stickBottom >= conveyorY && stickBottom <= conveyorY + ICE_CREAM_HEIGHT) {
+      // Коллизия происходит когда нижняя граница палочки касается или пересекает верхнюю границу мороженки
+      if (stickBottom >= conveyorY && stick.y < conveyorY) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
@@ -242,7 +243,7 @@ export function useGame5({ onLevelComplete }) {
                 icecream.points = points;
                 newScore += points;
                 
-                // Вычисляем относительную позицию палочки (0-1)
+                // Вычисляем относительную позицию палочки (0-1) - где именно она упала
                 const relativeOffset = (stick.x - icecream.x) / ICE_CREAM_WIDTH;
                 
                 // Сохраняем относительную позицию прямо в объекте мороженки
@@ -264,7 +265,7 @@ export function useGame5({ onLevelComplete }) {
         }
       }
       
-      // Удаляем палочки которые упали ниже конвейера (промах)
+      // Удаляем палочки которые ушли ниже конвейера (промах)
       if (stick.y > height) {
         sticksToRemove.push(stick.id);
       }
