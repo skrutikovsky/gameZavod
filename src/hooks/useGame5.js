@@ -8,7 +8,7 @@ export const ICE_CREAM_HEIGHT = 350; // Высота обычной мороже
 export const ICE_CREAM_TYPES = [
   { name: 'normal', widthMultiplier: 1, heightMultiplier: 1 }, // Обычная
   { name: 'shortWide', widthMultiplier: 1.15, heightMultiplier: 0.5 }, // В 2 раза ниже, шире на 15%
-  { name: 'narrow', widthMultiplier: 0.55, heightMultiplier: 1 }, // Уже на 45% (уменьшенный хитбокс)
+  { name: 'narrow', widthMultiplier: 0.63, heightMultiplier: 1 }, // Уже на 30% (уменьшенный хитбокс)
 ];
 
 export const STICK_WIDTH = 48; // Ширина палочки (увеличена в 2 раза от 24px)
@@ -150,7 +150,7 @@ export function useGame5({ onLevelComplete }) {
     
     // Палочка появляется по центру сверху (из отверстия аппарата)
     const stickX = width / 2 - STICK_WIDTH / 2;
-    const stickY = 140; // Начальная позиция из отверстия аппарата (80 + 60 = 140)
+    const stickY = 80; // Начальная позиция из отверстия аппарата (уровень спавна)
 
     setGameState(prev => ({
       ...prev,
