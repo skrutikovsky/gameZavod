@@ -8,7 +8,7 @@ export const ICE_CREAM_HEIGHT = 350; // Высота обычной мороже
 export const ICE_CREAM_TYPES = [
   { name: 'normal', widthMultiplier: 1, heightMultiplier: 1 }, // Обычная
   { name: 'shortWide', widthMultiplier: 1.15, heightMultiplier: 0.5 }, // В 2 раза ниже, шире на 15%
-  { name: 'narrow', widthMultiplier: 0.55, heightMultiplier: 1 }, // Уже на 45% (уменьшенный хитбокс)
+  { name: 'narrow', widthMultiplier: 0.63, heightMultiplier: 1 }, // Уже на 30% (уменьшенный хитбокс)
 ];
 
 export const STICK_WIDTH = 48; // Ширина палочки (увеличена в 2 раза от 24px)
@@ -150,7 +150,7 @@ export function useGame5({ onLevelComplete }) {
     
     // Палочка появляется по центру сверху (из отверстия аппарата)
     const stickX = width / 2 - STICK_WIDTH / 2;
-    const stickY = 140; // Начальная позиция из отверстия аппарата (80 + 60 = 140)
+    const stickY = 50; // Начальная позиция из отверстия аппарата (уровень спавна - нижний край аппарата)
 
     setGameState(prev => ({
       ...prev,
@@ -255,21 +255,46 @@ export function useGame5({ onLevelComplete }) {
             // Проверяем горизонтальное попадание
             if (stickCenter >= iceLeft && stickCenter <= iceRight) {
               // Определяем зону попадания относительно ширины этой мороженки
-              const relativePos = (stickCenter - iceLeft) / iceCreamWidth; // 0-1
+              let relativePos = (stickCenter - iceLeft) / iceCreamWidth; // 0-1
               let points = 0;
               let isHit = false;
 
-              // Центральная 20% зона (500 очков)
-              if (relativePos >= 0.4 && relativePos <= 0.6) {
-                points = 500;
-                isHit = true;
+              // Для узкой мороженки (narrow) хитбокс только в центре 50% (от 25% до 75%)
+              if (icecream.type?.name === 'narrow') {
+                // Если попали в краевые зоны (0-25% или 75-100%), считаем промахом
+                if (relativePos < 0.25 || relativePos > 0.75) {
+                  isHit = false;
+                  points = 0;
+                } else {
+                  // Пересчитываем относительную позицию для центральной зоны (чтобы центр давал максимум)
+                  // В зоне 25%-75%: 25% -> 0, 50% -> 0.5, 75% -> 1
+                  relativePos = (relativePos - 0.25) / 0.5;
+                  
+                  // Центральная 20% от общей ширины (теперь это 40% от доступной зоны хитбокса)
+                  if (relativePos >= 0.4 && relativePos <= 0.6) {
+                    points = 500;
+                    isHit = true;
+                  }
+                  // Хорошая зона (остаток от 15% до 85% в новых координатах)
+                  else if (relativePos >= 0.15 && relativePos <= 0.85) {
+                    points = 300;
+                    isHit = true;
+                  }
+                }
+              } else {
+                // Обычная логика для других типов
+                // Центральная 20% зона (500 очков)
+                if (relativePos >= 0.4 && relativePos <= 0.6) {
+                  points = 500;
+                  isHit = true;
+                }
+                // Хорошая 70% зона (300 очков) - от 15% до 85%
+                else if (relativePos >= 0.15 && relativePos <= 0.85) {
+                  points = 300;
+                  isHit = true;
+                }
+                // Края по 15% - промах (палочка не втыкается)
               }
-              // Хорошая 70% зона (300 очков) - от 15% до 85%
-              else if (relativePos >= 0.15 && relativePos <= 0.85) {
-                points = 300;
-                isHit = true;
-              }
-              // Края по 15% - промах (палочка не втыкается)
 
               if (isHit) {
                 // Палочка попадает в мороженое
