@@ -13,7 +13,7 @@ export const MISS_ZONE = 0.15; // 15% от краев - промах
 export const MIN_SPAWN_INTERVAL = 1000; // Минимальный интервал между мороженками (мс) - увеличено до 1 секунды
 export const MAX_SPAWN_INTERVAL = 3000; // Максимальный интервал между мороженками (мс)
 export const SPAWN_COOLDOWN = 500; // Минимальная задержка между нажатиями спавна (мс)
-export const STICK_REGISTRATION_OFFSET = 20; // Невидимая линия регистрации чуть ниже верха мороженого (в пикселях)
+export const STICK_REGISTRATION_OFFSET = 1; // Невидимая линия регистрации на 1 пиксель ниже вершины мороженого
 
 // Цвета для мороженок
 export const ICE_CREAM_COLORS = [
