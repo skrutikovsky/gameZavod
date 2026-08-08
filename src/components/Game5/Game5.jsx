@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame5, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, STICK_WIDTH, STICK_HEIGHT, CONVEYOR_SPEED, ICE_CREAM_COLORS, ICE_CREAM_TYPES } from '../../hooks/useGame5';
+import { useGame5, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, STICK_WIDTH, STICK_HEIGHT, CONVEYOR_SPEED, ICE_CREAM_COLORS, ICE_CREAM_TYPES, SPAWN_COOLDOWN } from '../../hooks/useGame5';
 import { GameStats } from '../UI/GameStats';
 
 const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
