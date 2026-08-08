@@ -13,6 +13,7 @@ export const MISS_ZONE = 0.15; // 15% от краев - промах
 export const MIN_SPAWN_INTERVAL = 1000; // Минимальный интервал между мороженками (мс) - увеличено до 1 секунды
 export const MAX_SPAWN_INTERVAL = 3000; // Максимальный интервал между мороженками (мс)
 export const SPAWN_COOLDOWN = 500; // Минимальная задержка между нажатиями спавна (мс)
+export const STICK_REGISTRATION_OFFSET = 20; // Невидимая линия регистрации чуть ниже верха мороженого (в пикселях)
 
 // Цвета для мороженок
 export const ICE_CREAM_COLORS = [
@@ -204,11 +205,14 @@ export function useGame5({ onLevelComplete }) {
     const sticksToRemove = [];
     
     fallingSticksUpdated.forEach(stick => {
-      // Проверяем достигла ли палочка уровня конвейера (коллизия по нижней границе палочки с верхней границей мороженки)
+      // Проверяем достигла ли палочка невидимой линии регистрации (чуть ниже верха мороженки)
+      const registrationLineY = conveyorY + STICK_REGISTRATION_OFFSET;
+      
+      // Коллизия происходит когда нижняя граница палочки достигает линии регистрации
+      // Но палочка еще не прошла полностью мимо (верх палочки выше линии регистрации)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      // Коллизия происходит когда нижняя граница палочки касается или пересекает верхнюю границу мороженки
-      if (stickBottom >= conveyorY && stick.y < conveyorY) {
+      if (stickBottom >= registrationLineY && stick.y < registrationLineY) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
