@@ -5,7 +5,6 @@ import Game from './components/Game/Game';
 import Game2 from './components/Game2/Game2';
 import Game3 from './components/Game3/Game3';
 import Game4 from './components/Game4/Game4';
-import Game5 from './components/Game5/Game5';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('menu');
@@ -81,13 +80,6 @@ function App() {
             onGameOver={handleBackToLevels}
             onBack={handleBackToMenu}
             onLevelComplete={handleGame4LevelComplete}
-          />
-        ) : selectedLevel === 5 ? (
-          <Game5 
-            level={selectedLevel} 
-            onGameOver={handleBackToLevels}
-            onBack={handleBackToMenu}
-            onLevelComplete={handleLevelComplete}
           />
         ) : (
           <div className="game-container min-h-screen flex flex-col items-center justify-center p-4">
