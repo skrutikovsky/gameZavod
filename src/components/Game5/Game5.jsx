@@ -174,37 +174,6 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const iceY = icecream.y;
       const color = icecream.color || ICE_CREAM_COLORS[0]; // Цвет по умолчанию
 
-      // Если есть палочка - рисуем её ЗА мороженкой (сначала палочку, потом мороженое)
-      if (icecream.hasStick) {
-        // Вычисляем позицию палочки относительно мороженки - где именно она упала
-        const stickRelativeX = icecream.stuckStickOffset !== undefined ? 
-          icecream.stuckStickOffset * ICE_CREAM_WIDTH : 
-          ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
-        
-        const stickX = iceX + stickRelativeX;
-        // Палочка входит в мороженое примерно на 70% своей высоты (втыкается)
-        const stickY = iceY + ICE_CREAM_HEIGHT - STICK_HEIGHT * 0.7;
-
-        // Палочка
-        const stickGradient = ctx.createLinearGradient(stickX, stickY, stickX + STICK_WIDTH, stickY + STICK_HEIGHT);
-        stickGradient.addColorStop(0, '#deb887');
-        stickGradient.addColorStop(0.5, '#d2a679');
-        stickGradient.addColorStop(1, '#b8956a'); // Более темный низ для реалистичности
-
-        ctx.fillStyle = stickGradient;
-        ctx.fillRect(stickX, stickY, STICK_WIDTH, STICK_HEIGHT);
-
-        // Текстура дерева на палочке
-        ctx.strokeStyle = '#a08060';
-        ctx.lineWidth = 1;
-        for (let i = 5; i < STICK_HEIGHT - 5; i += 10) {
-          ctx.beginPath();
-          ctx.moveTo(stickX + 2, stickY + i);
-          ctx.lineTo(stickX + STICK_WIDTH - 2, stickY + i + 3);
-          ctx.stroke();
-        }
-      }
-
       // Тело мороженки (прямоугольник со скруглениями) - непрозрачный
       const cornerRadius = 20; // Радиус скругления углов
       
@@ -237,6 +206,37 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         Math.PI * 2
       );
       ctx.fill();
+
+      // Если есть палочка - рисуем её ЗА мороженкой (сначала мороженое, потом палочку сверху)
+      if (icecream.hasStick) {
+        // Вычисляем позицию палочки относительно мороженки - где именно она упала
+        const stickRelativeX = icecream.stuckStickOffset !== undefined ? 
+          icecream.stuckStickOffset * ICE_CREAM_WIDTH : 
+          ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
+        
+        const stickX = iceX + stickRelativeX;
+        // Используем сохраненную Y позицию верха палочки (где она коснулась мороженки)
+        const stickY = icecream.stickTopY !== undefined ? icecream.stickTopY : iceY - STICK_HEIGHT;
+
+        // Палочка
+        const stickGradient = ctx.createLinearGradient(stickX, stickY, stickX + STICK_WIDTH, stickY + STICK_HEIGHT);
+        stickGradient.addColorStop(0, '#deb887');
+        stickGradient.addColorStop(0.5, '#d2a679');
+        stickGradient.addColorStop(1, '#b8956a'); // Более темный низ для реалистичности
+
+        ctx.fillStyle = stickGradient;
+        ctx.fillRect(stickX, stickY, STICK_WIDTH, STICK_HEIGHT);
+
+        // Текстура дерева на палочке
+        ctx.strokeStyle = '#a08060';
+        ctx.lineWidth = 1;
+        for (let i = 5; i < STICK_HEIGHT - 5; i += 10) {
+          ctx.beginPath();
+          ctx.moveTo(stickX + 2, stickY + i);
+          ctx.lineTo(stickX + STICK_WIDTH - 2, stickY + i + 3);
+          ctx.stroke();
+        }
+      }
 
       // Отображаем очки за попадание
       if (icecream.hasStick) {
