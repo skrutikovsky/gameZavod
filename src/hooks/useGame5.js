@@ -209,9 +209,12 @@ export function useGame5({ onLevelComplete }) {
       // Нижний край палочки должен точно совпасть с верхним краем мороженки (conveyorY)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      // Коллизия засчитывается только когда нижний край палочки находится на уровне верхнего края мороженки
+      // Допуск для точного касания (в пикселях)
+      const collisionTolerance = 5;
+      
+      // Коллизия засчитывается только когда нижний край палочки находится в пределах допуска от верхнего края мороженки
       // и палочка еще не прошла полностью мимо (верх палочки выше уровня конвейера)
-      if (stickBottom >= conveyorY && stick.y < conveyorY) {
+      if (Math.abs(stickBottom - conveyorY) <= collisionTolerance && stick.y < conveyorY) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
