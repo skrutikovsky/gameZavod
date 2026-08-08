@@ -209,12 +209,13 @@ export function useGame5({ onLevelComplete }) {
       const registrationLineY = conveyorY + STICK_REGISTRATION_OFFSET;
       
       // Коллизия происходит когда нижняя граница палочки достигает линии регистрации
-      // Но палочка еще не прошла полностью мимо (низ палочки выше или на уровне верха мороженки)
+      // Но палочка еще не прошла полностью мимо (верх палочки выше линии регистрации)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      // ВАЖНО: Если НИЖНЯЯ граница палочки уже ниже верхней границы мороженки (conveyorY),
+      // ВАЖНО: Если верх палочки уже ниже верхней границы мороженки (conveyorY),
       // то палочка уже "промахнулась" и не может быть зарегистрирована
-      const missedIceCream = stickBottom > conveyorY;
+      const stickTop = stick.y;
+      const missedIceCream = stickTop > conveyorY;
       
       if (!missedIceCream && stickBottom >= registrationLineY && stick.y < registrationLineY) {
         // Проверяем попадание в каждую мороженку
