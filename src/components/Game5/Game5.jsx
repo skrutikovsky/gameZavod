@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame5, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, STICK_WIDTH, STICK_HEIGHT, CONVEYOR_SPEED } from '../../hooks/useGame5';
+import { useGame5, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, STICK_WIDTH, STICK_HEIGHT, CONVEYOR_SPEED, ICE_CREAM_COLORS } from '../../hooks/useGame5';
 import { GameStats } from '../UI/GameStats';
 
 const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
@@ -168,28 +168,28 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.arc(width / 2, dispenserY + 20, 10, 0, Math.PI * 2);
     ctx.fill();
 
-    // Рисуем мороженки
+    // Рисуем мороженки (прямоугольные со скруглениями)
     gameState.iceCreams.forEach(icecream => {
       const iceX = icecream.x;
       const iceY = icecream.y;
+      const color = icecream.color || ICE_CREAM_COLORS[0]; // Цвет по умолчанию
 
-      // Тело мороженки (овальная форма)
-      const iceCreamGradient = ctx.createLinearGradient(iceX, iceY, iceX, iceY + ICE_CREAM_HEIGHT);
-      iceCreamGradient.addColorStop(0, '#ffb6c1'); // Светло-розовый
-      iceCreamGradient.addColorStop(0.5, '#ff69b4'); // Ярко-розовый
-      iceCreamGradient.addColorStop(1, '#ffb6c1');
-
+      // Тело мороженки (прямоугольник со скруглениями)
+      const cornerRadius = 20; // Радиус скругления углов
+      
+      ctx.fillStyle = color.middle;
+      ctx.beginPath();
+      ctx.roundRect(iceX, iceY, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, cornerRadius);
+      ctx.fill();
+      
+      // Градиент для объема
+      const iceCreamGradient = ctx.createLinearGradient(iceX, iceY, iceX + ICE_CREAM_WIDTH, iceY + ICE_CREAM_HEIGHT);
+      iceCreamGradient.addColorStop(0, color.top);
+      iceCreamGradient.addColorStop(0.5, color.middle);
+      iceCreamGradient.addColorStop(1, color.bottom);
       ctx.fillStyle = iceCreamGradient;
       ctx.beginPath();
-      ctx.ellipse(
-        iceX + ICE_CREAM_WIDTH / 2,
-        iceY + ICE_CREAM_HEIGHT / 2,
-        ICE_CREAM_WIDTH / 2,
-        ICE_CREAM_HEIGHT / 2,
-        0,
-        0,
-        Math.PI * 2
-      );
+      ctx.roundRect(iceX, iceY, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, cornerRadius);
       ctx.fill();
 
       // Блик на мороженке
@@ -206,16 +206,22 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       );
       ctx.fill();
 
-      // Если есть палочка - рисуем её в мороженке
+      // Если есть палочка - рисуем её в мороженке в том месте куда она упала
       if (icecream.hasStick) {
-        const stickX = iceX + ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
-        const stickY = iceY + ICE_CREAM_HEIGHT / 2;
+        // Вычисляем позицию палочки относительно мороженки
+        const stickRelativeX = icecream.stuckStickOffset !== undefined ? 
+          icecream.stuckStickOffset * ICE_CREAM_WIDTH : 
+          ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
+        
+        const stickX = iceX + stickRelativeX;
+        // Палочка входит в мороженое примерно на половину своей высоты
+        const stickY = iceY + ICE_CREAM_HEIGHT - STICK_HEIGHT * 0.7;
 
         // Палочка
         const stickGradient = ctx.createLinearGradient(stickX, stickY, stickX + STICK_WIDTH, stickY + STICK_HEIGHT);
         stickGradient.addColorStop(0, '#deb887');
         stickGradient.addColorStop(0.5, '#d2a679');
-        stickGradient.addColorStop(1, '#deb887');
+        stickGradient.addColorStop(1, '#c4a574');
 
         ctx.fillStyle = stickGradient;
         ctx.fillRect(stickX, stickY, STICK_WIDTH, STICK_HEIGHT);
