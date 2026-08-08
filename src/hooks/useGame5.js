@@ -212,10 +212,7 @@ export function useGame5({ onLevelComplete }) {
       // Но палочка еще не прошла полностью мимо (верх палочки выше линии регистрации)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      // Флаг: палочка уже промахнулась (нижняя граница ушла ниже верха мороженого больше чем на 1 пиксель)
-      const stickMissed = stickBottom > registrationLineY + 1;
-      
-      if (stickBottom >= registrationLineY && stick.y < registrationLineY && !stickMissed) {
+      if (stickBottom >= registrationLineY && stick.y < registrationLineY) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
