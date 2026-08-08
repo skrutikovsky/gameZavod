@@ -1,8 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
-export const ICE_CREAM_WIDTH = 200; // Ширина мороженки в пикселях
-export const ICE_CREAM_HEIGHT = 350; // Высота мороженки в пикселях
+export const ICE_CREAM_WIDTH = 200; // Ширина обычной мороженки в пикселях
+export const ICE_CREAM_HEIGHT = 350; // Высота обычной мороженки в пикселях
+
+// Типы мороженого
+export const ICE_CREAM_TYPES = [
+  { name: 'normal', widthMultiplier: 1, heightMultiplier: 1 }, // Обычная
+  { name: 'shortWide', widthMultiplier: 1.15, heightMultiplier: 0.5 }, // В 2 раза ниже, шире на 15%
+  { name: 'narrow', widthMultiplier: 0.7, heightMultiplier: 1 }, // Уже на 30%
+];
+
 export const STICK_WIDTH = 48; // Ширина палочки (увеличена в 2 раза от 24px)
 export const STICK_HEIGHT = 300; // Высота палочки (увеличена в 2 раза от 150px)
 export const STICK_FALL_SPEED = 400; // Скорость падения палочки (пикселей в секунду)
@@ -12,7 +20,7 @@ export const GOOD_ZONE = 0.70; // 70% хорошая зона (300 очков)
 export const MISS_ZONE = 0.15; // 15% от краев - промах
 export const MIN_SPAWN_INTERVAL = 1000; // Минимальный интервал между мороженками (мс) - увеличено до 1 секунды
 export const MAX_SPAWN_INTERVAL = 3000; // Максимальный интервал между мороженками (мс)
-export const SPAWN_COOLDOWN = 500; // Минимальная задержка между нажатиями спавна (мс)
+export const SPAWN_COOLDOWN = 1500; // Минимальная задержка между нажатиями спавна (мс) - увеличено до 1.5 секунды
 export const STICK_REGISTRATION_OFFSET = 0; // Смещение линии регистрации - 0, т.к. коллизия считается по точному касанию верхнего края мороженки
 
 // Цвета для мороженок
@@ -35,6 +43,11 @@ export const getRandomSpawnInterval = () => {
 // Генерация случайного цвета для мороженки
 export const getRandomIceCreamColor = () => {
   return ICE_CREAM_COLORS[Math.floor(Math.random() * ICE_CREAM_COLORS.length)];
+};
+
+// Генерация случайного типа мороженки
+export const getRandomIceCreamType = () => {
+  return ICE_CREAM_TYPES[Math.floor(Math.random() * ICE_CREAM_TYPES.length)];
 };
 
 // Hook для логики игры 5
@@ -162,7 +175,9 @@ export function useGame5({ onLevelComplete }) {
     if (!canvas) return;
 
     const { width, height } = canvas;
-    const conveyorY = height / 2 - ICE_CREAM_HEIGHT / 2; // Позиция конвейера по вертикали
+    // Используем максимальную высоту мороженки для позиционирования конвейера
+    const maxIceCreamHeight = ICE_CREAM_HEIGHT * Math.max(...ICE_CREAM_TYPES.map(t => t.heightMultiplier));
+    const conveyorY = height / 2 - maxIceCreamHeight / 2; // Позиция конвейера по вертикали
 
     let newScore = state.score;
     let iceCreamsUpdated = [...state.iceCreams];
@@ -173,14 +188,17 @@ export function useGame5({ onLevelComplete }) {
 
     // Спавн новых мороженок
     if (lastSpawnTime === 0 || Date.now() - lastSpawnTime >= nextSpawnInterval) {
+      // Выбираем случайный тип мороженки
+      const iceCreamType = getRandomIceCreamType();
       // Спавним новую мороженку слева за пределами экрана
       iceCreamsUpdated.push({
         id: `icecream-${iceCreamIdCounter.current++}`,
-        x: -ICE_CREAM_WIDTH, // Начинает за левым краем
+        x: -ICE_CREAM_WIDTH * iceCreamType.widthMultiplier, // Начинает за левым краем с учетом ширины
         y: conveyorY,
         hasStick: false,
         points: 0,
         color: getRandomIceCreamColor(), // Случайный цвет для каждой мороженки
+        type: iceCreamType, // Тип мороженки (normal, shortWide, narrow)
       });
       lastSpawnTime = Date.now();
       nextSpawnInterval = getRandomSpawnInterval();
@@ -218,16 +236,18 @@ export function useGame5({ onLevelComplete }) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
+            // Вычисляем ширину мороженки с учетом типа
+            const iceCreamWidth = ICE_CREAM_WIDTH * (icecream.type?.widthMultiplier || 1);
             const iceLeft = icecream.x;
-            const iceRight = icecream.x + ICE_CREAM_WIDTH;
+            const iceRight = icecream.x + iceCreamWidth;
             
             // Центр палочки
             const stickCenter = stick.x + STICK_WIDTH / 2;
             
             // Проверяем горизонтальное попадание
             if (stickCenter >= iceLeft && stickCenter <= iceRight) {
-              // Определяем зону попадания
-              const relativePos = (stickCenter - iceLeft) / ICE_CREAM_WIDTH; // 0-1
+              // Определяем зону попадания относительно ширины этой мороженки
+              const relativePos = (stickCenter - iceLeft) / iceCreamWidth; // 0-1
               let points = 0;
               let isHit = false;
 
@@ -252,7 +272,7 @@ export function useGame5({ onLevelComplete }) {
                 // Вычисляем относительную позицию палочки (0-1) - где именно она упала
                 // Сохраняем позицию X палочки относительно левой границы мороженки
                 const absoluteOffsetX = stick.x - icecream.x;
-                const relativeOffset = absoluteOffsetX / ICE_CREAM_WIDTH;
+                const relativeOffset = absoluteOffsetX / iceCreamWidth;
                 
                 // Палочка фиксируется в момент касания - её верх остается на уровне где произошло касание
                 // В момент коллизии: stickBottom == conveyorY, значит stick.y == conveyorY - STICK_HEIGHT

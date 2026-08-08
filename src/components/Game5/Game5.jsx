@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame5, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, STICK_WIDTH, STICK_HEIGHT, CONVEYOR_SPEED, ICE_CREAM_COLORS } from '../../hooks/useGame5';
+import { useGame5, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, STICK_WIDTH, STICK_HEIGHT, CONVEYOR_SPEED, ICE_CREAM_COLORS, ICE_CREAM_TYPES } from '../../hooks/useGame5';
 import { GameStats } from '../UI/GameStats';
 
 const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
@@ -33,7 +33,9 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     }
 
     const bgCtx = bgCanvasRef.current.getContext('2d');
-    const conveyorY = height / 2 - ICE_CREAM_HEIGHT / 2;
+    // Используем максимальную высоту мороженки для позиционирования конвейера
+    const maxIceCreamHeight = ICE_CREAM_HEIGHT * Math.max(...ICE_CREAM_TYPES.map(t => t.heightMultiplier));
+    const conveyorY = height / 2 - maxIceCreamHeight / 2;
     const tunnelWidth = 100;
 
     // Рисуем фон (темный цех)
@@ -81,20 +83,20 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Конвейерная дорожка
     const conveyorHeight = 20;
-    const conveyorGradient = bgCtx.createLinearGradient(0, conveyorY + ICE_CREAM_HEIGHT, 0, conveyorY + ICE_CREAM_HEIGHT + conveyorHeight);
+    const conveyorGradient = bgCtx.createLinearGradient(0, conveyorY + maxIceCreamHeight, 0, conveyorY + maxIceCreamHeight + conveyorHeight);
     conveyorGradient.addColorStop(0, '#4a4a5a');
     conveyorGradient.addColorStop(0.5, '#6a6a7a');
     conveyorGradient.addColorStop(1, '#4a4a5a');
     bgCtx.fillStyle = conveyorGradient;
-    bgCtx.fillRect(tunnelWidth, conveyorY + ICE_CREAM_HEIGHT, width - tunnelWidth * 2, conveyorHeight);
+    bgCtx.fillRect(tunnelWidth, conveyorY + maxIceCreamHeight, width - tunnelWidth * 2, conveyorHeight);
 
     // Полоски на конвейере (для визуализации движения)
     bgCtx.strokeStyle = '#3a3a4a';
     bgCtx.lineWidth = 2;
     for (let i = tunnelWidth; i < width - tunnelWidth; i += 40) {
       bgCtx.beginPath();
-      bgCtx.moveTo(i, conveyorY + ICE_CREAM_HEIGHT);
-      bgCtx.lineTo(i, conveyorY + ICE_CREAM_HEIGHT + conveyorHeight);
+      bgCtx.moveTo(i, conveyorY + maxIceCreamHeight);
+      bgCtx.lineTo(i, conveyorY + maxIceCreamHeight + conveyorHeight);
       bgCtx.stroke();
     }
 
@@ -102,8 +104,8 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     bgCtx.strokeStyle = '#5a5a6a';
     bgCtx.lineWidth = 4;
     bgCtx.beginPath();
-    bgCtx.moveTo(tunnelWidth, conveyorY + ICE_CREAM_HEIGHT);
-    bgCtx.lineTo(width - tunnelWidth, conveyorY + ICE_CREAM_HEIGHT);
+    bgCtx.moveTo(tunnelWidth, conveyorY + maxIceCreamHeight);
+    bgCtx.lineTo(width - tunnelWidth, conveyorY + maxIceCreamHeight);
     bgCtx.stroke();
 
   }, []);
@@ -127,7 +129,9 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       return;
     }
 
-    const conveyorY = height / 2 - ICE_CREAM_HEIGHT / 2;
+    // Используем максимальную высоту мороженки для позиционирования конвейера
+    const maxIceCreamHeight = ICE_CREAM_HEIGHT * Math.max(...ICE_CREAM_TYPES.map(t => t.heightMultiplier));
+    const conveyorY = height / 2 - maxIceCreamHeight / 2;
 
     // Рисуем аппарат с палочками по центру сверху
     const dispenserX = width / 2 - 40;
@@ -170,6 +174,9 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем мороженки (прямоугольные со скруглениями)
     gameState.iceCreams.forEach(icecream => {
+      const iceCreamType = icecream.type || ICE_CREAM_TYPES[0]; // Тип по умолчанию - обычный
+      const iceCreamWidth = ICE_CREAM_WIDTH * iceCreamType.widthMultiplier;
+      const iceCreamHeight = ICE_CREAM_HEIGHT * iceCreamType.heightMultiplier;
       const iceX = icecream.x;
       const iceY = icecream.y;
       const color = icecream.color || ICE_CREAM_COLORS[0]; // Цвет по умолчанию
@@ -178,8 +185,8 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       if (icecream.hasStick) {
         // Вычисляем позицию палочки относительно мороженки - где именно она упала
         const stickRelativeX = icecream.stuckStickOffset !== undefined ? 
-          icecream.stuckStickOffset * ICE_CREAM_WIDTH : 
-          ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
+          icecream.stuckStickOffset * iceCreamWidth : 
+          iceCreamWidth / 2 - STICK_WIDTH / 2;
         
         const stickX = iceX + stickRelativeX;
         // Используем сохраненную Y позицию верха палочки (где она коснулась мороженки)
@@ -216,27 +223,27 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Основной цвет мороженки (сплошной, непрозрачный)
       ctx.fillStyle = color.middle;
       ctx.beginPath();
-      ctx.roundRect(iceX, iceY, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, cornerRadius);
+      ctx.roundRect(iceX, iceY, iceCreamWidth, iceCreamHeight, cornerRadius);
       ctx.fill();
       
       // Небольшой градиент для объема но без прозрачности
-      const iceCreamGradient = ctx.createLinearGradient(iceX, iceY, iceX + ICE_CREAM_WIDTH, iceY + ICE_CREAM_HEIGHT);
+      const iceCreamGradient = ctx.createLinearGradient(iceX, iceY, iceX + iceCreamWidth, iceY + iceCreamHeight);
       iceCreamGradient.addColorStop(0, color.top);
       iceCreamGradient.addColorStop(0.5, color.middle);
       iceCreamGradient.addColorStop(1, color.bottom);
       ctx.fillStyle = iceCreamGradient;
       ctx.beginPath();
-      ctx.roundRect(iceX, iceY, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, cornerRadius);
+      ctx.roundRect(iceX, iceY, iceCreamWidth, iceCreamHeight, cornerRadius);
       ctx.fill();
 
       // Блик на мороженке (более непрозрачный)
       ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
       ctx.beginPath();
       ctx.ellipse(
-        iceX + ICE_CREAM_WIDTH / 3,
-        iceY + ICE_CREAM_HEIGHT / 3,
-        ICE_CREAM_WIDTH / 6,
-        ICE_CREAM_HEIGHT / 8,
+        iceX + iceCreamWidth / 3,
+        iceY + iceCreamHeight / 3,
+        iceCreamWidth / 6,
+        iceCreamHeight / 8,
         -0.3,
         0,
         Math.PI * 2
@@ -248,7 +255,7 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 24px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`+${icecream.points}`, iceX + ICE_CREAM_WIDTH / 2, iceY - 10);
+        ctx.fillText(`+${icecream.points}`, iceX + iceCreamWidth / 2, iceY - 10);
       }
     });
 
