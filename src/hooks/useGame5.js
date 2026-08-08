@@ -13,7 +13,7 @@ export const MISS_ZONE = 0.15; // 15% от краев - промах
 export const MIN_SPAWN_INTERVAL = 1000; // Минимальный интервал между мороженками (мс) - увеличено до 1 секунды
 export const MAX_SPAWN_INTERVAL = 3000; // Максимальный интервал между мороженками (мс)
 export const SPAWN_COOLDOWN = 500; // Минимальная задержка между нажатиями спавна (мс)
-export const STICK_REGISTRATION_OFFSET = 1; // Невидимая линия регистрации на 1 пиксель ниже вершины мороженого
+export const STICK_REGISTRATION_OFFSET = 0; // Смещение линии регистрации - 0, т.к. коллизия считается по точному касанию верхнего края мороженки
 
 // Цвета для мороженок
 export const ICE_CREAM_COLORS = [
@@ -205,14 +205,13 @@ export function useGame5({ onLevelComplete }) {
     const sticksToRemove = [];
     
     fallingSticksUpdated.forEach(stick => {
-      // Проверяем достигла ли палочка невидимой линии регистрации (чуть ниже верха мороженки)
-      const registrationLineY = conveyorY + STICK_REGISTRATION_OFFSET;
-      
-      // Коллизия происходит когда нижняя граница палочки достигает линии регистрации
-      // Но палочка еще не прошла полностью мимо (верх палочки выше линии регистрации)
+      // Коллизия считается только по нижнему краю палочки в момент касания верхнего края мороженки
+      // Нижний край палочки должен точно совпасть с верхним краем мороженки (conveyorY)
       const stickBottom = stick.y + STICK_HEIGHT;
       
-      if (stickBottom >= registrationLineY && stick.y < registrationLineY) {
+      // Коллизия засчитывается только когда нижний край палочки находится на уровне верхнего края мороженки
+      // и палочка еще не прошла полностью мимо (верх палочки выше уровня конвейера)
+      if (stickBottom >= conveyorY && stick.y < conveyorY) {
         // Проверяем попадание в каждую мороженку
         for (let icecream of iceCreamsUpdated) {
           if (!icecream.hasStick) {
@@ -252,9 +251,9 @@ export function useGame5({ onLevelComplete }) {
                 const absoluteOffsetX = stick.x - icecream.x;
                 const relativeOffset = absoluteOffsetX / ICE_CREAM_WIDTH;
                 
-                // Сохраняем абсолютную позицию Y где палочка коснулась верха мороженки
-                // Палочка остается на том уровне где коснулась верха мороженки (не телепортируется вниз)
-                const stickTopAtCollision = conveyorY - STICK_HEIGHT;
+                // Палочка фиксируется в момент касания - её верх остается на уровне где произошло касание
+                // В момент коллизии: stickBottom == conveyorY, значит stick.y == conveyorY - STICK_HEIGHT
+                const stickTopAtCollision = stick.y;
                 
                 // Сохраняем относительную позицию прямо в объекте мороженки
                 icecream.stuckStickOffset = relativeOffset;
