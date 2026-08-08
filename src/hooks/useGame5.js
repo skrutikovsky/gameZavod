@@ -174,8 +174,8 @@ export function useGame5({ onLevelComplete }) {
       x: iceCream.x + CONVEYOR_SPEED
     }));
 
-    // Удаляем мороженое, ушедшее за правый край
-    updatedIceCreams = updatedIceCreams.filter(iceCream => iceCream.x < rect.width);
+    // Удаляем мороженое, ушедшее за правый край (когда левый край мороженого уходит за правую границу экрана)
+    updatedIceCreams = updatedIceCreams.filter(iceCream => iceCream.x < rect.width + ICE_CREAM_WIDTH);
 
     // Обновление позиций палочек и проверка столкновений
     let updatedSticks = [];
