@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игра 5 - Мороженое и палочки</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .game-container {
+            position: relative;
+            width: 1000px;
+            height: 600px;
+            background: #2c3e50;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .tunnel {
+            position: absolute;
+            top: 0;
+            width: 100px;
+            height: 100%;
+            background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+            z-index: 1;
+        }
+        
+        .tunnel-left {
+            left: 0;
+            border-right: 3px solid #4a5568;
+        }
+        
+        .tunnel-right {
+            right: 0;
+            border-left: 3px solid #4a5568;
+        }
+        
+        .conveyor {
+            position: absolute;
+            bottom: 50px;
+            left: 100px;
+            width: 800px;
+            height: 20px;
+            background: linear-gradient(90deg, #4a5568 0%, #718096 50%, #4a5568 100%);
+            border-radius: 10px;
+            z-index: 2;
+        }
+        
+        .conveyor::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: repeating-linear-gradient(90deg, #2d3748 0px, #2d3748 10px, transparent 10px, transparent 20px);
+            animation: conveyorMove 2s linear infinite;
+        }
+        
+        @keyframes conveyorMove {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(20px); }
+        }
+        
+        .ice-cream {
+            position: absolute;
+            bottom: 70px;
+            width: 200px;
+            height: 350px;
+            z-index: 3;
+            transition: none;
+        }
+        
+        .ice-cream-body {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #ffafbd 0%, #ffc3a0 30%, #ffecd2 60%, #fcb69f 100%);
+            border-radius: 50% 50% 10% 10%;
+            box-shadow: inset -10px 0 20px rgba(0,0,0,0.1), inset 10px 0 20px rgba(255,255,255,0.3);
+        }
+        
+        .ice-cream-body::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 50%;
+        }
+        
+        .stick {
+            position: absolute;
+            width: 12px;
+            height: 100px;
+            background: linear-gradient(90deg, #d4a574 0%, #f5deb3 50%, #d4a574 100%);
+            border-radius: 2px;
+            z-index: 4;
+            transform-origin: top center;
+        }
+        
+        .stick.inserted {
+            z-index: 2;
+        }
+        
+        .apparatus {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 100px;
+            z-index: 5;
+        }
+        
+        .apparatus-body {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 70px;
+            background: linear-gradient(180deg, #8b4513 0%, #cd853f 50%, #8b4513 100%);
+            border-radius: 10px 10px 5px 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .apparatus-body::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 15px;
+            background: #654321;
+            border-radius: 0 0 5px 5px;
+        }
+        
+        .score-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #2c3e50;
+            z-index: 10;
+            text-align: center;
+        }
+        
+        .floating-score {
+            position: absolute;
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 20;
+            animation: floatUp 1.5s ease-out forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.2);
+            }
+        }
+        
+        .zone-indicator {
+            position: absolute;
+            bottom: 70px;
+            height: 350px;
+            pointer-events: none;
+        }
+        
+        .zone-center {
+            position: absolute;
+            bottom: 0;
+            width: 20%;
+            height: 100%;
+            left: 40%;
+            background: rgba(255, 215, 0, 0.2);
+            border-left: 2px dashed rgba(255, 215, 0, 0.5);
+            border-right: 2px dashed rgba(255, 215, 0, 0.5);
+        }
+        
+        .zone-good {
+            position: absolute;
+            bottom: 0;
+            width: 35%;
+            height: 100%;
+            left: 5%;
+            background: rgba(144, 238, 144, 0.2);
+            border-right: 2px dashed rgba(144, 238, 144, 0.5);
+        }
+        
+        .zone-good-right {
+            position: absolute;
+            bottom: 0;
+            width: 35%;
+            height: 100%;
+            right: 5%;
+            background: rgba(144, 238, 144, 0.2);
+            border-left: 2px dashed rgba(144, 238, 144, 0.5);
+        }
+        
+        .zone-miss {
+            position: absolute;
+            bottom: 0;
+            width: 15%;
+            height: 100%;
+            left: 0;
+            background: rgba(255, 100, 100, 0.2);
+            border-right: 2px dashed rgba(255, 100, 100, 0.5);
+        }
+        
+        .zone-miss-right {
+            position: absolute;
+            bottom: 0;
+            width: 15%;
+            height: 100%;
+            right: 0;
+            background: rgba(255, 100, 100, 0.2);
+            border-left: 2px dashed rgba(255, 100, 100, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <div class="tunnel tunnel-left"></div>
+        <div class="tunnel tunnel-right"></div>
+        <div class="conveyor"></div>
+        
+        <div class="apparatus">
+            <div class="apparatus-body"></div>
+        </div>
+        
+        <div class="score-display">
+            Очки: <span id="score">0</span>
+        </div>
+        
+        <div class="instructions">
+            Нажимайте ПРОБЕЛ, чтобы уронить палочку<br>
+            Центр (20%) = 500 очков | 70% = 300 очков | Края (15%) = промах
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreDisplay = document.getElementById('score');
+        
+        let score = 0;
+        let iceCreams = [];
+        let sticks = [];
+        let lastIceCreamTime = 0;
+        let iceCreamInterval = 2000; // Начальный интервал между морожеными
+        
+        const CONVEYOR_Y = 70; // Y позиция конвейера (от низа)
+        const CONVEYOR_START_X = 100; // Начало конвейера
+        const CONVEYOR_WIDTH = 800; // Ширина конвейера
+        const ICE_CREAM_WIDTH = 200;
+        const ICE_CREAM_HEIGHT = 350;
+        const STICK_SPEED = 5; // Скорость падения палочки
+        const CONVEYOR_SPEED = 2; // Скорость конвейера
+        
+        // Зоны попадания (в процентах от ширины мороженого)
+        const ZONE_MISS_LEFT = 15; // Левый край - промах
+        const ZONE_GOOD_LEFT = 35; // Левая хорошая зона
+        const ZONE_CENTER = 20; // Центральная зона (500 очков)
+        const ZONE_GOOD_RIGHT = 35; // Правая хорошая зона
+        const ZONE_MISS_RIGHT = 15; // Правый край - промах
+        
+        function createIceCream() {
+            const iceCream = document.createElement('div');
+            iceCream.className = 'ice-cream';
+            iceCream.innerHTML = `
+                <div class="ice-cream-body"></div>
+                <div class="zone-indicator">
+                    <div class="zone-miss"></div>
+                    <div class="zone-good"></div>
+                    <div class="zone-center"></div>
+                    <div class="zone-good-right"></div>
+                    <div class="zone-miss-right"></div>
+                </div>
+            `;
+            
+            iceCream.style.left = '-200px'; // Начинает за пределами слева
+            iceCream.style.bottom = CONVEYOR_Y + 'px';
+            
+            gameContainer.appendChild(iceCream);
+            
+            iceCreams.push({
+                element: iceCream,
+                x: -ICE_CREAM_WIDTH,
+                hasStick: false,
+                stickElement: null
+            });
+        }
+        
+        function updateIceCreams() {
+            for (let i = iceCreams.length - 1; i >= 0; i--) {
+                const iceCream = iceCreams[i];
+                iceCream.x += CONVEYOR_SPEED;
+                iceCream.element.style.left = iceCream.x + 'px';
+                
+                // Удаляем мороженое, если оно ушло за правый туннель
+                if (iceCream.x > CONVEYOR_START_X + CONVEYOR_WIDTH) {
+                    iceCream.element.remove();
+                    iceCreams.splice(i, 1);
+                }
+            }
+        }
+        
+        function dropStick() {
+            const stick = document.createElement('div');
+            stick.className = 'stick';
+            stick.style.left = '50%';
+            stick.style.top = '120px';
+            stick.style.transform = 'translateX(-50%)';
+            
+            gameContainer.appendChild(stick);
+            
+            sticks.push({
+                element: stick,
+                x: 500, // Центр экрана (1000 / 2)
+                y: 120,
+                isInserted: false,
+                iceCreamIndex: -1
+            });
+        }
+        
+        function checkCollision(stick, iceCream) {
+            const stickLeft = stick.x - 6; // Половина ширины палочки
+            const stickRight = stick.x + 6;
+            
+            const iceCreamLeft = iceCream.x;
+            const iceCreamRight = iceCream.x + ICE_CREAM_WIDTH;
+            
+            // Проверяем, находится ли палочка над мороженым по горизонтали
+            if (stickRight > iceCreamLeft && stickLeft < iceCreamRight) {
+                // Вычисляем позицию попадания относительно мороженого (0-100%)
+                const hitPosition = ((stick.x - iceCreamLeft) / ICE_CREAM_WIDTH) * 100;
+                
+                return {
+                    hit: true,
+                    position: hitPosition
+                };
+            }
+            
+            return { hit: false };
+        }
+        
+        function calculateScore(hitPosition) {
+            // Зоны: 0-15% (промах), 15-50% (300 очков), 50-70% (500 очков), 70-85% (300 очков), 85-100% (промах)
+            if (hitPosition >= 15 && hitPosition < 50) {
+                return 300; // Левая хорошая зона
+            } else if (hitPosition >= 50 && hitPosition <= 70) {
+                return 500; // Центральная зона
+            } else if (hitPosition > 70 && hitPosition <= 85) {
+                return 300; // Правая хорошая зона
+            }
+            return 0; // Промах
+        }
+        
+        function showFloatingScore(x, y, points) {
+            const floatingScore = document.createElement('div');
+            floatingScore.className = 'floating-score';
+            floatingScore.textContent = '+' + points;
+            floatingScore.style.left = x + 'px';
+            floatingScore.style.top = y + 'px';
+            
+            gameContainer.appendChild(floatingScore);
+            
+            setTimeout(() => {
+                floatingScore.remove();
+            }, 1500);
+        }
+        
+        function updateSticks() {
+            for (let i = sticks.length - 1; i >= 0; i--) {
+                const stick = sticks[i];
+                
+                if (!stick.isInserted) {
+                    stick.y += STICK_SPEED;
+                    stick.element.style.top = stick.y + 'px';
+                    
+                    // Проверяем столкновения с мороженым
+                    if (stick.y + 100 >= CONVEYOR_Y + ICE_CREAM_HEIGHT - 20) {
+                        for (let j = 0; j < iceCreams.length; j++) {
+                            const iceCream = iceCreams[j];
+                            
+                            if (!iceCream.hasStick) {
+                                const collision = checkCollision(stick, iceCream);
+                                
+                                if (collision.hit) {
+                                    const points = calculateScore(collision.position);
+                                    
+                                    if (points > 0) {
+                                        // Успешное попадание
+                                        iceCream.hasStick = true;
+                                        iceCream.stickElement = stick.element;
+                                        stick.isInserted = true;
+                                        stick.iceCreamIndex = j;
+                                        
+                                        // Перемещаем палочку в мороженое
+                                        stick.element.classList.add('inserted');
+                                        stick.element.style.position = 'absolute';
+                                        stick.element.style.left = (iceCream.x + (collision.position / 100) * ICE_CREAM_WIDTH) + 'px';
+                                        stick.element.style.bottom = '20px';
+                                        stick.element.style.top = 'auto';
+                                        stick.element.style.transform = 'none';
+                                        
+                                        // Обновляем счет
+                                        score += points;
+                                        scoreDisplay.textContent = score;
+                                        
+                                        // Показываем всплывающий счет
+                                        showFloatingScore(stick.x, stick.y, points);
+                                    } else {
+                                        // Промах - удаляем палочку
+                                        stick.element.remove();
+                                        sticks.splice(i, 1);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Удаляем палочку, если она упала ниже экрана
+                    if (stick.y > 600) {
+                        stick.element.remove();
+                        sticks.splice(i, 1);
+                    }
+                } else {
+                    // Палочка вставлена в мороженое - движется вместе с ним
+                    const iceCream = iceCreams[stick.iceCreamIndex];
+                    if (iceCream) {
+                        stick.element.style.left = iceCream.x + 'px';
+                    } else {
+                        // Мороженое удалено - удаляем палочку
+                        stick.element.remove();
+                        sticks.splice(i, 1);
+                    }
+                }
+            }
+        }
+        
+        function gameLoop(timestamp) {
+            // Создаем новые мороженые со случайными интервалами
+            if (timestamp - lastIceCreamTime > iceCreamInterval) {
+                createIceCream();
+                lastIceCreamTime = timestamp;
+                
+                // Случайный интервал для следующего мороженого (от 1 до 3 секунд)
+                iceCreamInterval = 1000 + Math.random() * 2000;
+            }
+            
+            updateIceCreams();
+            updateSticks();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Обработка нажатия пробела
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                dropStick();
+            }
+        });
+        
+        // Запуск игры
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
