@@ -8,7 +8,7 @@ export const ICE_CREAM_HEIGHT = 350; // Высота обычной мороже
 export const ICE_CREAM_TYPES = [
   { name: 'normal', widthMultiplier: 1, heightMultiplier: 1 }, // Обычная
   { name: 'shortWide', widthMultiplier: 1.15, heightMultiplier: 0.5 }, // В 2 раза ниже, шире на 15%
-  { name: 'narrow', widthMultiplier: 0.7, heightMultiplier: 1 }, // Уже на 30%
+  { name: 'narrow', widthMultiplier: 0.55, heightMultiplier: 1 }, // Уже на 45% (уменьшенный хитбокс)
 ];
 
 export const STICK_WIDTH = 48; // Ширина палочки (увеличена в 2 раза от 24px)
@@ -148,9 +148,9 @@ export function useGame5({ onLevelComplete }) {
       return;
     }
     
-    // Палочка появляется по центру сверху
+    // Палочка появляется по центру сверху (из отверстия аппарата)
     const stickX = width / 2 - STICK_WIDTH / 2;
-    const stickY = 50; // Начальная позиция над конвейером
+    const stickY = 140; // Начальная позиция из отверстия аппарата (80 + 60 = 140)
 
     setGameState(prev => ({
       ...prev,
@@ -190,11 +190,16 @@ export function useGame5({ onLevelComplete }) {
     if (lastSpawnTime === 0 || Date.now() - lastSpawnTime >= nextSpawnInterval) {
       // Выбираем случайный тип мороженки
       const iceCreamType = getRandomIceCreamType();
+      // Вычисляем высоту этой конкретной мороженки
+      const thisIceCreamHeight = ICE_CREAM_HEIGHT * iceCreamType.heightMultiplier;
+      // Корректируем Y позицию так чтобы мороженка лежала на конвейере (нижний край на уровне conveyorY + maxIceCreamHeight)
+      const thisIceCreamY = conveyorY + (maxIceCreamHeight - thisIceCreamHeight);
+      
       // Спавним новую мороженку слева за пределами экрана
       iceCreamsUpdated.push({
         id: `icecream-${iceCreamIdCounter.current++}`,
         x: -ICE_CREAM_WIDTH * iceCreamType.widthMultiplier, // Начинает за левым краем с учетом ширины
-        y: conveyorY,
+        y: thisIceCreamY, // Позиция с учетом высоты мороженки
         hasStick: false,
         points: 0,
         color: getRandomIceCreamColor(), // Случайный цвет для каждой мороженки
@@ -223,21 +228,24 @@ export function useGame5({ onLevelComplete }) {
     const sticksToRemove = [];
     
     fallingSticksUpdated.forEach(stick => {
-      // Коллизия считается только по нижнему краю палочки в момент касания верхнего края мороженки
-      // Нижний край палочки должен точно совпасть с верхним краем мороженки (conveyorY)
+      // Коллизия считается только по нижнему краю палочки в момент касания верхнего края конкретной мороженки
       const stickBottom = stick.y + STICK_HEIGHT;
       
       // Допуск для точного касания (в пикселях)
       const collisionTolerance = 5;
       
-      // Коллизия засчитывается только когда нижний край палочки находится в пределах допуска от верхнего края мороженки
-      // и палочка еще не прошла полностью мимо (верх палочки выше уровня конвейера)
-      if (Math.abs(stickBottom - conveyorY) <= collisionTolerance && stick.y < conveyorY) {
-        // Проверяем попадание в каждую мороженку
-        for (let icecream of iceCreamsUpdated) {
-          if (!icecream.hasStick) {
-            // Вычисляем ширину мороженки с учетом типа
-            const iceCreamWidth = ICE_CREAM_WIDTH * (icecream.type?.widthMultiplier || 1);
+      // Проверяем попадание в каждую мороженку
+      for (let icecream of iceCreamsUpdated) {
+        if (!icecream.hasStick) {
+          // Вычисляем ширину и высоту мороженки с учетом типа
+          const iceCreamWidth = ICE_CREAM_WIDTH * (icecream.type?.widthMultiplier || 1);
+          const iceCreamHeight = ICE_CREAM_HEIGHT * (icecream.type?.heightMultiplier || 1);
+          
+          // Верхний край ЭТОЙ мороженки (y - это верхняя позиция)
+          const iceTop = icecream.y;
+          
+          // Нижний край палочки должен совпасть с верхним краем ЭТОЙ мороженки
+          if (Math.abs(stickBottom - iceTop) <= collisionTolerance && stick.y < iceTop) {
             const iceLeft = icecream.x;
             const iceRight = icecream.x + iceCreamWidth;
             
@@ -275,7 +283,7 @@ export function useGame5({ onLevelComplete }) {
                 const relativeOffset = absoluteOffsetX / iceCreamWidth;
                 
                 // Палочка фиксируется в момент касания - её верх остается на уровне где произошло касание
-                // В момент коллизии: stickBottom == conveyorY, значит stick.y == conveyorY - STICK_HEIGHT
+                // В момент коллизии: stickBottom == iceTop, значит stick.y == iceTop - STICK_HEIGHT
                 const stickTopAtCollision = stick.y;
                 
                 // Сохраняем относительную позицию прямо в объекте мороженки

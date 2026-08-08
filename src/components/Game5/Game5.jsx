@@ -133,9 +133,9 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     const maxIceCreamHeight = ICE_CREAM_HEIGHT * Math.max(...ICE_CREAM_TYPES.map(t => t.heightMultiplier));
     const conveyorY = height / 2 - maxIceCreamHeight / 2;
 
-    // Рисуем аппарат с палочками по центру сверху
+    // Рисуем аппарат с палочками по центру сверху (опущен ниже хэдера)
     const dispenserX = width / 2 - 40;
-    const dispenserY = 0;
+    const dispenserY = 80; // Опустили аппарат ниже (было 0)
     const dispenserWidth = 80;
     const dispenserHeight = 60;
 
@@ -171,6 +171,30 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     ctx.beginPath();
     ctx.arc(width / 2, dispenserY + 20, 10, 0, Math.PI * 2);
     ctx.fill();
+
+    // Индикатор перезарядки (лаконичное обозначение)
+    const now = Date.now();
+    const timeSinceLastPress = now - gameState.lastSpawnPressTime;
+    const cooldownRemaining = Math.max(0, SPAWN_COOLDOWN - timeSinceLastPress);
+    const cooldownProgress = cooldownRemaining / SPAWN_COOLDOWN;
+    
+    // Полоска перезарядки под аппаратом
+    const barWidth = 60;
+    const barHeight = 6;
+    const barX = width / 2 - barWidth / 2;
+    const barY = dispenserY + dispenserHeight + 8;
+    
+    // Фон полоски
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    
+    // Заполнение полоски (зеленый когда готов, красный когда перезаряжается)
+    if (cooldownRemaining <= 0) {
+      ctx.fillStyle = '#00ff00'; // Готов
+    } else {
+      ctx.fillStyle = '#ff4444'; // Перезарядка
+    }
+    ctx.fillRect(barX, barY, barWidth * (1 - cooldownProgress), barHeight);
 
     // Рисуем мороженки (прямоугольные со скруглениями)
     gameState.iceCreams.forEach(icecream => {
