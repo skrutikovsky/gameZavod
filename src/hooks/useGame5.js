@@ -12,10 +12,28 @@ export const GOOD_ZONE = 0.70; // 70% хорошая зона (300 очков)
 export const MISS_ZONE = 0.15; // 15% от краев - промах
 export const MIN_SPAWN_INTERVAL = 1500; // Минимальный интервал между мороженками (мс)
 export const MAX_SPAWN_INTERVAL = 3500; // Максимальный интервал между мороженками (мс)
+export const SPAWN_COOLDOWN = 500; // Минимальная задержка между нажатиями спавна (мс)
+
+// Цвета для мороженок
+export const ICE_CREAM_COLORS = [
+  { top: '#ffb6c1', middle: '#ff69b4', bottom: '#ffb6c1', name: 'pink' },      // Розовое
+  { top: '#ffe4b5', middle: '#ffa500', bottom: '#ffd700', name: 'orange' },     // Оранжевое
+  { top: '#e6e6fa', middle: '#9370db', bottom: '#dda0dd', name: 'purple' },     // Фиолетовое
+  { top: '#98fb98', middle: '#32cd32', bottom: '#90ee90', name: 'green' },      // Зеленое
+  { top: '#87ceeb', middle: '#1e90ff', bottom: '#add8e6', name: 'blue' },       // Голубое
+  { top: '#f5deb3', middle: '#d2691e', bottom: '#deb887', name: 'chocolate' },  // Шоколадное
+  { top: '#fffacd', middle: '#ffff00', bottom: '#fff8dc', name: 'lemon' },      // Лимонное
+  { top: '#ffc0cb', middle: '#dc143c', bottom: '#ff69b4', name: 'strawberry' }, // Клубничное
+];
 
 // Генерация случайного интервала для спавна мороженки
 export const getRandomSpawnInterval = () => {
   return Math.random() * (MAX_SPAWN_INTERVAL - MIN_SPAWN_INTERVAL) + MIN_SPAWN_INTERVAL;
+};
+
+// Генерация случайного цвета для мороженки
+export const getRandomIceCreamColor = () => {
+  return ICE_CREAM_COLORS[Math.floor(Math.random() * ICE_CREAM_COLORS.length)];
 };
 
 // Hook для логики игры 5
@@ -24,11 +42,12 @@ export function useGame5({ onLevelComplete }) {
     isRunning: false,
     score: 0,
     round: 1,
-    iceCreams: [], // Массив мороженок: { id, x, y, hasStick, stickX, points }
+    iceCreams: [], // Массив мороженок: { id, x, y, hasStick, stickX, points, color }
     fallingSticks: [], // Массив падающих палочек: { id, x, y }
     stuckSticks: [], // Массив палочек в мороженном: { id, iceCreamId, offsetX }
     lastSpawnTime: 0,
     nextSpawnInterval: 0,
+    lastSpawnPressTime: 0, // Для защиты от спама нажатий
     gameOver: false,
     roundComplete: false,
   });
@@ -64,6 +83,7 @@ export function useGame5({ onLevelComplete }) {
       stuckSticks: [],
       lastSpawnTime: 0,
       nextSpawnInterval: getRandomSpawnInterval(),
+      lastSpawnPressTime: 0,
       roundComplete: false,
       gameOver: false,
     }));
@@ -93,6 +113,7 @@ export function useGame5({ onLevelComplete }) {
       stuckSticks: [],
       lastSpawnTime: 0,
       nextSpawnInterval: 0,
+      lastSpawnPressTime: 0,
       gameOver: false,
       roundComplete: false,
     });
@@ -107,12 +128,19 @@ export function useGame5({ onLevelComplete }) {
 
     const { width } = canvas;
     
+    // Защита от спама нажатий (минимальный интервал 500мс)
+    const now = Date.now();
+    if (now - gameStateRef.current.lastSpawnPressTime < SPAWN_COOLDOWN) {
+      return;
+    }
+    
     // Палочка появляется по центру сверху
     const stickX = width / 2 - STICK_WIDTH / 2;
     const stickY = 50; // Начальная позиция над конвейером
 
     setGameState(prev => ({
       ...prev,
+      lastSpawnPressTime: now,
       fallingSticks: [
         ...prev.fallingSticks,
         {
@@ -151,6 +179,7 @@ export function useGame5({ onLevelComplete }) {
         y: conveyorY,
         hasStick: false,
         points: 0,
+        color: getRandomIceCreamColor(), // Случайный цвет для каждой мороженки
       });
       lastSpawnTime = Date.now();
       nextSpawnInterval = getRandomSpawnInterval();
@@ -213,11 +242,18 @@ export function useGame5({ onLevelComplete }) {
                 icecream.points = points;
                 newScore += points;
                 
-                // Добавляем палочку в мороженое
+                // Вычисляем относительную позицию палочки (0-1)
+                const relativeOffset = (stick.x - icecream.x) / ICE_CREAM_WIDTH;
+                
+                // Сохраняем относительную позицию прямо в объекте мороженки
+                icecream.stuckStickOffset = relativeOffset;
+                
+                // Добавляем палочку в массив stuckSticks для совместимости
                 stuckSticksUpdated.push({
                   id: stick.id,
                   iceCreamId: icecream.id,
                   offsetX: stick.x - icecream.x,
+                  relativeOffset: relativeOffset,
                 });
                 
                 sticksToRemove.push(stick.id);
