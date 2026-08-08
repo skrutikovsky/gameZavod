@@ -174,15 +174,47 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const iceY = icecream.y;
       const color = icecream.color || ICE_CREAM_COLORS[0]; // Цвет по умолчанию
 
-      // Тело мороженки (прямоугольник со скруглениями)
+      // Если есть палочка - рисуем её ЗА мороженкой (сначала палочку, потом мороженое)
+      if (icecream.hasStick) {
+        // Вычисляем позицию палочки относительно мороженки - где именно она упала
+        const stickRelativeX = icecream.stuckStickOffset !== undefined ? 
+          icecream.stuckStickOffset * ICE_CREAM_WIDTH : 
+          ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
+        
+        const stickX = iceX + stickRelativeX;
+        // Палочка входит в мороженое примерно на 70% своей высоты (втыкается)
+        const stickY = iceY + ICE_CREAM_HEIGHT - STICK_HEIGHT * 0.7;
+
+        // Палочка
+        const stickGradient = ctx.createLinearGradient(stickX, stickY, stickX + STICK_WIDTH, stickY + STICK_HEIGHT);
+        stickGradient.addColorStop(0, '#deb887');
+        stickGradient.addColorStop(0.5, '#d2a679');
+        stickGradient.addColorStop(1, '#b8956a'); // Более темный низ для реалистичности
+
+        ctx.fillStyle = stickGradient;
+        ctx.fillRect(stickX, stickY, STICK_WIDTH, STICK_HEIGHT);
+
+        // Текстура дерева на палочке
+        ctx.strokeStyle = '#a08060';
+        ctx.lineWidth = 1;
+        for (let i = 5; i < STICK_HEIGHT - 5; i += 10) {
+          ctx.beginPath();
+          ctx.moveTo(stickX + 2, stickY + i);
+          ctx.lineTo(stickX + STICK_WIDTH - 2, stickY + i + 3);
+          ctx.stroke();
+        }
+      }
+
+      // Тело мороженки (прямоугольник со скруглениями) - непрозрачный
       const cornerRadius = 20; // Радиус скругления углов
       
+      // Основной цвет мороженки (сплошной, непрозрачный)
       ctx.fillStyle = color.middle;
       ctx.beginPath();
       ctx.roundRect(iceX, iceY, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, cornerRadius);
       ctx.fill();
       
-      // Градиент для объема
+      // Небольшой градиент для объема но без прозрачности
       const iceCreamGradient = ctx.createLinearGradient(iceX, iceY, iceX + ICE_CREAM_WIDTH, iceY + ICE_CREAM_HEIGHT);
       iceCreamGradient.addColorStop(0, color.top);
       iceCreamGradient.addColorStop(0.5, color.middle);
@@ -192,8 +224,8 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.roundRect(iceX, iceY, ICE_CREAM_WIDTH, ICE_CREAM_HEIGHT, cornerRadius);
       ctx.fill();
 
-      // Блик на мороженке
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      // Блик на мороженке (более непрозрачный)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.beginPath();
       ctx.ellipse(
         iceX + ICE_CREAM_WIDTH / 3,
@@ -206,37 +238,8 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       );
       ctx.fill();
 
-      // Если есть палочка - рисуем её в мороженке в том месте куда она упала
+      // Отображаем очки за попадание
       if (icecream.hasStick) {
-        // Вычисляем позицию палочки относительно мороженки
-        const stickRelativeX = icecream.stuckStickOffset !== undefined ? 
-          icecream.stuckStickOffset * ICE_CREAM_WIDTH : 
-          ICE_CREAM_WIDTH / 2 - STICK_WIDTH / 2;
-        
-        const stickX = iceX + stickRelativeX;
-        // Палочка входит в мороженое примерно на половину своей высоты
-        const stickY = iceY + ICE_CREAM_HEIGHT - STICK_HEIGHT * 0.7;
-
-        // Палочка
-        const stickGradient = ctx.createLinearGradient(stickX, stickY, stickX + STICK_WIDTH, stickY + STICK_HEIGHT);
-        stickGradient.addColorStop(0, '#deb887');
-        stickGradient.addColorStop(0.5, '#d2a679');
-        stickGradient.addColorStop(1, '#c4a574');
-
-        ctx.fillStyle = stickGradient;
-        ctx.fillRect(stickX, stickY, STICK_WIDTH, STICK_HEIGHT);
-
-        // Текстура дерева на палочке
-        ctx.strokeStyle = '#b8956a';
-        ctx.lineWidth = 1;
-        for (let i = 5; i < STICK_HEIGHT - 5; i += 10) {
-          ctx.beginPath();
-          ctx.moveTo(stickX + 2, stickY + i);
-          ctx.lineTo(stickX + STICK_WIDTH - 2, stickY + i + 3);
-          ctx.stroke();
-        }
-
-        // Отображаем очки за попадание
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 24px Arial';
         ctx.textAlign = 'center';
