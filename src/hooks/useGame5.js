@@ -6,12 +6,12 @@ export const ICE_CREAM_HEIGHT = 350; // Высота мороженки в пи�
 export const STICK_WIDTH = 48; // Ширина палочки (увеличена в 2 раза от 24px)
 export const STICK_HEIGHT = 300; // Высота палочки (увеличена в 2 раза от 150px)
 export const STICK_FALL_SPEED = 400; // Скорость падения палочки (пикселей в секунду)
-export const CONVEYOR_SPEED = 150; // Скорость конвейера (пикселей в секунду)
+export const CONVEYOR_SPEED = 225; // Скорость конвейера (150 * 1.5 = 225 пикселей в секунду)
 export const CENTER_ZONE = 0.20; // 20% центральная зона (500 очков)
 export const GOOD_ZONE = 0.70; // 70% хорошая зона (300 очков)
 export const MISS_ZONE = 0.15; // 15% от краев - промах
-export const MIN_SPAWN_INTERVAL = 1500; // Минимальный интервал между мороженками (мс)
-export const MAX_SPAWN_INTERVAL = 3500; // Максимальный интервал между мороженками (мс)
+export const MIN_SPAWN_INTERVAL = 1000; // Минимальный интервал между мороженками (мс) - увеличено до 1 секунды
+export const MAX_SPAWN_INTERVAL = 3000; // Максимальный интервал между мороженками (мс)
 export const SPAWN_COOLDOWN = 500; // Минимальная задержка между нажатиями спавна (мс)
 
 // Цвета для мороженок
@@ -255,6 +255,9 @@ export function useGame5({ onLevelComplete }) {
                 // Сохраняем относительную позицию прямо в объекте мороженки
                 icecream.stuckStickOffset = relativeOffset;
                 icecream.stickTopY = stickTopAtCollision; // Запоминаем Y позицию верха палочки
+                
+                // Сохраняем время вставки для анимации погружения
+                icecream.stickInsertTime = Date.now();
                 
                 // Добавляем палочку в массив stuckSticks для совместимости
                 stuckSticksUpdated.push({
