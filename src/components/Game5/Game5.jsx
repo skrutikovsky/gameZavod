@@ -108,6 +108,79 @@ const Game5 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     bgCtx.lineTo(width - tunnelWidth, conveyorY + maxIceCreamHeight);
     bgCtx.stroke();
 
+    // === СТАТИЧЕСКИЕ ЭЛЕМЕНТЫ ДЛЯ УМЕНЬШЕНИЯ ЭФФЕКТА "ПЛЫВУЩЕЙ" КАРТИНКИ ===
+    // Эти элементы служат визуальными якорями и уменьшают дискомфорт от движения
+    
+    // Верхняя декоративная панель (неподвижная)
+    const topPanelHeight = 60;
+    const topPanelGradient = bgCtx.createLinearGradient(0, 0, 0, topPanelHeight);
+    topPanelGradient.addColorStop(0, '#2a2a3e');
+    topPanelGradient.addColorStop(1, '#1a1a2e');
+    bgCtx.fillStyle = topPanelGradient;
+    bgCtx.fillRect(0, 0, width, topPanelHeight);
+    
+    // Декоративные заклепки на верхней панели
+    bgCtx.fillStyle = '#4a4a5a';
+    for (let i = 30; i < width - 30; i += 80) {
+      bgCtx.beginPath();
+      bgCtx.arc(i, 30, 6, 0, Math.PI * 2);
+      bgCtx.fill();
+    }
+    
+    // Нижняя декоративная панель (неподвижная)
+    const bottomPanelHeight = 60;
+    const bottomPanelGradient = bgCtx.createLinearGradient(0, height - bottomPanelHeight, 0, height);
+    bottomPanelGradient.addColorStop(0, '#1a1a2e');
+    bottomPanelGradient.addColorStop(1, '#2a2a3e');
+    bgCtx.fillStyle = bottomPanelGradient;
+    bgCtx.fillRect(0, height - bottomPanelHeight, width, bottomPanelHeight);
+    
+    // Декоративные заклепки на нижней панели
+    bgCtx.fillStyle = '#4a4a5a';
+    for (let i = 30; i < width - 30; i += 80) {
+      bgCtx.beginPath();
+      bgCtx.arc(i, height - 30, 6, 0, Math.PI * 2);
+      bgCtx.fill();
+    }
+    
+    // Вертикальные разделительные линии по краям рабочей зоны (статичные ориентиры)
+    bgCtx.strokeStyle = '#5a5a6a';
+    bgCtx.lineWidth = 3;
+    bgCtx.setLineDash([10, 5]);
+    bgCtx.beginPath();
+    bgCtx.moveTo(tunnelWidth + 20, topPanelHeight);
+    bgCtx.lineTo(tunnelWidth + 20, height - bottomPanelHeight);
+    bgCtx.stroke();
+    
+    bgCtx.beginPath();
+    bgCtx.moveTo(width - tunnelWidth - 20, topPanelHeight);
+    bgCtx.lineTo(width - tunnelWidth - 20, height - bottomPanelHeight);
+    bgCtx.stroke();
+    bgCtx.setLineDash([]);
+    
+    // Центральная вертикальная линия-ориентир (пунктирная, едва заметная)
+    bgCtx.strokeStyle = 'rgba(90, 90, 106, 0.3)';
+    bgCtx.lineWidth = 2;
+    bgCtx.setLineDash([5, 10]);
+    bgCtx.beginPath();
+    bgCtx.moveTo(width / 2, topPanelHeight);
+    bgCtx.lineTo(width / 2, height - bottomPanelHeight);
+    bgCtx.stroke();
+    bgCtx.setLineDash([]);
+    
+    // Боковые индикаторы зон (статичные маркеры слева и справа)
+    // Левый маркер
+    bgCtx.fillStyle = 'rgba(255, 100, 100, 0.3)';
+    bgCtx.fillRect(10, conveyorY - 30, 20, 10);
+    bgCtx.fillStyle = 'rgba(100, 255, 100, 0.3)';
+    bgCtx.fillRect(10, conveyorY + maxIceCreamHeight + 20, 20, 10);
+    
+    // Правый маркер
+    bgCtx.fillStyle = 'rgba(255, 100, 100, 0.3)';
+    bgCtx.fillRect(width - 30, conveyorY - 30, 20, 10);
+    bgCtx.fillStyle = 'rgba(100, 255, 100, 0.3)';
+    bgCtx.fillRect(width - 30, conveyorY + maxIceCreamHeight + 20, 20, 10);
+
   }, []);
 
   // Отрисовка игры

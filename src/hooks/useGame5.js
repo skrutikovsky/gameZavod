@@ -185,6 +185,7 @@ export function useGame5({ onLevelComplete }) {
     let stuckSticksUpdated = [...state.stuckSticks];
     let lastSpawnTime = state.lastSpawnTime;
     let nextSpawnInterval = state.nextSpawnInterval;
+    let lastSpawnPressTime = state.lastSpawnPressTime; // Для сброса таймера перезарядки
 
     // Спавн новых мороженок
     if (lastSpawnTime === 0 || Date.now() - lastSpawnTime >= nextSpawnInterval) {
@@ -302,6 +303,9 @@ export function useGame5({ onLevelComplete }) {
                 icecream.points = points;
                 newScore += points;
                 
+                // СБРОС ТАЙМЕРА ПЕРЕЗАРЯДКИ при успешном попадании
+                lastSpawnPressTime = 0; // Сбрасываем таймер - можно сразу нажимать снова
+                
                 // Вычисляем относительную позицию палочки (0-1) - где именно она упала
                 // Сохраняем позицию X палочки относительно левой границы мороженки
                 const absoluteOffsetX = stick.x - icecream.x;
@@ -353,6 +357,7 @@ export function useGame5({ onLevelComplete }) {
       stuckSticks: stuckSticksUpdated,
       lastSpawnTime,
       nextSpawnInterval,
+      lastSpawnPressTime, // Обновляем таймер перезарядки
     }));
 
   }, []);
