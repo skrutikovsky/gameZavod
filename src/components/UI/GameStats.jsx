@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function GameStats({ score, lives, multiplier, boxesFixed, comboCount, gameTime, formatTime, onBack, round, itemsOnBoard, isGame3, isGame4, isGame5 }) {
+export function GameStats({ score, lives, multiplier, boxesFixed, comboCount, gameTime, formatTime, onBack, round, itemsOnBoard, isGame3, isGame4, isGame5, isGame6 }) {
   return (
     <div className="absolute top-0 left-0 right-0 flex items-center px-4 py-3 bg-black/60 text-white text-xl w-full z-30 backdrop-blur-sm border-b border-white/20">
       {/* Кнопка назад слева */}
@@ -11,18 +11,20 @@ export function GameStats({ score, lives, multiplier, boxesFixed, comboCount, ga
         ←
       </button>
       
-      {/* Статистика по центру - адаптирована под Game3, Game4 и Game5 */}
-      {(isGame3 || isGame4 || isGame5) ? (
+      {/* Статистика по центру - адаптирована под Game3, Game4, Game5 и Game6 */}
+      {(isGame3 || isGame4 || isGame5 || isGame6) ? (
         <div className="flex-1 flex justify-center gap-6">
           <div className="flex flex-col items-center">
             <span className="text-xs opacity-80 uppercase tracking-wider">Счёт</span>
             <span className="text-2xl font-bold text-yellow-400 drop-shadow-lg">{score}</span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-xs opacity-80 uppercase tracking-wider">Раунд</span>
-            <span className="text-2xl font-bold text-blue-400 drop-shadow-lg">{round}</span>
-          </div>
-          {!isGame5 && (
+          {!isGame6 && (
+            <div className="flex flex-col items-center">
+              <span className="text-xs opacity-80 uppercase tracking-wider">Раунд</span>
+              <span className="text-2xl font-bold text-blue-400 drop-shadow-lg">{round}</span>
+            </div>
+          )}
+          {!isGame5 && !isGame6 && (
             <div className="flex flex-col items-center">
               <span className="text-xs opacity-80 uppercase tracking-wider">{isGame4 ? 'Заполнение' : 'Предметов'}</span>
               <span className="text-2xl font-bold text-green-400 drop-shadow-lg">{itemsOnBoard}{isGame4 ? '%' : ''}</span>
@@ -58,7 +60,7 @@ export function GameStats({ score, lives, multiplier, boxesFixed, comboCount, ga
       )}
       
       {/* Жизни и исправлено справа (только для Game1 и Game2) */}
-      {!isGame3 && !isGame4 && !isGame5 && (
+      {!isGame3 && !isGame4 && !isGame5 && !isGame6 && (
         <div className="flex gap-4 ml-4">
           <div className="flex flex-col items-center">
             <span className="text-xs opacity-80 uppercase tracking-wider">Исправлено</span>
