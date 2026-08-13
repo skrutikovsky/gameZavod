@@ -2,17 +2,18 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
 export const SKILL_CHECK_RADIUS = 100; // Радиус круга скилл чека
-export const TARGET_ZONE_SIZE = 0.10; // 10% белая зона попадания
-export const ARROW_SPEED = 2; // Скорость вращения стрелки (радиан в секунду)
+export const BASE_TARGET_ZONE_SIZE = 0.10; // 10% белая зона попадания (базовый размер)
+export const ARROW_SPEED = 3; // Скорость вращения стрелки (радиан в секунду)
 export const BASE_SPAWN_DELAY_SUCCESS = 500; // Задержка перед новым скилл чеком при успехе (мс)
 export const BASE_SPAWN_DELAY_FAIL = 1000; // Задержка перед новым скилл чеком при провале (мс)
+export const MISS_DISPLAY_TIME = 300; // Время отображения красного скилл чека при промахе (мс)
 
 // Hook для логики игры 6 - Skill Check как в Dead by Light
 export function useGame6({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
     isRunning: false,
     score: 0,
-    skillCheck: null, // { angle, rotationDirection, x, y, targetStartAngle, targetEndAngle, isShaking, sizeMultiplier, isActive }
+    skillCheck: null, // { angle, rotationDirection, x, y, targetStartAngle, targetEndAngle, isShaking, sizeMultiplier, isActive, targetZoneSize, missDisplayEndTime }
     gameOver: false,
     roundComplete: false,
     lastCheckTime: 0,
@@ -113,7 +114,17 @@ export function useGame6({ onLevelComplete }) {
     
     // Позиция белой зоны (случайная)
     const targetStartAngle = Math.random() * Math.PI * 2;
-    const targetEndAngle = targetStartAngle + (TARGET_ZONE_SIZE * Math.PI * 2);
+    
+    // 5% шанс увеличенной зоны попадания, 5% шанс уменьшенной зоны
+    let targetZoneSize = BASE_TARGET_ZONE_SIZE;
+    const zoneChance = Math.random();
+    if (zoneChance < 0.05) {
+      targetZoneSize = BASE_TARGET_ZONE_SIZE * 2; // Увеличенная в 2 раза (20%)
+    } else if (zoneChance > 0.95) {
+      targetZoneSize = BASE_TARGET_ZONE_SIZE * 0.5; // Уменьшенная в 2 раза (5%)
+    }
+    
+    const targetEndAngle = targetStartAngle + (targetZoneSize * Math.PI * 2);
     
     // 10% шанс что скилл чек будет трястись
     const isShaking = Math.random() < 0.10;
@@ -134,10 +145,12 @@ export function useGame6({ onLevelComplete }) {
       y: centerY,
       targetStartAngle,
       targetEndAngle,
+      targetZoneSize,
       isShaking,
       sizeMultiplier,
       isActive: true,
       shakeOffset: { x: 0, y: 0 },
+      missDisplayEndTime: null,
     };
   }, []);
 
@@ -200,13 +213,18 @@ export function useGame6({ onLevelComplete }) {
       }, BASE_SPAWN_DELAY_SUCCESS);
     } else {
       // Промах - скилл чек становится красным и исчезает через короткое время
+      const missDisplayEndTime = Date.now() + MISS_DISPLAY_TIME;
       setGameState(prev => ({
         ...prev,
-        skillCheck: { ...prev.skillCheck, isActive: false }, // Деактивируем но оставляем для анимации
+        skillCheck: { 
+          ...prev.skillCheck, 
+          isActive: false, // Деактивируем но оставляем для анимации
+          missDisplayEndTime 
+        },
         nextSpawnDelay: BASE_SPAWN_DELAY_FAIL,
       }));
       
-      // Спавним новый через секунду
+      // Спавним новый через секунду после промаха
       setTimeout(() => {
         if (canvasRef.current && gameStateRef.current?.isRunning) {
           spawnSkillCheck(canvasRef.current);
@@ -222,6 +240,17 @@ export function useGame6({ onLevelComplete }) {
 
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Проверяем нужно ли убрать скилл чек после промаха
+    if (state.skillCheck && !state.skillCheck.isActive && state.skillCheck.missDisplayEndTime) {
+      if (Date.now() >= state.skillCheck.missDisplayEndTime) {
+        setGameState(prev => ({
+          ...prev,
+          skillCheck: null,
+        }));
+        return;
+      }
+    }
 
     // Обновляем позицию стрелки если скилл чек активен
     if (state.skillCheck && state.skillCheck.isActive) {

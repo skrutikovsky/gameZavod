@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame6, SKILL_CHECK_RADIUS, TARGET_ZONE_SIZE } from '../../hooks/useGame6';
+import { useGame6, SKILL_CHECK_RADIUS, BASE_TARGET_ZONE_SIZE } from '../../hooks/useGame6';
 import { GameStats } from '../UI/GameStats';
 
 const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
@@ -89,6 +89,9 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Вычисляем текущий радиус с учетом множителя размера
       const currentRadius = SKILL_CHECK_RADIUS * skillCheck.sizeMultiplier;
       
+      // Вычисляем текущий размер целевой зоны
+      const currentTargetZoneSize = skillCheck.targetZoneSize || BASE_TARGET_ZONE_SIZE;
+      
       // Позиция с учетом тряски
       const drawX = skillCheck.x + skillCheck.shakeOffset.x;
       const drawY = skillCheck.y + skillCheck.shakeOffset.y;
@@ -100,11 +103,30 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Цвет круга зависит от состояния
       if (!skillCheck.isActive) {
         // Промах - красный круг
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
         ctx.fill();
         ctx.strokeStyle = '#ff0000';
         ctx.lineWidth = 4;
         ctx.stroke();
+        
+        // Рисуем красную стрелку где она остановилась
+        ctx.save();
+        ctx.translate(drawX, drawY);
+        ctx.rotate(skillCheck.angle);
+        
+        ctx.beginPath();
+        ctx.moveTo(0, -currentRadius + 10);
+        ctx.lineTo(-8, -currentRadius + 30);
+        ctx.lineTo(0, -currentRadius + 20);
+        ctx.lineTo(8, -currentRadius + 30);
+        ctx.closePath();
+        ctx.fillStyle = '#ff0000';
+        ctx.fill();
+        ctx.strokeStyle = '#cc0000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.restore();
       } else {
         // Активный скилл чек - темно-серый фон
         ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
@@ -113,7 +135,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ctx.lineWidth = 3;
         ctx.stroke();
         
-        // Рисуем белую целевую зону (10%)
+        // Рисуем белую целевую зону (10% или измененный размер)
         ctx.beginPath();
         ctx.moveTo(drawX, drawY);
         ctx.arc(drawX, drawY, currentRadius, skillCheck.targetStartAngle, skillCheck.targetEndAngle);
@@ -143,15 +165,6 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ctx.stroke();
         
         ctx.restore();
-      }
-      
-      // Если промах - рисуем красный индикатор перед исчезновением
-      if (!skillCheck.isActive) {
-        // Красная вспышка
-        ctx.beginPath();
-        ctx.arc(drawX, drawY, currentRadius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fill();
       }
     }
 
