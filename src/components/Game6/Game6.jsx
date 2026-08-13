@@ -248,7 +248,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       </button>
 
       {/* UI статистики */}
-      <GameStats score={gameState.score} />
+      <GameStats score={gameState.score} isGame6={true} />
 
       {/* Кнопка рестарта */}
       <button
