@@ -15,6 +15,10 @@ export const CHANCE_SIZE_MODIFIER = 0.05; // 5% изменение размер�
 export const CHANCE_MIRRORED = 0.10; // 10% зеркальное отражение
 export const CHANCE_BOUNCE = 0.30; // 30% шанс отскока (стрелка не останавливается)
 export const CHANCE_MOVING_ZONE = 0.15; // 15% шанс движущейся зоны
+export const CHANCE_SLOW_ARROW = 0.10; // 10% медленная стрелка x0.5
+export const CHANCE_FAST_ARROW = 0.10; // 10% быстрая стрелка x2
+export const CHANCE_LARGE_SKILLCHECK = 0.10; // 10% большой скиллчек x1.5
+export const CHANCE_SMALL_SKILLCHECK = 0.10; // 10% маленький скиллчек x0.75
 
 export function useGame6({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
@@ -32,13 +36,16 @@ export function useGame6({ onLevelComplete }) {
     lastSkillCheckTime: 0,
     gameOver: false,
     isMirrored: false, // Зеркальное отражение скиллчека
-    floatingText: null, // Текст для всплывающих очков { text, x, y, startTime }
+    floatingText: null, // Текст для всплывающих очков { text, x, y, startTime, color }
     isBouncing: false, // Отскок стрелки (не останавливается при попадании)
     zoneMoving: false, // Движущаяся зона
     zoneMoveDirection: 1, // Направление движения зоны (1 = по часовой, -1 = против)
     zoneMoveSpeed: 30, // Скорость движения зоны (градусов в секунду)
     sparks: [], // Массив искр [{x, y, vx, vy, life, startTime}]
     shakeSparks: [], // Массив искр тряски [{x, y, vx, vy, life, startTime}]
+    arrowSpeedMultiplier: 1, // Множитель скорости стрелки (0.5, 1, 2)
+    skillCheckSizeMultiplier: 1, // Множитель размера всего скиллчека (0.75, 1, 1.5)
+    activeModifiers: [], // Список активных модификаторов для текущего скиллчека
   });
 
   const gameStateRef = useRef(null);
@@ -112,8 +119,44 @@ export function useGame6({ onLevelComplete }) {
     const zoneMoving = Math.random() < CHANCE_MOVING_ZONE && !isBounceChain;
     const zoneMoveDirection = Math.random() < 0.5 ? 1 : -1; // Случайное направление
 
+    // Определяем скорость стрелки (10% медленно x0.5, 10% быстро x2)
+    let arrowSpeedMultiplier = 1;
+    const activeModifiers = [];
+    
+    if (!isBounceChain) {
+      const arrowRoll = Math.random();
+      if (arrowRoll < CHANCE_SLOW_ARROW) {
+        arrowSpeedMultiplier = 0.5;
+        activeModifiers.push('slow');
+      } else if (arrowRoll < CHANCE_SLOW_ARROW + CHANCE_FAST_ARROW) {
+        arrowSpeedMultiplier = 2;
+        activeModifiers.push('fast');
+      }
+      
+      // Определяем размер скиллчека (10% большой x1.5, 10% маленький x0.75)
+      const sizeCheckRoll = Math.random();
+      let skillCheckSizeMultiplier = 1;
+      if (sizeCheckRoll < CHANCE_LARGE_SKILLCHECK) {
+        skillCheckSizeMultiplier = 1.5;
+        activeModifiers.push('large');
+      } else if (sizeCheckRoll < CHANCE_LARGE_SKILLCHECK + CHANCE_SMALL_SKILLCHECK) {
+        skillCheckSizeMultiplier = 0.75;
+        activeModifiers.push('small');
+      }
+    } else {
+      // При цепном отскоке сохраняем предыдущие значения
+      arrowSpeedMultiplier = state.arrowSpeedMultiplier;
+      skillCheckSizeMultiplier = state.skillCheckSizeMultiplier;
+    }
+
     // Проверяем отскок (30% шанс) - может быть цепным
     const isBouncing = Math.random() < CHANCE_BOUNCE;
+
+    // Добавляем модификаторы в список для отображения
+    if (isShaking) activeModifiers.push('shake');
+    if (isMirrored) activeModifiers.push('mirror');
+    if (zoneMoving) activeModifiers.push('moving');
+    if (isBouncing) activeModifiers.push('bounce');
 
     // Для циферблата: стрелка всегда начинает с 12 часов (0 градусов)
     // Зона для попадания спавнится случайно в диапазоне от 4 часов (120°) до 10 часов (300°)
@@ -138,8 +181,11 @@ export function useGame6({ onLevelComplete }) {
       zoneMoveDirection: zoneMoveDirection,
       sparks: [], // Сбрасываем искры при новом скиллчеке
       shakeSparks: [], // Сбрасываем искры тряски при новом скиллчеке
+      arrowSpeedMultiplier: arrowSpeedMultiplier,
+      skillCheckSizeMultiplier: skillCheckSizeMultiplier,
+      activeModifiers: activeModifiers,
     }));
-  }, [CHANCE_OFFSET_CORNER, CHANCE_SIZE_MODIFIER, CHANCE_SHAKE, CHANCE_MIRRORED, CHANCE_MOVING_ZONE, CHANCE_BOUNCE]);
+  }, [CHANCE_OFFSET_CORNER, CHANCE_SIZE_MODIFIER, CHANCE_SHAKE, CHANCE_MIRRORED, CHANCE_MOVING_ZONE, CHANCE_BOUNCE, CHANCE_SLOW_ARROW, CHANCE_FAST_ARROW, CHANCE_LARGE_SKILLCHECK, CHANCE_SMALL_SKILLCHECK]);
 
   // Инициализация нового раунда
   const initRound = useCallback(() => {
@@ -304,19 +350,18 @@ export function useGame6({ onLevelComplete }) {
       setGameState(prev => ({
         ...prev,
         skillCheckActive: false,
-        showFailAnimation: true,
+        showFailAnimation: false,
+        floatingText: {
+          text: '+0',
+          x: centerX,
+          y: centerY,
+          startTime: Date.now(),
+          color: '#ff0000'
+        },
       }));
-      
-      // Показываем анимацию провала briefly
-      setTimeout(() => {
-        setGameState(prev => ({
-          ...prev,
-          showFailAnimation: false,
-        }));
-        
-        // Новый скилл чек сразу (без задержки)
-        spawnSkillCheck();
-      }, 300); // Пара долей секунд (300мс) для показа анимации
+
+      // Новый скилл чек сразу (без задержки)
+      spawnSkillCheck();
     }
   }, [spawnSkillCheck]);
 
@@ -328,7 +373,7 @@ export function useGame6({ onLevelComplete }) {
     // Обновляем угол стрелки если скилл чек активен
     if (state.skillCheckActive) {
       const direction = state.isClockwise ? 1 : -1;
-      const newAngle = (state.arrowAngle + direction * ARROW_SPEED * deltaTime) % 360;
+      const newAngle = (state.arrowAngle + direction * ARROW_SPEED * state.arrowSpeedMultiplier * deltaTime) % 360;
 
       setGameState(prev => ({
         ...prev,
@@ -537,5 +582,6 @@ export function useGame6({ onLevelComplete }) {
     canvasRef,
     shakeOffsetRef,
     floatingText: gameState.floatingText,
+    activeModifiers: gameState.activeModifiers,
   };
 }

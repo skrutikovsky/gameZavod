@@ -1,6 +1,17 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT, CHANCE_MOVING_ZONE } from '../../hooks/useGame6';
+import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT, CHANCE_MOVING_ZONE, ARROW_SPEED } from '../../hooks/useGame6';
 import { GameStats } from '../UI/GameStats';
+
+const MODIFIER_DESCRIPTIONS = {
+  slow: 'Медленная стрелка (x0.5)',
+  fast: 'Быстрая стрелка (x2)',
+  large: 'Большой датчик (x1.5)',
+  small: 'Маленький датчик (x0.75)',
+  shake: 'Тряска',
+  mirror: 'Зеркало',
+  moving: 'Движущаяся зона',
+  bounce: 'Отскок'
+};
 
 const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -14,6 +25,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     canvasRef,
     shakeOffsetRef,
     floatingText,
+    activeModifiers,
   } = useGame6({ onLevelComplete });
 
   const requestRef = useRef(null);
@@ -38,7 +50,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем скилл чек если активен
     if (gameState.skillCheckActive || gameState.showFailAnimation) {
-      const skillCheckRadius = SKILL_CHECK_SIZE / 2;
+      const skillCheckRadius = (SKILL_CHECK_SIZE / 2) * gameState.skillCheckSizeMultiplier;
       
       // Позиция скилл чека с учетом смещения и тряски
       let centerX = (gameState.skillCheckPosition.x / 100) * width;
@@ -390,6 +402,45 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           <p className="text-sm opacity-50 mt-2 text-yellow-300">Внимание: возможен отскок стрелки и движущиеся зоны!</p>
         </div>
       )}
+
+      {/* Легенда модификаторов справа */}
+      <div className="absolute top-20 right-4 bg-black/70 p-3 rounded-lg text-white text-xs z-30 pointer-events-none">
+        <h3 className="font-bold mb-2 text-sm border-b border-gray-600 pb-1">Модификаторы:</h3>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">S</span>
+            <span>Медленная стрелка (x0.5)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">F</span>
+            <span>Быстрая стрелка (x2)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">L</span>
+            <span>Большой датчик (x1.5)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">M</span>
+            <span>Маленький датчик (x0.75)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">T</span>
+            <span>Тряска</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">Z</span>
+            <span>Зеркало</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">D</span>
+            <span>Движущаяся зона</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">O</span>
+            <span>Отскок (30%)</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
