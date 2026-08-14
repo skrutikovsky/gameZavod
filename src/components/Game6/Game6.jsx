@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT } from '../../hooks/useGame6';
+import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT, SHAKE_DURATION } from '../../hooks/useGame6';
 import { GameStats } from '../UI/GameStats';
 
 const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
@@ -43,10 +43,22 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       let centerX = (gameState.skillCheckPosition.x / 100) * width;
       let centerY = (gameState.skillCheckPosition.y / 100) * height;
       
-      // Добавляем тряску если нужно
+      // Добавляем тряску если нужно (только в течение SHAKE_DURATION после спавна)
       if (gameState.isShaking && gameState.skillCheckActive) {
-        centerX += shakeOffsetRef.current.x * SKILL_CHECK_SIZE;
-        centerY += shakeOffsetRef.current.y * SKILL_CHECK_SIZE;
+        // Тряска: случайное смещение на 5 пикселей в любую сторону
+        const shakeTime = Date.now();
+        const shakeProgress = (shakeTime - gameState.lastSkillCheckTime) / (SHAKE_DURATION * 1000);
+        
+        if (shakeProgress < 1) {
+          // В течение 0.3с трясем скиллчек
+          const randomAngle = Math.random() * Math.PI * 2;
+          const shakeDistance = SHAKE_AMOUNT; // 5 пикселей
+          centerX += Math.cos(randomAngle) * shakeDistance;
+          centerY += Math.sin(randomAngle) * shakeDistance;
+        } else {
+          // После 0.3с сбрасываем тряску
+          shakeOffsetRef.current = { x: 0, y: 0 };
+        }
       }
 
       // Цвет круга (красный при провале, иначе обычный)
@@ -226,8 +238,8 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {!gameState.skillCheckActive && !gameState.showFailAnimation && gameState.score === 0 && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-center z-20 pointer-events-none">
           <p className="text-2xl font-bold mb-2">Нажми Пробел или ЛКМ когда стрелка в белой зоне</p>
-          <p className="text-lg opacity-80">Белая зона = 300 очков | Зона спавна: с 2 до 10 часов</p>
-          <p className="text-md opacity-60 mt-2">Провал если стрелка ушла дальше 1 часа от зоны</p>
+          <p className="text-lg opacity-80">Белая зона = 300 очков | Зона спавна: с 4 до 10 часов</p>
+          <p className="text-md opacity-60 mt-2">Провал если нажал вне белой зоны</p>
         </div>
       )}
     </div>
