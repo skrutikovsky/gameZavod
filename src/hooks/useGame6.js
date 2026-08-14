@@ -5,6 +5,7 @@ export const SKILL_CHECK_SIZE = 200; // Размер скилл чека в пи
 export const TARGET_ZONE_PERCENT = 20; // 20% белая зона попадания (увеличено в 2 раза)
 export const ARROW_SPEED = 270; // Скорость вращения стрелки (градусов в секунду) (увеличено в 1.5 раза)
 export const SHAKE_AMOUNT = 5; // Амплитуда тряски в пикселях (землетрясение)
+export const SHAKE_DURATION = 300; // Длительность тряски в миллисекундах
 
 // Шансы
 export const CHANCE_CLOCKWISE = 0.85; // 85% по часовой стрелке
