@@ -2,10 +2,10 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // Константы игры
 export const SKILL_CHECK_SIZE = 200; // Размер скилл чека в пикселях (диаметр круга)
-export const TARGET_ZONE_PERCENT = 10; // 10% белая зона попадания
-export const ARROW_SPEED = 180; // Скорость вращения стрелки (градусов в секунду)
-export const SHAKE_AMOUNT = 0.33; // Амплитуда тряски (1/3 размера)
-export const SHAKE_SPEED = 15; // Скорость тряски (Гц)
+export const TARGET_ZONE_PERCENT = 20; // 20% белая зона попадания (увеличено в 2 раза)
+export const ARROW_SPEED = 270; // Скорость вращения стрелки (градусов в секунду) (увеличено в 1.5 раза)
+export const SHAKE_AMOUNT = 0.5; // Амплитуда тряски (землетрясение)
+export const SHAKE_SPEED = 20; // Скорость тряски (Гц) (увеличена для хаотичности)
 
 // Шансы
 export const CHANCE_CLOCKWISE = 0.85; // 85% по часовой стрелке
@@ -48,8 +48,8 @@ export function useGame6({ onLevelComplete }) {
       score: 0,
       skillCheckActive: false,
       arrowAngle: 0,
-      targetZoneStart: Math.random() * 360, // Случайная позиция зоны
-      isClockwise: Math.random() < CHANCE_CLOCKWISE,
+      targetZoneStart: 60, // Зона спавна с 2 часов (60 градусов) до 10 часов (300 градусов)
+      isClockwise: true, // Всегда по часовой стрелке для циферблата
       showFailAnimation: false,
       skillCheckPosition: { x: 50, y: 50 },
       isShaking: false,
@@ -58,11 +58,9 @@ export function useGame6({ onLevelComplete }) {
       gameOver: false,
     }));
     
-    // Запускаем первый скилл чек через небольшую задержку
-    setTimeout(() => {
-      spawnSkillCheck();
-    }, 500);
-  }, []);
+    // Запускаем первый скилл чек сразу (без задержки)
+    spawnSkillCheck();
+  }, [spawnSkillCheck]);
 
   const startGame = useCallback(() => {
     setGameState(prev => ({
@@ -107,9 +105,9 @@ export function useGame6({ onLevelComplete }) {
     let positionY = 50;
     
     if (Math.random() < CHANCE_OFFSET_CORNER) {
-      // Смещение к одному из 4 углов (50% смещение)
+      // Смещение к одному из 4 углов - но на середине линии между центром и углом (25% вместо 50%)
       const corner = Math.floor(Math.random() * 4);
-      const offset = 50; // 50% смещение
+      const offset = 25; // 25% смещение (середина между центром и углом)
       
       switch(corner) {
         case 0: // Верхний левый
@@ -143,12 +141,20 @@ export function useGame6({ onLevelComplete }) {
     // Определяем тряску (10% шанс)
     const isShaking = Math.random() < CHANCE_SHAKE;
 
+    // Для циферблата: стрелка всегда начинает с 12 часов (0 градусов)
+    // Зона для попадания спавнится случайно в диапазоне от 2 часов (60°) до 10 часов (300°)
+    // Это означает зону от 60° до 300° (против часовой стрелки от 2 до 10 часов через верх)
+    // Но так как у нас зона имеет размер, мы спавним её начало в этом диапазоне
+    const minZoneAngle = 60; // 2 часа
+    const maxZoneAngle = 300; // 10 часов
+    const randomTargetZoneStart = minZoneAngle + Math.random() * (maxZoneAngle - minZoneAngle);
+
     setGameState(prev => ({
       ...prev,
       skillCheckActive: true,
-      arrowAngle: 0,
-      targetZoneStart: Math.random() * 360, // Случайная позиция зоны
-      isClockwise: Math.random() < CHANCE_CLOCKWISE,
+      arrowAngle: 0, // Стрелка всегда начинается с 12 часов (0 градусов)
+      targetZoneStart: randomTargetZoneStart, // Случайная позиция зоны в диапазоне 2-10 часов
+      isClockwise: true, // Всегда по часовой стрелке
       showFailAnimation: false,
       skillCheckPosition: { x: positionX, y: positionY },
       isShaking: isShaking,
@@ -186,6 +192,21 @@ export function useGame6({ onLevelComplete }) {
       hit = normalizedArrowAngle >= state.targetZoneStart || normalizedArrowAngle <= zoneEnd;
     }
 
+    // Проверка на провал: если стрелка ушла дальше чем на 1 час (30 градусов) от конца зоны
+    // Зона заканчивается на zoneEnd, если стрелка больше чем zoneEnd + 30 - это провал
+    const failMargin = 30; // 1 час = 30 градусов
+    let failed = false;
+    
+    // Если стрелка прошла зону и ушла дальше чем на 30 градусов от её конца
+    if (!hit) {
+      // Вычисляем расстояние от конца зоны до стрелки (по часовой стрелке)
+      let distanceFromZoneEnd = (normalizedArrowAngle - zoneEnd + 360) % 360;
+      // Если расстояние меньше 180 (стрелка еще не сделала полный круг) и больше failMargin
+      if (distanceFromZoneEnd < 180 && distanceFromZoneEnd > failMargin) {
+        failed = true;
+      }
+    }
+
     if (hit) {
       // ПОПАДАНИЕ: +300 очков, скилл чек исчезает сразу
       setGameState(prev => ({
@@ -195,12 +216,10 @@ export function useGame6({ onLevelComplete }) {
         showFailAnimation: false,
       }));
       
-      // Новый скилл чек через 0.5 секунды
-      setTimeout(() => {
-        spawnSkillCheck();
-      }, 500);
-    } else {
-      // ПРОМАХ: скилл чек становится красным и исчезает через пару долей секунды
+      // Новый скилл чек без задержки (сразу)
+      spawnSkillCheck();
+    } else if (failed) {
+      // ПРОВАЛ: стрелка ушла слишком далеко от зоны
       setGameState(prev => ({
         ...prev,
         skillCheckActive: false,
@@ -220,6 +239,7 @@ export function useGame6({ onLevelComplete }) {
         }, 1000);
       }, 300); // Пара долей секунд (300мс)
     }
+    // Если не попал но и не провалил (стрелка еще не дошла до зоны или в пределах margin) - ничего не делаем, ждем следующего клика
   }, [spawnSkillCheck]);
 
   // Основной игровой цикл
@@ -232,12 +252,15 @@ export function useGame6({ onLevelComplete }) {
       const direction = state.isClockwise ? 1 : -1;
       const newAngle = (state.arrowAngle + direction * ARROW_SPEED * deltaTime) % 360;
       
-      // Обновляем тряску если нужно
+      // Обновляем тряску если нужно (землетрясение - более хаотичное движение)
       if (state.isShaking) {
         const shakeTime = Date.now();
+        // Используем комбинацию синусов для более хаотичного движения землетрясения
         shakeOffsetRef.current = {
-          x: Math.sin(shakeTime * SHAKE_SPEED * Math.PI / 1000) * SHAKE_AMOUNT,
-          y: Math.cos(shakeTime * SHAKE_SPEED * Math.PI / 1000) * SHAKE_AMOUNT,
+          x: (Math.sin(shakeTime * SHAKE_SPEED * Math.PI / 1000) + 
+              Math.sin(shakeTime * SHAKE_SPEED * 1.7 * Math.PI / 1000) * 0.5) * SHAKE_AMOUNT,
+          y: (Math.cos(shakeTime * SHAKE_SPEED * Math.PI / 1000) + 
+              Math.cos(shakeTime * SHAKE_SPEED * 1.3 * Math.PI / 1000) * 0.5) * SHAKE_AMOUNT,
         };
       } else {
         shakeOffsetRef.current = { x: 0, y: 0 };
