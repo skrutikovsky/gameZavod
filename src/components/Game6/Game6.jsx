@@ -66,7 +66,8 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Рисуем белую зону попадания (только если не провал)
       if (!gameState.showFailAnimation) {
         const zoneSizeDegrees = TARGET_ZONE_PERCENT * gameState.zoneSizeMultiplier;
-        const zoneStartRad = (gameState.targetZoneStart - 90) * Math.PI / 180; // -90 чтобы 0 был сверху
+        // Для циферблата: 0 градусов = 12 часов (верх), угол растет по часовой стрелке
+        const zoneStartRad = (gameState.targetZoneStart - 90) * Math.PI / 180;
         const zoneEndRad = (gameState.targetZoneStart + zoneSizeDegrees - 90) * Math.PI / 180;
 
         ctx.beginPath();
@@ -75,10 +76,27 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         ctx.closePath();
         ctx.fillStyle = zoneColor;
         ctx.fill();
+        
+        // Рисуем маркеры часов для наглядности циферблата
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        for (let hour = 0; hour < 12; hour++) {
+          const hourAngle = (hour * 30 - 90) * Math.PI / 180;
+          const markerStart = skillCheckRadius * 0.85;
+          const markerEnd = skillCheckRadius * 0.95;
+          const x1 = centerX + Math.cos(hourAngle) * markerStart;
+          const y1 = centerY + Math.sin(hourAngle) * markerStart;
+          const x2 = centerX + Math.cos(hourAngle) * markerEnd;
+          const y2 = centerY + Math.sin(hourAngle) * markerEnd;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
       }
 
       // Рисуем стрелку
-      const arrowAngleRad = (gameState.arrowAngle - 90) * Math.PI / 180; // -90 чтобы 0 был сверху
+      const arrowAngleRad = (gameState.arrowAngle - 90) * Math.PI / 180; // -90 чтобы 0 был сверху (12 часов)
       const arrowLength = skillCheckRadius * 0.7;
       const arrowTipX = centerX + Math.cos(arrowAngleRad) * arrowLength;
       const arrowTipY = centerY + Math.sin(arrowAngleRad) * arrowLength;
@@ -95,6 +113,12 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       ctx.beginPath();
       ctx.arc(arrowTipX, arrowTipY, 6, 0, Math.PI * 2);
       ctx.fillStyle = arrowColor;
+      ctx.fill();
+      
+      // Центр циферблата
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
       ctx.fill();
     }
 
@@ -202,7 +226,8 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       {!gameState.skillCheckActive && !gameState.showFailAnimation && gameState.score === 0 && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-center z-20 pointer-events-none">
           <p className="text-2xl font-bold mb-2">Нажми Пробел или ЛКМ когда стрелка в белой зоне</p>
-          <p className="text-lg opacity-80">Белая зона = 300 очков</p>
+          <p className="text-lg opacity-80">Белая зона = 300 очков | Зона спавна: с 2 до 10 часов</p>
+          <p className="text-md opacity-60 mt-2">Провал если стрелка ушла дальше 1 часа от зоны</p>
         </div>
       )}
     </div>
