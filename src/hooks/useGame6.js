@@ -13,6 +13,8 @@ export const CHANCE_OFFSET_CORNER = 0.20; // 20% смещение к углу
 export const CHANCE_SHAKE = 0.10; // 10% тряска
 export const CHANCE_SIZE_MODIFIER = 0.05; // 5% изменение размера зоны
 export const CHANCE_MIRRORED = 0.10; // 10% зеркальное отражение
+export const CHANCE_BOUNCE = 0.30; // 30% шанс отскока (стрелка не останавливается)
+export const CHANCE_MOVING_ZONE = 0.15; // 15% шанс движущейся зоны
 
 export function useGame6({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
@@ -31,6 +33,11 @@ export function useGame6({ onLevelComplete }) {
     gameOver: false,
     isMirrored: false, // Зеркальное отражение скиллчека
     floatingText: null, // Текст для всплывающих очков { text, x, y, startTime }
+    isBouncing: false, // Отскок стрелки (не останавливается при попадании)
+    zoneMoving: false, // Движущаяся зона
+    zoneMoveDirection: 1, // Направление движения зоны (1 = по часовой, -1 = против)
+    zoneMoveSpeed: 30, // Скорость движения зоны (градусов в секунду)
+    sparks: [], // Массив искр [{x, y, vx, vy, life, startTime}]
   });
 
   const gameStateRef = useRef(null);
@@ -45,7 +52,7 @@ export function useGame6({ onLevelComplete }) {
   }, [gameState]);
 
   // Создание нового скилл чека
-  const spawnSkillCheck = useCallback(() => {
+  const spawnSkillCheck = useCallback((isBounceChain = false) => {
     const state = gameStateRef.current;
     if (!state?.isRunning) return;
 
@@ -56,7 +63,7 @@ export function useGame6({ onLevelComplete }) {
     let positionX = 50; // Центр по умолчанию
     let positionY = 50;
     
-    if (Math.random() < CHANCE_OFFSET_CORNER) {
+    if (Math.random() < CHANCE_OFFSET_CORNER && !isBounceChain) {
       // Смещение к одному из 4 углов - но на середине линии между центром и углом (25% вместо 50%)
       const corner = Math.floor(Math.random() * 4);
       const offset = 25; // 25% смещение (середина между центром и углом)
@@ -79,6 +86,10 @@ export function useGame6({ onLevelComplete }) {
           positionY = 50 + offset;
           break;
       }
+    } else if (isBounceChain) {
+      // При цепном отскоке сохраняем предыдущую позицию
+      positionX = state.skillCheckPosition.x;
+      positionY = state.skillCheckPosition.y;
     }
 
     // Определяем размер зоны (5% шанс изменения)
@@ -90,11 +101,18 @@ export function useGame6({ onLevelComplete }) {
       zoneSizeMultiplier = 2; // Увеличенная зона
     }
 
-    // Определяем тряску (10% шанс)
-    const isShaking = Math.random() < CHANCE_SHAKE;
+    // Определяем тряску (10% шанс, не работает при цепном отскоке)
+    const isShaking = Math.random() < CHANCE_SHAKE && !isBounceChain;
     
-    // Определяем зеркальное отражение (10% шанс)
-    const isMirrored = Math.random() < CHANCE_MIRRORED;
+    // Определяем зеркальное отражение (10% шанс, не работает при цепном отскоке)
+    const isMirrored = Math.random() < CHANCE_MIRRORED && !isBounceChain;
+    
+    // Определяем движущуюся зону (15% шанс, не работает при цепном отскоке)
+    const zoneMoving = Math.random() < CHANCE_MOVING_ZONE && !isBounceChain;
+    const zoneMoveDirection = Math.random() < 0.5 ? 1 : -1; // Случайное направление
+
+    // Проверяем отскок (30% шанс) - может быть цепным
+    const isBouncing = Math.random() < CHANCE_BOUNCE;
 
     // Для циферблата: стрелка всегда начинает с 12 часов (0 градусов)
     // Зона для попадания спавнится случайно в диапазоне от 4 часов (120°) до 10 часов (300°)
@@ -114,8 +132,12 @@ export function useGame6({ onLevelComplete }) {
       zoneSizeMultiplier: zoneSizeMultiplier,
       lastSkillCheckTime: Date.now(),
       isMirrored: isMirrored,
+      isBouncing: isBouncing,
+      zoneMoving: zoneMoving,
+      zoneMoveDirection: zoneMoveDirection,
+      sparks: [], // Сбрасываем искры при новом скиллчеке
     }));
-  }, []);
+  }, [CHANCE_OFFSET_CORNER, CHANCE_SIZE_MODIFIER, CHANCE_SHAKE, CHANCE_MIRRORED, CHANCE_MOVING_ZONE, CHANCE_BOUNCE]);
 
   // Инициализация нового раунда
   const initRound = useCallback(() => {
@@ -212,22 +234,68 @@ export function useGame6({ onLevelComplete }) {
     const centerY = (state.skillCheckPosition.y / 100) * canvas.height;
 
     if (hit) {
-      // ПОПАДАНИЕ: +300 очков, скилл чек исчезает сразу
-      setGameState(prev => ({
-        ...prev,
-        score: prev.score + 300,
-        skillCheckActive: false,
-        showFailAnimation: false,
-        floatingText: { 
-          text: '+300', 
-          x: centerX, 
-          y: centerY, 
-          startTime: Date.now() 
-        },
-      }));
-      
-      // Новый скилл чек без задержки (сразу)
-      spawnSkillCheck();
+      // Проверяем отскок (30% шанс что стрелка не остановится)
+      if (state.isBouncing) {
+        // ОТСКАК: стрелка продолжает движение в противоположную сторону, зона переспавнится
+        // Цепной эффект: каждый раз 30% шанс что снова отскочит
+        
+        // Разворачиваем направление стрелки
+        const newIsClockwise = !state.isClockwise;
+        
+        // Создаем искры в точке попадания
+        const sparkCount = 8;
+        const newSparks = [];
+        for (let i = 0; i < sparkCount; i++) {
+          const angle = (Math.random() * Math.PI * 2);
+          const speed = 50 + Math.random() * 100;
+          newSparks.push({
+            x: centerX,
+            y: centerY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 0.3 + Math.random() * 0.2, // 300-500мс жизни
+            startTime: Date.now()
+          });
+        }
+        
+        // Новая случайная позиция зоны для отскока
+        const minZoneAngle = 120;
+        const maxZoneAngle = 300;
+        const newTargetZoneStart = minZoneAngle + Math.random() * (maxZoneAngle - minZoneAngle);
+        
+        setGameState(prev => ({
+          ...prev,
+          isClockwise: newIsClockwise,
+          targetZoneStart: newTargetZoneStart,
+          sparks: newSparks,
+          floatingText: { 
+            text: 'ОТСКАК!', 
+            x: centerX, 
+            y: centerY, 
+            startTime: Date.now() 
+          },
+        }));
+        
+        // Новый скилл чек с цепным отскоком (другие модификаторы не действуют)
+        spawnSkillCheck(true);
+      } else {
+        // ПОПАДАНИЕ: +300 очков, скилл чек исчезает сразу
+        setGameState(prev => ({
+          ...prev,
+          score: prev.score + 300,
+          skillCheckActive: false,
+          showFailAnimation: false,
+          floatingText: { 
+            text: '+300', 
+            x: centerX, 
+            y: centerY, 
+            startTime: Date.now() 
+          },
+        }));
+        
+        // Новый скилл чек без задержки (сразу)
+        spawnSkillCheck();
+      }
     } else {
       // ПРОВАЛ: стрелка не в зоне
       setGameState(prev => ({
@@ -262,6 +330,35 @@ export function useGame6({ onLevelComplete }) {
       setGameState(prev => ({
         ...prev,
         arrowAngle: newAngle,
+      }));
+    }
+
+    // Обновляем движущуюся зону если активна
+    if (state.skillCheckActive && state.zoneMoving) {
+      const zoneSize = TARGET_ZONE_PERCENT * state.zoneSizeMultiplier;
+      const newTargetZoneStart = (state.targetZoneStart + state.zoneMoveDirection * state.zoneMoveSpeed * deltaTime + 360) % 360;
+      
+      setGameState(prev => ({
+        ...prev,
+        targetZoneStart: newTargetZoneStart,
+      }));
+    }
+
+    // Обновляем искры
+    if (state.sparks && state.sparks.length > 0) {
+      const now = Date.now();
+      const updatedSparks = state.sparks.filter(spark => {
+        const elapsed = (now - spark.startTime) / 1000;
+        return elapsed < spark.life;
+      }).map(spark => ({
+        ...spark,
+        x: spark.x + spark.vx * deltaTime,
+        y: spark.y + spark.vy * deltaTime,
+      }));
+      
+      setGameState(prev => ({
+        ...prev,
+        sparks: updatedSparks,
       }));
     }
 

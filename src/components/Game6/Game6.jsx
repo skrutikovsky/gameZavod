@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT } from '../../hooks/useGame6';
+import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT, CHANCE_MOVING_ZONE } from '../../hooks/useGame6';
 import { GameStats } from '../UI/GameStats';
 
 const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
@@ -53,18 +53,36 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         centerY += Math.sin(randomAngle) * shakeDistance;
       }
 
-      // Цвет круга (красный при провале, иначе обычный)
-      const circleColor = gameState.showFailAnimation ? '#ff4444' : '#ffffff';
+      // Цвет круга (красный при провале, иначе обычный) - стилизация под датчик напряжения/силы тока
+      const circleColor = gameState.showFailAnimation ? '#ff4444' : '#4a9eff'; // Голубой как вольтметр
       const zoneColor = gameState.showFailAnimation ? '#ff6666' : '#ffffff';
-      const arrowColor = gameState.showFailAnimation ? '#ff0000' : '#00ff00';
+      const arrowColor = gameState.showFailAnimation ? '#ff0000' : '#ffaa00'; // Оранжевый как индикатор
 
-      // Рисуем основной круг
+      // Рисуем основной круг с градиентом как у настоящего датчика
+      const circleGradient = ctx.createRadialGradient(centerX, centerY, skillCheckRadius * 0.8, centerX, centerY, skillCheckRadius);
+      circleGradient.addColorStop(0, 'rgba(20, 30, 50, 0.8)');
+      circleGradient.addColorStop(1, 'rgba(10, 15, 25, 0.9)');
+      
       ctx.beginPath();
       ctx.arc(centerX, centerY, skillCheckRadius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillStyle = circleGradient;
       ctx.fill();
-      ctx.strokeStyle = circleColor;
-      ctx.lineWidth = 4;
+      
+      // Металлическая рамка датчика
+      const frameGradient = ctx.createLinearGradient(centerX - skillCheckRadius, centerY - skillCheckRadius, centerX + skillCheckRadius, centerY + skillCheckRadius);
+      frameGradient.addColorStop(0, '#666');
+      frameGradient.addColorStop(0.5, '#aaa');
+      frameGradient.addColorStop(1, '#666');
+      
+      ctx.strokeStyle = frameGradient;
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      
+      // Внутренняя обводка
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, skillCheckRadius - 3, 0, Math.PI * 2);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       // Рисуем белую зону попадания (только если не провал)
@@ -107,29 +125,36 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         }
       }
 
-      // Рисуем стрелку
+      // Рисуем стрелку - стилизация под стрелку аналогового датчика
       const arrowAngleRad = (gameState.arrowAngle - 90) * Math.PI / 180; // -90 чтобы 0 был сверху (12 часов)
-      const arrowLength = skillCheckRadius * 0.7;
+      const arrowLength = skillCheckRadius * 0.75;
       const arrowTipX = centerX + Math.cos(arrowAngleRad) * arrowLength;
       const arrowTipY = centerY + Math.sin(arrowAngleRad) * arrowLength;
 
-      // Стрелка - более красивый спрайт (градиентная с наконечником)
-      const arrowGradient = ctx.createLinearGradient(centerX, centerY, arrowTipX, arrowTipY);
-      arrowGradient.addColorStop(0, gameState.showFailAnimation ? '#cc0000' : '#00cc00');
-      arrowGradient.addColorStop(1, gameState.showFailAnimation ? '#ff6666' : '#66ff66');
-      
-      // Основная линия стрелки
+      // Тень под стрелкой
+      ctx.save();
+      ctx.translate(2, 2);
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.lineTo(arrowTipX, arrowTipY);
-      ctx.strokeStyle = arrowGradient;
-      ctx.lineWidth = 5;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.restore();
+
+      // Основная линия стрелки - тонкая как у настоящего датчика
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(arrowTipX, arrowTipY);
+      ctx.strokeStyle = gameState.showFailAnimation ? '#ff3333' : '#ff4444'; // Красная как у вольтметра
+      ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.stroke();
 
       // Наконечник стрелки (треугольный)
       const tipAngle = Math.atan2(arrowTipY - centerY, arrowTipX - centerX);
-      const tipSize = 10;
+      const tipSize = 12;
       ctx.beginPath();
       ctx.moveTo(arrowTipX, arrowTipY);
       ctx.lineTo(
@@ -141,17 +166,58 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         arrowTipY - tipSize * Math.sin(tipAngle + Math.PI / 6)
       );
       ctx.closePath();
-      ctx.fillStyle = arrowColor;
-      ctx.fill();
-      
-      // Центр циферблата (декоративный элемент)
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = gameState.showFailAnimation ? '#ff0000' : '#ff6600';
       ctx.fill();
       ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Центр циферблата - декоративная заглушка вала
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+      const centerGradient = ctx.createRadialGradient(centerX - 2, centerY - 2, 0, centerX, centerY, 10);
+      centerGradient.addColorStop(0, '#ccc');
+      centerGradient.addColorStop(1, '#666');
+      ctx.fillStyle = centerGradient;
+      ctx.fill();
+      ctx.strokeStyle = '#222';
       ctx.lineWidth = 2;
       ctx.stroke();
+      
+      // Рисуем искры при отскоке
+      if (gameState.sparks && gameState.sparks.length > 0) {
+        gameState.sparks.forEach(spark => {
+          const sparkAge = (Date.now() - spark.startTime) / 1000;
+          const sparkLife = spark.life;
+          const opacity = 1 - (sparkAge / sparkLife);
+          
+          if (opacity > 0) {
+            // Рисуем искру как яркую точку с хвостом
+            const grad = ctx.createRadialGradient(spark.x, spark.y, 0, spark.x, spark.y, 6);
+            grad.addColorStop(0, `rgba(255, 255, 200, ${opacity})`);
+            grad.addColorStop(0.5, `rgba(255, 200, 100, ${opacity * 0.8})`);
+            grad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.beginPath();
+            ctx.arc(spark.x, spark.y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // Хвост искры
+            const tailLength = 15 * (1 - sparkAge / sparkLife);
+            const tailAngle = Math.atan2(-spark.vy, -spark.vx);
+            ctx.beginPath();
+            ctx.moveTo(spark.x, spark.y);
+            ctx.lineTo(
+              spark.x + Math.cos(tailAngle) * tailLength,
+              spark.y + Math.sin(tailAngle) * tailLength
+            );
+            ctx.strokeStyle = `rgba(255, 200, 100, ${opacity * 0.6})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        });
+      }
     }
 
     // Рисуем floating text (+300 очков)
@@ -286,6 +352,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           <p className="text-2xl font-bold mb-2">Нажми Пробел или ЛКМ когда стрелка в белой зоне</p>
           <p className="text-lg opacity-80">Белая зона = 300 очков | Зона спавна: с 4 до 10 часов</p>
           <p className="text-md opacity-60 mt-2">Провал если нажал вне белой зоны</p>
+          <p className="text-sm opacity-50 mt-2 text-yellow-300">Внимание: возможен отскок стрелки и движущиеся зоны!</p>
         </div>
       )}
     </div>
