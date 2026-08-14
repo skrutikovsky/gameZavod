@@ -121,6 +121,7 @@ export function useGame6({ onLevelComplete }) {
 
     // Определяем скорость стрелки (10% медленно x0.5, 10% быстро x2)
     let arrowSpeedMultiplier = 1;
+    let skillCheckSizeMultiplier = 1; // Объявляем заранее для всех случаев
     const activeModifiers = [];
     
     if (!isBounceChain) {
@@ -135,7 +136,6 @@ export function useGame6({ onLevelComplete }) {
       
       // Определяем размер скиллчека (10% большой x1.5, 10% маленький x0.75)
       const sizeCheckRoll = Math.random();
-      let skillCheckSizeMultiplier = 1;
       if (sizeCheckRoll < CHANCE_LARGE_SKILLCHECK) {
         skillCheckSizeMultiplier = 1.5;
         activeModifiers.push('large');
