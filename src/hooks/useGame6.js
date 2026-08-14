@@ -40,58 +40,6 @@ export function useGame6({ onLevelComplete }) {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  // Инициализация нового раунда
-  const initRound = useCallback(() => {
-    setGameState(prev => ({
-      ...prev,
-      isRunning: true,
-      score: 0,
-      skillCheckActive: false,
-      arrowAngle: 0,
-      targetZoneStart: 60, // Зона спавна с 2 часов (60 градусов) до 10 часов (300 градусов)
-      isClockwise: true, // Всегда по часовой стрелке для циферблата
-      showFailAnimation: false,
-      skillCheckPosition: { x: 50, y: 50 },
-      isShaking: false,
-      zoneSizeMultiplier: 1,
-      lastSkillCheckTime: 0,
-      gameOver: false,
-    }));
-    
-    // Запускаем первый скилл чек сразу (без задержки)
-    spawnSkillCheck();
-  }, [spawnSkillCheck]);
-
-  const startGame = useCallback(() => {
-    setGameState(prev => ({
-      ...prev,
-      isRunning: true,
-      score: 0,
-      round: 1,
-      gameOver: false
-    }));
-    initRound();
-  }, [initRound]);
-
-  const resetGame = useCallback(() => {
-    lastTimeRef.current = null;
-    setGameState({
-      isRunning: false,
-      score: 0,
-      round: 1,
-      skillCheckActive: false,
-      arrowAngle: 0,
-      targetZoneStart: 0,
-      isClockwise: true,
-      showFailAnimation: false,
-      skillCheckPosition: { x: 50, y: 50 },
-      isShaking: false,
-      zoneSizeMultiplier: 1,
-      lastSkillCheckTime: 0,
-      gameOver: false,
-    });
-  }, []);
-
   // Создание нового скилл чека
   const spawnSkillCheck = useCallback(() => {
     const state = gameStateRef.current;
@@ -161,6 +109,58 @@ export function useGame6({ onLevelComplete }) {
       zoneSizeMultiplier: zoneSizeMultiplier,
       lastSkillCheckTime: Date.now(),
     }));
+  }, []);
+
+  // Инициализация нового раунда
+  const initRound = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isRunning: true,
+      score: 0,
+      skillCheckActive: false,
+      arrowAngle: 0,
+      targetZoneStart: 60, // Зона спавна с 2 часов (60 градусов) до 10 часов (300 градусов)
+      isClockwise: true, // Всегда по часовой стрелке для циферблата
+      showFailAnimation: false,
+      skillCheckPosition: { x: 50, y: 50 },
+      isShaking: false,
+      zoneSizeMultiplier: 1,
+      lastSkillCheckTime: 0,
+      gameOver: false,
+    }));
+    
+    // Запускаем первый скилл чек сразу (без задержки)
+    spawnSkillCheck();
+  }, [spawnSkillCheck]);
+
+  const startGame = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      isRunning: true,
+      score: 0,
+      round: 1,
+      gameOver: false
+    }));
+    initRound();
+  }, [initRound]);
+
+  const resetGame = useCallback(() => {
+    lastTimeRef.current = null;
+    setGameState({
+      isRunning: false,
+      score: 0,
+      round: 1,
+      skillCheckActive: false,
+      arrowAngle: 0,
+      targetZoneStart: 0,
+      isClockwise: true,
+      showFailAnimation: false,
+      skillCheckPosition: { x: 50, y: 50 },
+      isShaking: false,
+      zoneSizeMultiplier: 1,
+      lastSkillCheckTime: 0,
+      gameOver: false,
+    });
   }, []);
 
   // Обработка нажатия (пробел или ЛКМ)
