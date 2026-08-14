@@ -5,13 +5,13 @@ export const SKILL_CHECK_SIZE = 200; // Размер скилл чека в пи
 export const TARGET_ZONE_PERCENT = 20; // 20% белая зона попадания (увеличено в 2 раза)
 export const ARROW_SPEED = 270; // Скорость вращения стрелки (градусов в секунду) (увеличено в 1.5 раза)
 export const SHAKE_AMOUNT = 5; // Амплитуда тряски в пикселях (землетрясение)
-export const SHAKE_DURATION = 0.3; // Длительность тряски в секундах
 
 // Шансы
 export const CHANCE_CLOCKWISE = 0.85; // 85% по часовой стрелке
 export const CHANCE_OFFSET_CORNER = 0.20; // 20% смещение к углу
 export const CHANCE_SHAKE = 0.10; // 10% тряска
 export const CHANCE_SIZE_MODIFIER = 0.05; // 5% изменение размера зоны
+export const CHANCE_MIRRORED = 0.10; // 10% зеркальное отражение
 
 export function useGame6({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
@@ -28,6 +28,8 @@ export function useGame6({ onLevelComplete }) {
     zoneSizeMultiplier: 1, // Множитель размера зоны (0.5, 1, или 2)
     lastSkillCheckTime: 0,
     gameOver: false,
+    isMirrored: false, // Зеркальное отражение скиллчека
+    floatingText: null, // Текст для всплывающих очков { text, x, y, startTime }
   });
 
   const gameStateRef = useRef(null);
@@ -90,15 +92,8 @@ export function useGame6({ onLevelComplete }) {
     // Определяем тряску (10% шанс)
     const isShaking = Math.random() < CHANCE_SHAKE;
     
-    // Если тряска активна, запускаем таймер на сброс через 0.3с
-    if (isShaking && shakeTimeoutRef.current) {
-      clearTimeout(shakeTimeoutRef.current);
-    }
-    if (isShaking) {
-      shakeTimeoutRef.current = setTimeout(() => {
-        shakeOffsetRef.current = { x: 0, y: 0 };
-      }, SHAKE_DURATION * 1000);
-    }
+    // Определяем зеркальное отражение (10% шанс)
+    const isMirrored = Math.random() < CHANCE_MIRRORED;
 
     // Для циферблата: стрелка всегда начинает с 12 часов (0 градусов)
     // Зона для попадания спавнится случайно в диапазоне от 4 часов (120°) до 10 часов (300°)
@@ -111,12 +106,13 @@ export function useGame6({ onLevelComplete }) {
       skillCheckActive: true,
       arrowAngle: 0, // Стрелка всегда начинается с 12 часов (0 градусов)
       targetZoneStart: randomTargetZoneStart, // Случайная позиция зоны в диапазоне 4-10 часов
-      isClockwise: true, // Всегда по часовой стрелке
+      isClockwise: !isMirrored, // Если зеркальное - стрелка едет против часовой стрелки
       showFailAnimation: false,
       skillCheckPosition: { x: positionX, y: positionY },
       isShaking: isShaking,
       zoneSizeMultiplier: zoneSizeMultiplier,
       lastSkillCheckTime: Date.now(),
+      isMirrored: isMirrored,
     }));
   }, []);
 
@@ -210,6 +206,10 @@ export function useGame6({ onLevelComplete }) {
     // Это соответствует требованию "любая попытка пройти скилл чек когда стрелка не находится в зоне прохождения скилл чека ведет к провалу"
     let failed = !hit;
 
+    // Получаем позицию для floating text
+    const centerX = (state.skillCheckPosition.x / 100) * canvas.width;
+    const centerY = (state.skillCheckPosition.y / 100) * canvas.height;
+
     if (hit) {
       // ПОПАДАНИЕ: +300 очков, скилл чек исчезает сразу
       setGameState(prev => ({
@@ -217,6 +217,12 @@ export function useGame6({ onLevelComplete }) {
         score: prev.score + 300,
         skillCheckActive: false,
         showFailAnimation: false,
+        floatingText: { 
+          text: '+300', 
+          x: centerX, 
+          y: centerY, 
+          startTime: Date.now() 
+        },
       }));
       
       // Новый скилл чек без задержки (сразу)
@@ -257,7 +263,96 @@ export function useGame6({ onLevelComplete }) {
         arrowAngle: newAngle,
       }));
     }
-  }, []);
+
+    // Проверяем, ушла ли стрелка за пределы зоны прохождения (провал скиллчека)
+    if (state.skillCheckActive) {
+      let normalizedArrowAngle = state.arrowAngle % 360;
+      if (normalizedArrowAngle < 0) normalizedArrowAngle += 360;
+
+      const zoneSize = TARGET_ZONE_PERCENT * state.zoneSizeMultiplier;
+      let zoneEnd = (state.targetZoneStart + zoneSize) % 360;
+
+      let inZone = false;
+      
+      if (zoneEnd > state.targetZoneStart) {
+        inZone = normalizedArrowAngle >= state.targetZoneStart && normalizedArrowAngle <= zoneEnd;
+      } else {
+        inZone = normalizedArrowAngle >= state.targetZoneStart || normalizedArrowAngle <= zoneEnd;
+      }
+
+      // Если стрелка была в зоне и теперь вышла за её пределы после прохождения - это провал
+      // Отслеживаем, прошла ли стрелка зону полностью
+      const hasPassedZone = (() => {
+        if (state.isClockwise) {
+          // По часовой стрелке: стрелка должна пройти от targetZoneStart до zoneEnd
+          return normalizedArrowAngle > zoneEnd && normalizedArrowAngle < state.targetZoneStart + 180;
+        } else {
+          // Против часовой стрелки (зеркально): стрелка идет от 0 в минус
+          const effectiveAngle = (360 - normalizedArrowAngle) % 360;
+          const effectiveZoneStart = (360 - state.targetZoneStart) % 360;
+          const effectiveZoneEnd = (360 - zoneEnd) % 360;
+          
+          if (effectiveZoneEnd > effectiveZoneStart) {
+            return effectiveAngle > effectiveZoneEnd;
+          } else {
+            return effectiveAngle > effectiveZoneEnd && effectiveAngle < effectiveZoneStart;
+          }
+        }
+      })();
+
+      // Простая логика: если стрелка ушла далеко от зоны (пролетела мимо) - это провал
+      // Проверяем, находится ли стрелка в "зоне провала" - после целевой зоны
+      const pastZoneThreshold = 30; // градусов после зоны считается пролетом
+      let missed = false;
+      
+      if (state.isClockwise) {
+        // По часовой: зона от targetZoneStart до zoneEnd
+        // Пролет если угол больше zoneEnd + порог но меньше чем полный круг до зоны
+        const afterZone = (zoneEnd + pastZoneThreshold) % 360;
+        if (zoneEnd + pastZoneThreshold < 360) {
+          missed = normalizedArrowAngle > zoneEnd + pastZoneThreshold && 
+                   normalizedArrowAngle < state.targetZoneStart;
+        } else {
+          missed = normalizedArrowAngle > zoneEnd + pastZoneThreshold || 
+                   normalizedArrowAngle < state.targetZoneStart;
+        }
+      } else {
+        // Против часовой: зона та же, но стрелка идет в обратную сторону
+        // Пролет если угол меньше targetZoneStart - порог
+        const beforeZone = (state.targetZoneStart - pastZoneThreshold + 360) % 360;
+        missed = normalizedArrowAngle < state.targetZoneStart - pastZoneThreshold &&
+                 normalizedArrowAngle > zoneEnd;
+      }
+
+      if (missed) {
+        // Стрелка перелетела за зону - провал
+        setGameState(prev => ({
+          ...prev,
+          skillCheckActive: false,
+          showFailAnimation: true,
+        }));
+        
+        setTimeout(() => {
+          setGameState(prev => ({
+            ...prev,
+            showFailAnimation: false,
+          }));
+          spawnSkillCheck();
+        }, 300);
+      }
+    }
+
+    // Очищаем floating text после 500мс
+    if (state.floatingText) {
+      const elapsed = Date.now() - state.floatingText.startTime;
+      if (elapsed > 500) {
+        setGameState(prev => ({
+          ...prev,
+          floatingText: null,
+        }));
+      }
+    }
+  }, [spawnSkillCheck]);
 
   // Игровой цикл
   useEffect(() => {
@@ -296,5 +391,6 @@ export function useGame6({ onLevelComplete }) {
     initRound,
     canvasRef,
     shakeOffsetRef,
+    floatingText: gameState.floatingText,
   };
 }

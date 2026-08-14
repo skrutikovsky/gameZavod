@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT, SHAKE_DURATION } from '../../hooks/useGame6';
+import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT } from '../../hooks/useGame6';
 import { GameStats } from '../UI/GameStats';
 
 const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
@@ -13,6 +13,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
     initRound,
     canvasRef,
     shakeOffsetRef,
+    floatingText,
   } = useGame6({ onLevelComplete });
 
   const requestRef = useRef(null);
@@ -43,22 +44,13 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       let centerX = (gameState.skillCheckPosition.x / 100) * width;
       let centerY = (gameState.skillCheckPosition.y / 100) * height;
       
-      // Добавляем тряску если нужно (только в течение SHAKE_DURATION после спавна)
+      // Добавляем тряску если нужно (тряска длится пока скиллчек активен)
       if (gameState.isShaking && gameState.skillCheckActive) {
         // Тряска: случайное смещение на 5 пикселей в любую сторону
-        const shakeTime = Date.now();
-        const shakeProgress = (shakeTime - gameState.lastSkillCheckTime) / (SHAKE_DURATION * 1000);
-        
-        if (shakeProgress < 1) {
-          // В течение 0.3с трясем скиллчек
-          const randomAngle = Math.random() * Math.PI * 2;
-          const shakeDistance = SHAKE_AMOUNT; // 5 пикселей
-          centerX += Math.cos(randomAngle) * shakeDistance;
-          centerY += Math.sin(randomAngle) * shakeDistance;
-        } else {
-          // После 0.3с сбрасываем тряску
-          shakeOffsetRef.current = { x: 0, y: 0 };
-        }
+        const randomAngle = Math.random() * Math.PI * 2;
+        const shakeDistance = SHAKE_AMOUNT; // 5 пикселей
+        centerX += Math.cos(randomAngle) * shakeDistance;
+        centerY += Math.sin(randomAngle) * shakeDistance;
       }
 
       // Цвет круга (красный при провале, иначе обычный)
@@ -78,9 +70,17 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       // Рисуем белую зону попадания (только если не провал)
       if (!gameState.showFailAnimation) {
         const zoneSizeDegrees = TARGET_ZONE_PERCENT * gameState.zoneSizeMultiplier;
+        
+        // Для зеркального режима отражаем зону по вертикали
+        let zoneStartAngle = gameState.targetZoneStart;
+        if (gameState.isMirrored) {
+          // Зеркальное отражение по вертикали: 360 - угол
+          zoneStartAngle = (360 - gameState.targetZoneStart - zoneSizeDegrees + 360) % 360;
+        }
+        
         // Для циферблата: 0 градусов = 12 часов (верх), угол растет по часовой стрелке
-        const zoneStartRad = (gameState.targetZoneStart - 90) * Math.PI / 180;
-        const zoneEndRad = (gameState.targetZoneStart + zoneSizeDegrees - 90) * Math.PI / 180;
+        const zoneStartRad = (zoneStartAngle - 90) * Math.PI / 180;
+        const zoneEndRad = (zoneStartAngle + zoneSizeDegrees - 90) * Math.PI / 180;
 
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
@@ -113,28 +113,74 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       const arrowTipX = centerX + Math.cos(arrowAngleRad) * arrowLength;
       const arrowTipY = centerY + Math.sin(arrowAngleRad) * arrowLength;
 
-      // Стрелка
+      // Стрелка - более красивый спрайт (градиентная с наконечником)
+      const arrowGradient = ctx.createLinearGradient(centerX, centerY, arrowTipX, arrowTipY);
+      arrowGradient.addColorStop(0, gameState.showFailAnimation ? '#cc0000' : '#00cc00');
+      arrowGradient.addColorStop(1, gameState.showFailAnimation ? '#ff6666' : '#66ff66');
+      
+      // Основная линия стрелки
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.lineTo(arrowTipX, arrowTipY);
-      ctx.strokeStyle = arrowColor;
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = arrowGradient;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
       ctx.stroke();
 
-      // Наконечник стрелки
+      // Наконечник стрелки (треугольный)
+      const tipAngle = Math.atan2(arrowTipY - centerY, arrowTipX - centerX);
+      const tipSize = 10;
       ctx.beginPath();
-      ctx.arc(arrowTipX, arrowTipY, 6, 0, Math.PI * 2);
+      ctx.moveTo(arrowTipX, arrowTipY);
+      ctx.lineTo(
+        arrowTipX - tipSize * Math.cos(tipAngle - Math.PI / 6),
+        arrowTipY - tipSize * Math.sin(tipAngle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        arrowTipX - tipSize * Math.cos(tipAngle + Math.PI / 6),
+        arrowTipY - tipSize * Math.sin(tipAngle + Math.PI / 6)
+      );
+      ctx.closePath();
       ctx.fillStyle = arrowColor;
       ctx.fill();
       
-      // Центр циферблата
+      // Центр циферблата (декоративный элемент)
       ctx.beginPath();
       ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
       ctx.fillStyle = '#ffffff';
       ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
-  }, [gameState, shakeOffsetRef]);
+    // Рисуем floating text (+300 очков)
+    if (floatingText) {
+      const elapsed = Date.now() - floatingText.startTime;
+      if (elapsed < 500) {
+        const progress = elapsed / 500;
+        const opacity = 1 - progress;
+        const yOffset = progress * 30; // 30 пикселей вверх
+        
+        ctx.save();
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;
+        ctx.strokeStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const textX = floatingText.x;
+        const textY = floatingText.y - yOffset;
+        
+        // Обводка текста для лучшей читаемости
+        ctx.strokeText(floatingText.text, textX, textY);
+        ctx.fillText(floatingText.text, textX, textY);
+        ctx.restore();
+      }
+    }
+
+  }, [gameState, shakeOffsetRef, floatingText]);
 
   // Игровой цикл для отрисовки
   useEffect(() => {
