@@ -129,8 +129,13 @@ export function useGame6({ onLevelComplete }) {
       gameOver: false,
     }));
     
-    // Запускаем первый скилл чек сразу (без задержки)
-    spawnSkillCheck();
+    // Запускаем первый скилл чек сразу (без задержки) - вызываем после обновления стейта
+    setTimeout(() => {
+      const state = gameStateRef.current;
+      if (state?.isRunning) {
+        spawnSkillCheck();
+      }
+    }, 0);
   }, [spawnSkillCheck]);
 
   const startGame = useCallback(() => {
