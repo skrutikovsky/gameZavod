@@ -218,6 +218,41 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           }
         });
       }
+      
+      // Рисуем искры тряски
+      if (gameState.shakeSparks && gameState.shakeSparks.length > 0) {
+        gameState.shakeSparks.forEach(spark => {
+          const sparkAge = (Date.now() - spark.startTime) / 1000;
+          const sparkLife = spark.life;
+          const opacity = 1 - (sparkAge / sparkLife);
+          
+          if (opacity > 0) {
+            // Рисуем искру как яркую точку с хвостом
+            const grad = ctx.createRadialGradient(spark.x, spark.y, 0, spark.x, spark.y, 4);
+            grad.addColorStop(0, `rgba(255, 255, 150, ${opacity})`);
+            grad.addColorStop(0.5, `rgba(255, 180, 80, ${opacity * 0.7})`);
+            grad.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.beginPath();
+            ctx.arc(spark.x, spark.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // Хвост искры
+            const tailLength = 10 * (1 - sparkAge / sparkLife);
+            const tailAngle = Math.atan2(-spark.vy, -spark.vx);
+            ctx.beginPath();
+            ctx.moveTo(spark.x, spark.y);
+            ctx.lineTo(
+              spark.x + Math.cos(tailAngle) * tailLength,
+              spark.y + Math.sin(tailAngle) * tailLength
+            );
+            ctx.strokeStyle = `rgba(255, 180, 80, ${opacity * 0.5})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        });
+      }
     }
 
     // Рисуем floating text (+300 очков)

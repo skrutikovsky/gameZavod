@@ -38,6 +38,7 @@ export function useGame6({ onLevelComplete }) {
     zoneMoveDirection: 1, // Направление движения зоны (1 = по часовой, -1 = против)
     zoneMoveSpeed: 30, // Скорость движения зоны (градусов в секунду)
     sparks: [], // Массив искр [{x, y, vx, vy, life, startTime}]
+    shakeSparks: [], // Массив искр тряски [{x, y, vx, vy, life, startTime}]
   });
 
   const gameStateRef = useRef(null);
@@ -136,6 +137,7 @@ export function useGame6({ onLevelComplete }) {
       zoneMoving: zoneMoving,
       zoneMoveDirection: zoneMoveDirection,
       sparks: [], // Сбрасываем искры при новом скиллчеке
+      shakeSparks: [], // Сбрасываем искры тряски при новом скиллчеке
     }));
   }, [CHANCE_OFFSET_CORNER, CHANCE_SIZE_MODIFIER, CHANCE_SHAKE, CHANCE_MIRRORED, CHANCE_MOVING_ZONE, CHANCE_BOUNCE]);
 
@@ -211,18 +213,25 @@ export function useGame6({ onLevelComplete }) {
     // Вычисляем размер зоны с учетом множителя
     const zoneSize = TARGET_ZONE_PERCENT * state.zoneSizeMultiplier;
     
+    // Для зеркального режима отражаем зону по вертикали для проверки попадания
+    // Это должно соответствовать логике отрисовки в Game6.jsx
+    let effectiveZoneStart = state.targetZoneStart;
+    if (state.isMirrored) {
+      effectiveZoneStart = (360 - state.targetZoneStart - zoneSize + 360) % 360;
+    }
+    
     // Проверяем попадание в белую зону
-    // Зона начинается с targetZoneStart и идет по часовой стрелке
-    let zoneEnd = (state.targetZoneStart + zoneSize) % 360;
+    // Зона начинается с effectiveZoneStart и идет по часовой стрелке
+    let zoneEnd = (effectiveZoneStart + zoneSize) % 360;
     
     let hit = false;
     
-    if (zoneEnd > state.targetZoneStart) {
+    if (zoneEnd > effectiveZoneStart) {
       // Зона не пересекает 0 градусов
-      hit = normalizedArrowAngle >= state.targetZoneStart && normalizedArrowAngle <= zoneEnd;
+      hit = normalizedArrowAngle >= effectiveZoneStart && normalizedArrowAngle <= zoneEnd;
     } else {
       // Зона пересекает 0 градусов
-      hit = normalizedArrowAngle >= state.targetZoneStart || normalizedArrowAngle <= zoneEnd;
+      hit = normalizedArrowAngle >= effectiveZoneStart || normalizedArrowAngle <= zoneEnd;
     }
 
     // Проверка на провал: любая попытка нажать когда стрелка НЕ в зоне - это провал
@@ -268,12 +277,6 @@ export function useGame6({ onLevelComplete }) {
           isClockwise: newIsClockwise,
           targetZoneStart: newTargetZoneStart,
           sparks: newSparks,
-          floatingText: { 
-            text: 'ОТСКАК!', 
-            x: centerX, 
-            y: centerY, 
-            startTime: Date.now() 
-          },
         }));
         
         // Новый скилл чек с цепным отскоком (другие модификаторы не действуют)
@@ -344,7 +347,7 @@ export function useGame6({ onLevelComplete }) {
       }));
     }
 
-    // Обновляем искры
+    // Обновляем искры (от отскока)
     if (state.sparks && state.sparks.length > 0) {
       const now = Date.now();
       const updatedSparks = state.sparks.filter(spark => {
@@ -360,6 +363,50 @@ export function useGame6({ onLevelComplete }) {
         ...prev,
         sparks: updatedSparks,
       }));
+    }
+
+    // Обновляем искры тряски (если скиллчек трясется)
+    if (state.isShaking && state.skillCheckActive) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const centerX = (state.skillCheckPosition.x / 100) * canvas.width;
+        const centerY = (state.skillCheckPosition.y / 100) * canvas.height;
+        const skillCheckRadius = SKILL_CHECK_SIZE / 2;
+        
+        const now = Date.now();
+        // Фильтруем старые искры
+        let updatedShakeSparks = state.shakeSparks.filter(spark => {
+          const elapsed = (now - spark.startTime) / 1000;
+          return elapsed < spark.life;
+        }).map(spark => ({
+          ...spark,
+          x: spark.x + spark.vx * deltaTime,
+          y: spark.y + spark.vy * deltaTime,
+        }));
+        
+        // Добавляем новые искры сзади трясущегося скиллчека (случайные позиции по краю)
+        if (Math.random() < 0.3) { // 30% шанс каждый кадр добавить искру
+          const angle = Math.random() * Math.PI * 2;
+          const edgeX = centerX + Math.cos(angle) * skillCheckRadius * 0.9;
+          const edgeY = centerY + Math.sin(angle) * skillCheckRadius * 0.9;
+          const sparkAngle = angle + Math.PI; // Искры летят наружу от центра
+          const speed = 30 + Math.random() * 50;
+          
+          updatedShakeSparks.push({
+            x: edgeX,
+            y: edgeY,
+            vx: Math.cos(sparkAngle) * speed,
+            vy: Math.sin(sparkAngle) * speed,
+            life: 0.2 + Math.random() * 0.15, // 200-350мс жизни
+            startTime: now
+          });
+        }
+        
+        setGameState(prev => ({
+          ...prev,
+          shakeSparks: updatedShakeSparks,
+        }));
+      }
     }
 
     // Проверяем, ушла ли стрелка за пределы зоны прохождения (провал скиллчека)
