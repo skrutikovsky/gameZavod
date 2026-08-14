@@ -175,9 +175,13 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
   return (
     <div 
-      ref={canvasRef}
       className="game-container relative w-full h-screen overflow-hidden cursor-crosshair"
     >
+      <canvas
+        ref={canvasRef}
+        className="absolute top-0 left-0 w-full h-full"
+      />
+      
       {/* Статистика игры с кнопкой назад */}
       <GameStats
         score={gameState.score}
