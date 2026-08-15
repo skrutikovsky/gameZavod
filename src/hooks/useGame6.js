@@ -6,8 +6,9 @@ export const TARGET_ZONE_PERCENT = 20; // 20% белая зона попадан
 export const ARROW_SPEED = 270; // Скорость вращения стрелки (градусов в секунду) (увеличено в 1.5 раза)
 export const SHAKE_AMOUNT = 5; // Амплитуда тряски в пикселях (землетрясение)
 export const SHAKE_DURATION = 300; // Длительность тряски в миллисекундах
+export const BASE_SCORE = 300; // Базовое количество очков за попадание
 
-// Шансы
+// Шансы (базовые, будут динамически меняться)
 export const CHANCE_CLOCKWISE = 0.85; // 85% по часовой стрелке
 export const CHANCE_OFFSET_CORNER = 0.20; // 20% смещение к углу
 export const CHANCE_SHAKE = 0.10; // 10% тряска
@@ -18,6 +19,22 @@ export const CHANCE_SLOW_ARROW = 0.10; // 10% медленная стрелка 
 export const CHANCE_FAST_ARROW = 0.10; // 10% быстрая стрелка x2
 export const CHANCE_LARGE_SKILLCHECK = 0.10; // 10% большой скиллчек x1.5
 export const CHANCE_SMALL_SKILLCHECK = 0.10; // 10% маленький скиллчек x0.75
+
+// Коэффициенты очков для модификаторов
+const MODIFIERS_SCORE_MULTIPLIERS = {
+  slow: 1.2,
+  fast: 1.5,
+  large: 0.8,
+  small: 2.0,
+  shake: 1.3,
+  mirror: 1.4,
+  moving: 1.6
+};
+
+// Прогрессия шансов
+const BASE_MODIFIER_CHANCE = 0.15; // Базовый шанс появления любого модификатора
+const CHANCE_INCREMENT_PER_STREAK = 0.05; // Увеличение шанса на 5% за каждое успешное попадание
+const MAX_MODIFIER_CHANCE = 0.85; // Максимальный шанс 85%
 
 export function useGame6({ onLevelComplete }) {
   const [gameState, setGameState] = useState({
@@ -44,6 +61,8 @@ export function useGame6({ onLevelComplete }) {
     arrowSpeedMultiplier: 1, // Множитель скорости стрелки (0.5, 1, 2)
     skillCheckSizeMultiplier: 1, // Множитель размера всего скиллчека (0.75, 1, 1.5)
     activeModifiers: [], // Список активных модификаторов для текущего скиллчека
+    streak: 0, // Текущая серия успешных попаданий
+    currentModifierChance: BASE_MODIFIER_CHANCE, // Текущий шанс модификаторов
   });
 
   const gameStateRef = useRef(null);
@@ -64,6 +83,9 @@ export function useGame6({ onLevelComplete }) {
 
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Получаем текущий шанс модификаторов на основе серии
+    const currentChance = Math.min(state.currentModifierChance, MAX_MODIFIER_CHANCE);
 
     // Определяем позицию (20% шанс смещения к углу)
     let positionX = 50; // Центр по умолчанию
@@ -113,26 +135,27 @@ export function useGame6({ onLevelComplete }) {
     const zoneMoving = Math.random() < CHANCE_MOVING_ZONE;
     const zoneMoveDirection = Math.random() < 0.5 ? 1 : -1; // Случайное направление
 
-    // Определяем скорость стрелки (10% медленно x0.5, 10% быстро x2)
+    // Определяем скорость стрелки и размер скиллчека с динамическим шансом
     let arrowSpeedMultiplier = 1;
     let skillCheckSizeMultiplier = 1;
     const activeModifiers = [];
     
+    // Используем динамический шанс для модификаторов
     const arrowRoll = Math.random();
-    if (arrowRoll < CHANCE_SLOW_ARROW) {
+    if (arrowRoll < currentChance * CHANCE_SLOW_ARROW / BASE_MODIFIER_CHANCE) {
       arrowSpeedMultiplier = 0.5;
       activeModifiers.push('slow');
-    } else if (arrowRoll < CHANCE_SLOW_ARROW + CHANCE_FAST_ARROW) {
+    } else if (arrowRoll < currentChance * (CHANCE_SLOW_ARROW + CHANCE_FAST_ARROW) / BASE_MODIFIER_CHANCE) {
       arrowSpeedMultiplier = 2;
       activeModifiers.push('fast');
     }
     
-    // Определяем размер скиллчека (10% большой x1.5, 10% маленький x0.75)
+    // Определяем размер скиллчека с динамическим шансом
     const sizeCheckRoll = Math.random();
-    if (sizeCheckRoll < CHANCE_LARGE_SKILLCHECK) {
+    if (sizeCheckRoll < currentChance * CHANCE_LARGE_SKILLCHECK / BASE_MODIFIER_CHANCE) {
       skillCheckSizeMultiplier = 1.5;
       activeModifiers.push('large');
-    } else if (sizeCheckRoll < CHANCE_LARGE_SKILLCHECK + CHANCE_SMALL_SKILLCHECK) {
+    } else if (sizeCheckRoll < currentChance * (CHANCE_LARGE_SKILLCHECK + CHANCE_SMALL_SKILLCHECK) / BASE_MODIFIER_CHANCE) {
       skillCheckSizeMultiplier = 0.75;
       activeModifiers.push('small');
     }
@@ -268,28 +291,49 @@ export function useGame6({ onLevelComplete }) {
     const centerY = (state.skillCheckPosition.y / 100) * canvas.height;
 
     if (hit) {
-      // ПОПАДАНИЕ: +300 очков, скилл чек исчезает сразу
+      // ПОПАДАНИЕ: вычисляем очки с учетом модификаторов
+      let scoreMultiplier = 1;
+      state.activeModifiers.forEach(mod => {
+        if (MODIFIERS_SCORE_MULTIPLIERS[mod]) {
+          scoreMultiplier *= MODIFIERS_SCORE_MULTIPLIERS[mod];
+        }
+      });
+      
+      const earnedScore = Math.round(BASE_SCORE * scoreMultiplier);
+      
+      // Увеличиваем серию и шанс модификаторов
+      const newStreak = state.streak + 1;
+      const newModifierChance = Math.min(
+        BASE_MODIFIER_CHANCE + (newStreak * CHANCE_INCREMENT_PER_STREAK),
+        MAX_MODIFIER_CHANCE
+      );
+      
       setGameState(prev => ({
         ...prev,
-        score: prev.score + 300,
+        score: prev.score + earnedScore,
         skillCheckActive: false,
         showFailAnimation: false,
+        streak: newStreak,
+        currentModifierChance: newModifierChance,
         floatingText: { 
-          text: '+300', 
+          text: `+${earnedScore}`, 
           x: centerX, 
           y: centerY, 
-          startTime: Date.now() 
+          startTime: Date.now(),
+          color: '#00ff00'
         },
       }));
       
       // Новый скилл чек без задержки (сразу)
       spawnSkillCheck();
     } else {
-      // ПРОВАЛ: стрелка не в зоне
+      // ПРОВАЛ: стрелка не в зоне - сбрасываем серию и шанс модификаторов
       setGameState(prev => ({
         ...prev,
         skillCheckActive: false,
         showFailAnimation: false,
+        streak: 0,
+        currentModifierChance: BASE_MODIFIER_CHANCE,
         floatingText: {
           text: '+0',
           x: centerX,
