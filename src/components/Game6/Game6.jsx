@@ -2,16 +2,15 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { useGame6, SKILL_CHECK_SIZE, TARGET_ZONE_PERCENT, SHAKE_AMOUNT, CHANCE_MOVING_ZONE, ARROW_SPEED } from '../../hooks/useGame6';
 import { GameStats } from '../UI/GameStats';
 
-const MODIFIER_DESCRIPTIONS = {
-  slow: 'Медленная стрелка (x0.5)',
-  fast: 'Быстрая стрелка (x2)',
-  large: 'Большой датчик (x1.5)',
-  small: 'Маленький датчик (x0.75)',
-  shake: 'Тряска',
-  mirror: 'Зеркало',
-  moving: 'Движущаяся зона',
-  bounce: 'Отскок'
-};
+const ALL_MODIFIERS = [
+  { key: 'slow', label: 'S', description: 'Медленная стрелка (x0.5)' },
+  { key: 'fast', label: 'F', description: 'Быстрая стрелка (x2)' },
+  { key: 'large', label: 'L', description: 'Большой датчик (x1.5)' },
+  { key: 'small', label: 'M', description: 'Маленький датчик (x0.75)' },
+  { key: 'shake', label: 'T', description: 'Тряска' },
+  { key: 'mirror', label: 'Z', description: 'Зеркало' },
+  { key: 'moving', label: 'D', description: 'Движущаяся зона' },
+];
 
 const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
   const {
@@ -267,7 +266,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       }
     }
 
-    // Рисуем floating text (+300 очков)
+    // Рисуем floating text (+300 очков или +0 красным при провале)
     if (floatingText) {
       const elapsed = Date.now() - floatingText.startTime;
       if (elapsed < 500) {
@@ -277,7 +276,9 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
         
         ctx.save();
         ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;
+        // Используем цвет из floatingText.color (красный для '+0', зеленый по умолчанию для '+300')
+        const textColor = floatingText.color || 'rgba(0, 255, 0, ${opacity})';
+        ctx.fillStyle = floatingText.color ? `${floatingText.color.replace('#', 'rgba(').replace(/(\w{2})(\w{2})(\w{2})/, '$1, $2, $3, ')}${opacity})` : `rgba(0, 255, 0, ${opacity})`;
         ctx.strokeStyle = `rgba(0, 0, 0, ${opacity})`;
         ctx.lineWidth = 3;
         ctx.textAlign = 'center';
@@ -407,38 +408,17 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       <div className="absolute top-20 right-4 bg-black/70 p-3 rounded-lg text-white text-xs z-30 pointer-events-none">
         <h3 className="font-bold mb-2 text-sm border-b border-gray-600 pb-1">Модификаторы:</h3>
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">S</span>
-            <span>Медленная стрелка (x0.5)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">F</span>
-            <span>Быстрая стрелка (x2)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">L</span>
-            <span>Большой датчик (x1.5)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">M</span>
-            <span>Маленький датчик (x0.75)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">T</span>
-            <span>Тряска</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">Z</span>
-            <span>Зеркало</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">D</span>
-            <span>Движущаяся зона</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">O</span>
-            <span>Отскок (30%)</span>
-          </div>
+          {ALL_MODIFIERS.map(modifier => {
+            const isActive = gameState.activeModifiers?.includes(modifier.key);
+            return (
+              <div key={modifier.key} className="flex items-center gap-2">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-500'}`}>
+                  {modifier.label}
+                </span>
+                <span className={isActive ? 'text-white' : 'text-gray-500'}>{modifier.description}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

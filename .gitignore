@@ -1,1 +1,50 @@
-(src/hooks/useGame6.js is a source file, and there are no build artifacts, dependencies, or temp files in the changes)
+```
+# Build artifacts
+dist/
+build/
+*.css
+*.js
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Compiled
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Testing
+.mypy_cache/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+```
