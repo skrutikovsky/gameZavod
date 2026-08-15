@@ -399,58 +399,44 @@ export function useGame6({ onLevelComplete }) {
       if (normalizedArrowAngle < 0) normalizedArrowAngle += 360;
 
       const zoneSize = TARGET_ZONE_PERCENT * state.zoneSizeMultiplier;
-      let zoneEnd = (state.targetZoneStart + zoneSize) % 360;
+      
+      // Для движущейся зоны используем текущую позицию зоны
+      let currentZoneStart = state.targetZoneStart;
+      let zoneEnd = (currentZoneStart + zoneSize) % 360;
 
       let inZone = false;
       
-      if (zoneEnd > state.targetZoneStart) {
-        inZone = normalizedArrowAngle >= state.targetZoneStart && normalizedArrowAngle <= zoneEnd;
+      if (zoneEnd > currentZoneStart) {
+        inZone = normalizedArrowAngle >= currentZoneStart && normalizedArrowAngle <= zoneEnd;
       } else {
-        inZone = normalizedArrowAngle >= state.targetZoneStart || normalizedArrowAngle <= zoneEnd;
+        inZone = normalizedArrowAngle >= currentZoneStart || normalizedArrowAngle <= zoneEnd;
       }
 
-      // Если стрелка была в зоне и теперь вышла за её пределы после прохождения - это провал
-      // Отслеживаем, прошла ли стрелка зону полностью
-      const hasPassedZone = (() => {
-        if (state.isClockwise) {
-          // По часовой стрелке: стрелка должна пройти от targetZoneStart до zoneEnd
-          return normalizedArrowAngle > zoneEnd && normalizedArrowAngle < state.targetZoneStart + 180;
-        } else {
-          // Против часовой стрелки (зеркально): стрелка идет от 0 в минус
-          const effectiveAngle = (360 - normalizedArrowAngle) % 360;
-          const effectiveZoneStart = (360 - state.targetZoneStart) % 360;
-          const effectiveZoneEnd = (360 - zoneEnd) % 360;
-          
-          if (effectiveZoneEnd > effectiveZoneStart) {
-            return effectiveAngle > effectiveZoneEnd;
-          } else {
-            return effectiveAngle > effectiveZoneEnd && effectiveAngle < effectiveZoneStart;
-          }
-        }
-      })();
-
       // Простая логика: если стрелка ушла далеко от зоны (пролетела мимо) - это провал
-      // Проверяем, находится ли стрелка в "зоне провала" - после целевой зоны
+      // Но ТОЛЬКО если зона НЕ движется. Для движущейся зоны провал только по нажатию игрока.
       const pastZoneThreshold = 30; // градусов после зоны считается пролетом
       let missed = false;
       
-      if (state.isClockwise) {
-        // По часовой: зона от targetZoneStart до zoneEnd
-        // Пролет если угол больше zoneEnd + порог но меньше чем полный круг до зоны
-        const afterZone = (zoneEnd + pastZoneThreshold) % 360;
-        if (zoneEnd + pastZoneThreshold < 360) {
-          missed = normalizedArrowAngle > zoneEnd + pastZoneThreshold && 
-                   normalizedArrowAngle < state.targetZoneStart;
+      // Для движущейся зоны отключаем автоматический провал - провал только по нажатию
+      if (!state.zoneMoving) {
+        if (state.isClockwise) {
+          // По часовой: зона от currentZoneStart до zoneEnd
+          // Пролет если угол больше zoneEnd + порог но меньше чем полный круг до зоны
+          const afterZone = (zoneEnd + pastZoneThreshold) % 360;
+          if (zoneEnd + pastZoneThreshold < 360) {
+            missed = normalizedArrowAngle > zoneEnd + pastZoneThreshold && 
+                     normalizedArrowAngle < currentZoneStart;
+          } else {
+            missed = normalizedArrowAngle > zoneEnd + pastZoneThreshold || 
+                     normalizedArrowAngle < currentZoneStart;
+          }
         } else {
-          missed = normalizedArrowAngle > zoneEnd + pastZoneThreshold || 
-                   normalizedArrowAngle < state.targetZoneStart;
+          // Против часовой: зона та же, но стрелка идет в обратную сторону
+          // Пролет если угол меньше currentZoneStart - порог
+          const beforeZone = (currentZoneStart - pastZoneThreshold + 360) % 360;
+          missed = normalizedArrowAngle < currentZoneStart - pastZoneThreshold &&
+                   normalizedArrowAngle > zoneEnd;
         }
-      } else {
-        // Против часовой: зона та же, но стрелка идет в обратную сторону
-        // Пролет если угол меньше targetZoneStart - порог
-        const beforeZone = (state.targetZoneStart - pastZoneThreshold + 360) % 360;
-        missed = normalizedArrowAngle < state.targetZoneStart - pastZoneThreshold &&
-                 normalizedArrowAngle > zoneEnd;
       }
 
       if (missed) {

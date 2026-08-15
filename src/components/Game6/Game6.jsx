@@ -266,38 +266,23 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
       }
     }
 
-    // Рисуем модификаторы полукругом слева от скиллчека
+    // Рисуем модификаторы вверху по центру в ряд
     if (gameState.skillCheckActive || gameState.showFailAnimation) {
-      const skillCheckRadius = (SKILL_CHECK_SIZE / 2) * gameState.skillCheckSizeMultiplier;
-      let centerX = (gameState.skillCheckPosition.x / 100) * width;
-      let centerY = (gameState.skillCheckPosition.y / 100) * height;
+      const modRowY = 50; // Позиция строки модификаторов сверху
+      const modSpacing = 45; // Расстояние между модификаторами
+      const totalWidth = (ALL_MODIFIERS.length - 1) * modSpacing;
+      const startX = width / 2 - totalWidth / 2;
       
-      // Позиция для модификаторов - слева от скиллчека
-      const modCenterX = centerX - skillCheckRadius - 40;
-      const modCenterY = centerY;
-      const modRadius = skillCheckRadius * 0.6;
-      
-      // Фильтруем только активные модификаторы для отображения слева
-      const activeMods = ALL_MODIFIERS.filter(mod => gameState.activeModifiers?.includes(mod.key));
-      
-      if (activeMods.length > 0) {
-        // Распределяем активные модификаторы полукругом слева (от -90 до 90 градусов относительно центра)
-        const angleStep = activeMods.length > 1 ? 180 / (activeMods.length - 1) : 0;
-        const startAngle = -90; // Начинаем сверху
+      ALL_MODIFIERS.forEach((mod, index) => {
+        const isActive = gameState.activeModifiers?.includes(mod.key);
+        const modX = startX + index * modSpacing;
+        const modY = modRowY;
         
-        activeMods.forEach((mod, index) => {
-          const angle = activeMods.length === 1 
-            ? 0 // Если один - рисуем прямо слева
-            : startAngle + angleStep * index;
-          const rad = angle * Math.PI / 180;
-          
-          const modX = modCenterX + Math.cos(rad) * modRadius;
-          const modY = modCenterY + Math.sin(rad) * modRadius;
-          
-          // Рисуем круг модификатора
-          ctx.beginPath();
-          ctx.arc(modX, modY, 18, 0, Math.PI * 2);
-          
+        // Рисуем круг модификатора
+        ctx.beginPath();
+        ctx.arc(modX, modY, 18, 0, Math.PI * 2);
+        
+        if (isActive) {
           // Активный модификатор - зелёный с свечением
           const modGradient = ctx.createRadialGradient(modX, modY, 0, modX, modY, 18);
           modGradient.addColorStop(0, '#4ade80');
@@ -308,17 +293,26 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
           // Свечение
           ctx.shadowColor = '#4ade80';
           ctx.shadowBlur = 10;
+          ctx.strokeStyle = '#4ade80';
+          ctx.lineWidth = 2;
           ctx.stroke();
           ctx.shadowBlur = 0;
-          
-          // Буква модификатора
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 14px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(mod.label, modX, modY);
-        });
-      }
+        } else {
+          // Неактивный модификатор - серый (дизейбл)
+          ctx.fillStyle = '#374151';
+          ctx.fill();
+          ctx.strokeStyle = '#6b7280';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        
+        // Буква модификатора
+        ctx.fillStyle = isActive ? '#fff' : '#9ca3af';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(mod.label, modX, modY);
+      });
     }
 
     // Рисуем floating text (+300 очков или +0 красным при провале)
