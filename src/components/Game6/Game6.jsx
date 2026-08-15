@@ -268,7 +268,7 @@ const Game6 = ({ level, onGameOver, onBack, onLevelComplete }) => {
 
     // Рисуем модификаторы вверху по центру в ряд
     if (gameState.skillCheckActive || gameState.showFailAnimation) {
-      const modRowY = 50; // Позиция строки модификаторов сверху
+      const modRowY = 80; // Позиция строки модификаторов сверху (опущено ниже чтобы не перекрывать хедером)
       const modSpacing = 45; // Расстояние между модификаторами
       const totalWidth = (ALL_MODIFIERS.length - 1) * modSpacing;
       const startX = width / 2 - totalWidth / 2;
